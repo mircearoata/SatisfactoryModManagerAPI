@@ -1,36 +1,31 @@
 import fs from 'fs';
 import path from 'path';
 import util from 'util';
-import semver from 'semver';
 import { Mod } from './mod';
-import { modCacheDir, ensureExists, copyFile } from './utils';
-import { downloadMod } from './ficsitApp';
+import {
+  modCacheDir, ensureExists, copyFile, downloadFile,
+} from './utils';
+import { getModDownloadLink } from './ficsitApp';
 
 import JSZip = require('jszip');
 
 export default class ModHandler {
-  satisfactoryPath: string;
+  private satisfactoryPath: string;
 
   constructor(satisfactoryPath: string) {
     this.satisfactoryPath = satisfactoryPath;
   }
 
-  // TODO
-  // eslint-disable-next-line class-methods-use-this
-  getSMLVersion(): string {
-    return '1.1.0';
-  }
-
   getModsDir(): string {
-    if (semver.satisfies(this.getSMLVersion(), '<2.0.0')) {
-      return path.join(this.satisfactoryPath, 'FactoryGame', 'Binaries', 'Win64', 'mods');
-    }
-    return path.join(this.satisfactoryPath, 'mods');
+    // SML 1.x
+    return path.join(this.satisfactoryPath, 'FactoryGame', 'Binaries', 'Win64', 'mods');
+    // SML 2.x
+    // return path.join(this.satisfactoryPath, 'mods');
   }
 
   async installMod(modID: string, version: string): Promise<void> {
     const modPath = await ModHandler.getCachedMod(modID, version);
-    ensureExists(this.getModsDir());
+    ensureExists(await this.getModsDir());
     copyFile(modPath, this.getModsDir());
   }
 
@@ -42,6 +37,16 @@ export default class ModHandler {
         fs.unlinkSync(fullPath);
       }
     });
+  }
+
+  async getInstalledMods(): Promise<Array<Mod>> {
+    const modsDir = await this.getModsDir();
+    const installedModsPromises = Array<Promise<Mod>>();
+    fs.readdirSync(modsDir).forEach((file) => {
+      const fullPath = path.join(modsDir, file);
+      installedModsPromises.push(ModHandler.getModFromFile(fullPath));
+    });
+    return Promise.all(installedModsPromises);
   }
 
   static cachedMods = new Array<Mod>();
@@ -57,11 +62,18 @@ export default class ModHandler {
       });
   }
 
+  static async downloadMod(modID: string, version: string): Promise<string> {
+    const downloadURL = await getModDownloadLink(modID, version);
+    const filePath = path.join(modCacheDir, `${modID}_${version}.zip`);
+    await downloadFile(downloadURL, filePath);
+    return filePath;
+  }
+
   static async getCachedMod(modID: string, version: string): Promise<string> {
     let modPath = ModHandler.cachedMods
       .find((mod) => mod.mod_id === modID && mod.version === version)?.path;
     if (!modPath) {
-      modPath = await downloadMod(modID, version);
+      modPath = await ModHandler.downloadMod(modID, version);
       ModHandler.cachedMods.push(await ModHandler.getModFromFile(modPath));
     }
     return modPath;

@@ -1,15 +1,10 @@
 /* eslint-disable import/prefer-default-export */
 import request from 'request-promise-native';
 
-import fs from 'fs';
-import path from 'path';
-import { modCacheDir } from './utils';
-
-
 const API_URL = 'https://api.ficsit.app';
 const GRAPHQL_API_URL = `${API_URL}/v2/query`;
 
-async function fiscitApiQuery(query: string,
+export async function fiscitApiQuery(query: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   variables?: { [key: string]: any }): Promise<{ [key: string]: any }> {
   try {
@@ -29,7 +24,7 @@ async function fiscitApiQuery(query: string,
   }
 }
 
-async function getModDownloadLink(modID: string, version: string): Promise<string> {
+export async function getModDownloadLink(modID: string, version: string): Promise<string> {
   const res = await fiscitApiQuery(`
   query($modID: ModID!, $version: String!){
     getMod(modId: $modID)
@@ -48,14 +43,4 @@ async function getModDownloadLink(modID: string, version: string): Promise<strin
   } else {
     throw new Error(`${modID}@${version} not found`);
   }
-}
-
-export async function downloadMod(modID: string, version: string): Promise<string> {
-  const downloadURL = await getModDownloadLink(modID, version);
-  const buffer: Buffer = await request(downloadURL, {
-    method: 'GET',
-    encoding: null,
-  });
-  fs.writeFileSync(path.join(modCacheDir, `${modID}_${version}.zip`), buffer);
-  return path.join(modCacheDir, `${modID}_${version}.zip`);
 }
