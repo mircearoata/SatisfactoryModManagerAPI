@@ -1,6 +1,6 @@
-import { getModFromZip } from './modHandler';
+import { loadCache, installMod } from './modHandler';
 
-getModFromZip('C:\\Program Files\\Games\\EpicGames\\SatisfactoryEarlyAccess\\mods\\UtilityMod.zip')
-  .then((mod) => {
-    console.log(mod.optional_dependencies);
+loadCache()
+  .then(() => {
+    installMod('2y5ShF2iaXAKQm', '1.0.0');
   });
