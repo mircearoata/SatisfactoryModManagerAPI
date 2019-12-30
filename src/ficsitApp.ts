@@ -1,3 +1,4 @@
+/* eslint-disable import/prefer-default-export */
 import request from 'request-promise-native';
 
 import fs from 'fs';
@@ -28,7 +29,7 @@ async function fiscitApiQuery(query: string,
   }
 }
 
-export async function getModDownloadLink(modID: string, version: string): Promise<string> {
+async function getModDownloadLink(modID: string, version: string): Promise<string> {
   const res = await fiscitApiQuery(`
   query($modID: ModID!, $version: String!){
     getMod(modId: $modID)

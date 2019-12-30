@@ -4,7 +4,7 @@ import fs from 'fs';
 
 export const appName = 'SatisfactoryModLauncher';
 
-function ensureExists(folder: string): void {
+export function ensureExists(folder: string): void {
   fs.mkdirSync(folder, { recursive: true });
 }
 
@@ -14,3 +14,7 @@ export const cacheDir = path.join(getCacheFolder(), appName);
 ensureExists(cacheDir);
 export const modCacheDir = path.join(cacheDir, 'mods');
 ensureExists(modCacheDir);
+
+export function copyFile(file: string, toDir: string): void {
+  fs.copyFileSync(file, path.join(toDir, path.basename(file)));
+}

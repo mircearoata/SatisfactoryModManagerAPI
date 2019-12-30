@@ -26,9 +26,11 @@
   "dependencies": {
     "@types/jszip": "^3.1.6",
     "@types/request-promise-native": "^1.0.17",
+    "@types/semver": "^6.2.0",
     "jszip": "^3.2.2",
     "platform-folders": "^0.4.1",
     "request": "^2.88.0",
-    "request-promise-native": "^1.0.8"
+    "request-promise-native": "^1.0.8",
+    "semver": "^7.1.1"
   }
 }

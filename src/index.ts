@@ -1,6 +1,7 @@
-import { loadCache, installMod } from './modHandler';
+import ModHandler from './modHandler';
 
-loadCache()
+ModHandler.getCachedMods()
   .then(() => {
-    installMod('2y5ShF2iaXAKQm', '1.0.0');
+    const modHandler = new ModHandler('C:\\Program Files\\Games\\EpicGames\\SatisfactoryEarlyAccess');
+    modHandler.uninstallMod('2y5ShF2iaXAKQm', '1.0.0');
   });
