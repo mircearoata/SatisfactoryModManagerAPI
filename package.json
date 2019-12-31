@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "description": "API to manage installed Satisfactory mods",
   "main": "build/index.js",
+  "types": "build/index.d.ts",
   "scripts": {
     "lint": "tsc --noEmit && eslint \"**/*.{js,ts}\" --quiet --fix",
     "build:ts": "tsc",
@@ -10,10 +11,16 @@
     "watch:ts": "tsc -w",
     "debug": "nodemon --watch src/ -e ts --exec yarn serve || exit 1",
     "serve": "yarn build && node build/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "yarn build"
   },
   "author": "Mircea Roata",
   "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mircearoata/SatisfactoryModLauncherAPI.git"
+  },
+  "homepage": "https://github.com/mircearoata/SatisfactoryModLauncherAPI",
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^2.13.0",
     "@typescript-eslint/parser": "^2.13.0",
