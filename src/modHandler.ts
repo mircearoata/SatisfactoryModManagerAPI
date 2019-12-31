@@ -1,15 +1,32 @@
 import fs from 'fs';
 import path from 'path';
 import util from 'util';
-import { Mod } from './mod';
+import JSZip from 'jszip';
 import {
   modCacheDir, ensureExists, copyFile, downloadFile,
 } from './utils';
 import { getModDownloadLink } from './ficsitApp';
 
-import JSZip = require('jszip');
+export interface Mod {
+  mod_id: string;
+  mod_reference: string;
+  name: string;
+  version: string;
+  description: string;
+  authors: Array<string>;
+  objects: Array<ModObject>;
+  dependencies?: object;
+  optional_dependencies?: object;
+  path?: string;
+}
 
-export default class ModHandler {
+export interface ModObject {
+  path: string;
+  type: string;
+  metadata?: object;
+}
+
+export class ModHandler {
   private satisfactoryPath: string;
 
   constructor(satisfactoryPath: string) {
@@ -49,7 +66,8 @@ export default class ModHandler {
     return Promise.all(installedModsPromises);
   }
 
-  static cachedMods = new Array<Mod>();
+  private static cachedMods = new Array<Mod>();
+  private static cacheLoaded = false;
 
   static async getModFromFile(modPath: string): Promise<Mod> {
     return util.promisify(fs.readFile)(modPath)
@@ -70,26 +88,34 @@ export default class ModHandler {
   }
 
   static async getCachedMod(modID: string, version: string): Promise<string> {
-    let modPath = ModHandler.cachedMods
+    let modPath = (await ModHandler.getCachedMods())
       .find((mod) => mod.mod_id === modID && mod.version === version)?.path;
     if (!modPath) {
       modPath = await ModHandler.downloadMod(modID, version);
-      ModHandler.cachedMods.push(await ModHandler.getModFromFile(modPath));
+      await ModHandler.addModToCache(modPath);
     }
     return modPath;
   }
 
   static async getCachedMods(): Promise<Array<Mod>> {
-    if (ModHandler.cachedMods.length !== 0) { return ModHandler.cachedMods; }
-    const cachePromises = Array<Promise<Mod>>();
+    if (!ModHandler.cacheLoaded) {
+      await ModHandler.loadCache();
+    }
+    return ModHandler.cachedMods;
+  }
+
+  static async loadCache(): Promise<void> {
+    ModHandler.cacheLoaded = true;
+    ModHandler.cachedMods = new Array<Mod>();
+    const cacheAddPromises = Array<Promise<void>>();
     fs.readdirSync(modCacheDir).forEach((file) => {
       const fullPath = path.join(modCacheDir, file);
-      cachePromises.push(ModHandler.getModFromFile(fullPath));
+      cacheAddPromises.push(ModHandler.addModToCache(fullPath));
     });
-    ModHandler.cachedMods.length = 0;
-    (await Promise.all(cachePromises)).forEach((mod) => {
-      ModHandler.cachedMods.push(mod);
-    });
-    return ModHandler.cachedMods;
+    await Promise.all(cacheAddPromises);
+  }
+
+  private static async addModToCache(modFile: string): Promise<void> {
+    ModHandler.cachedMods.push(await ModHandler.getModFromFile(modFile));
   }
 }

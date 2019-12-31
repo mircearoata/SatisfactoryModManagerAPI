@@ -2,7 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import { downloadFile } from './utils';
 
-export default class SMLHandler {
+export class SMLHandler {
   satisfactoryPath: string;
   constructor(satisfactoryPath: string) {
     this.satisfactoryPath = satisfactoryPath;

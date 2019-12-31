@@ -1,10 +1,9 @@
-import ModHandler from './modHandler';
-import SMLHandler from './smlHandler';
-import { Mod } from './mod';
+import { ModHandler, Mod } from './modHandler';
+import { SMLHandler } from './smlHandler';
 
 // TODO: manifests
 
-export default class SatisfactoryInstall {
+export class SatisfactoryInstall {
   satisfactoryPath: string;
   modHandler: ModHandler;
   smlHandler: SMLHandler;

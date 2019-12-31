@@ -35,6 +35,7 @@ module.exports = {
     ],
     'linebreak-style': 0,
     'dot-notation': 0,
+    'import/prefer-default-export': 0,
     'lines-between-class-members': [
       'error',
       'always',

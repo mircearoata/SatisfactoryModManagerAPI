@@ -1,4 +1,3 @@
-/* eslint-disable import/prefer-default-export */
 import request from 'request-promise-native';
 
 const API_URL = 'https://api.ficsit.app';
