@@ -43,3 +43,91 @@ export async function getModDownloadLink(modID: string, version: string): Promis
     throw new Error(`${modID}@${version} not found`);
   }
 }
+
+export interface FicsitAppMod {
+  name: string;
+  short_description: string;
+  full_description: string;
+  logo: string;
+  source_url: string;
+  views: number;
+  downloads: number;
+  hotness: number;
+  popularity: number;
+  last_version_date: Date;
+  authors: Array<FicsitAppAuthor>;
+  versions: Array<FicsitAppVersion>;
+}
+
+export interface FicsitAppVersion {
+  mod_id: string;
+  version: string;
+  sml_version: string;
+  changelog: string;
+  downloads: string;
+  stability: 'alpha' | 'beta' | 'release';
+  link: string;
+}
+
+export interface FicsitAppAuthor {
+  mod_id: string;
+  user: FicsitAppUser;
+  role: string;
+}
+
+export interface FicsitAppUser {
+  username: string;
+  avatar: string;
+}
+
+let lastModsFetch = new Date(0, 0, 0);
+const fetchCooldown = 5 * 60 * 1000;
+let cachedAvailableMods: Array<FicsitAppMod>;
+
+export async function getAvailableMods(): Promise<Array<FicsitAppMod>> {
+  if (Date.now() - lastModsFetch.getTime() > fetchCooldown) {
+    const res = await fiscitApiQuery(`
+    {
+      getMods(filter: {
+        limit: 100
+      })
+      {
+        mods
+        {
+          name,
+          short_description,
+          full_description,
+          id,
+          authors
+          {
+            mod_id,
+            user
+            {
+              username,
+              avatar
+            },
+            role
+          },
+          versions
+          {
+            mod_id,
+            version,
+            sml_version,
+            changelog,
+            downloads,
+            stability,
+            link
+          }
+        }
+      }
+    }
+    `);
+    if (res.errors) {
+      throw res.errors;
+    } else {
+      cachedAvailableMods = res.getMods.mods;
+      lastModsFetch = new Date();
+    }
+  }
+  return cachedAvailableMods;
+}

@@ -1,5 +1,6 @@
 import { ModHandler, Mod } from './modHandler';
 import { SMLHandler } from './smlHandler';
+import { FicsitAppVersion } from './ficsitApp';
 
 // TODO: manifests
 
@@ -18,8 +19,16 @@ export class SatisfactoryInstall {
     return this.modHandler.installMod(modID, version);
   }
 
+  async installFicsitAppMod(modVersion: FicsitAppVersion): Promise<void> {
+    return this.modHandler.installMod(modVersion.mod_id, modVersion.version);
+  }
+
   async uninstallMod(modID: string, version: string): Promise<void> {
     return this.modHandler.uninstallMod(modID, version);
+  }
+
+  async uninstallFicsitAppMod(modVersion: FicsitAppVersion): Promise<void> {
+    return this.modHandler.uninstallMod(modVersion.mod_id, modVersion.version);
   }
 
   async getInstalledMods(): Promise<Array<Mod>> {
