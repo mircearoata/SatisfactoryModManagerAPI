@@ -17,6 +17,7 @@ export const modCacheDir = path.join(cacheDir, 'mods');
 ensureExists(modCacheDir);
 
 export function copyFile(file: string, toDir: string): void {
+  ensureExists(toDir);
   fs.copyFileSync(file, path.join(toDir, path.basename(file)));
 }
 
@@ -26,4 +27,9 @@ export async function downloadFile(url: string, file: string): Promise<void> {
     encoding: null,
   });
   fs.writeFileSync(file, buffer);
+}
+
+export async function forEachAsync<T>(array: Array<T>,
+  callback: {(value: T, index: number, array: T[]): void}): Promise<void> {
+  await Promise.all(array.map(callback));
 }

@@ -3,7 +3,7 @@ import path from 'path';
 import util from 'util';
 import JSZip from 'jszip';
 import {
-  modCacheDir, ensureExists, copyFile, downloadFile,
+  modCacheDir, copyFile, downloadFile, forEachAsync,
 } from './utils';
 import { getModDownloadLink } from './ficsitApp';
 
@@ -42,27 +42,32 @@ export class ModHandler {
 
   async installMod(modID: string, version: string): Promise<void> {
     const modPath = await ModHandler.getCachedMod(modID, version);
-    ensureExists(await this.getModsDir());
-    copyFile(modPath, this.getModsDir());
+    const modsDir = this.getModsDir();
+    copyFile(modPath, modsDir);
   }
 
   async uninstallMod(modID: string, version: string): Promise<void> {
-    fs.readdirSync(this.getModsDir()).forEach(async (file) => {
-      const fullPath = path.join(this.getModsDir(), file);
-      const mod = await ModHandler.getModFromFile(fullPath);
-      if (mod.mod_id === modID && mod.version === version) {
-        fs.unlinkSync(fullPath);
-      }
-    });
+    const modsDir = this.getModsDir();
+    if (fs.existsSync(modsDir)) {
+      await forEachAsync(fs.readdirSync(modsDir), async (file) => {
+        const fullPath = path.join(modsDir, file);
+        const mod = await ModHandler.getModFromFile(fullPath);
+        if (mod.mod_id === modID && mod.version === version) {
+          fs.unlinkSync(fullPath);
+        }
+      });
+    }
   }
 
   async getInstalledMods(): Promise<Array<Mod>> {
-    const modsDir = await this.getModsDir();
+    const modsDir = this.getModsDir();
     const installedModsPromises = Array<Promise<Mod>>();
-    fs.readdirSync(modsDir).forEach((file) => {
-      const fullPath = path.join(modsDir, file);
-      installedModsPromises.push(ModHandler.getModFromFile(fullPath));
-    });
+    if (fs.existsSync(modsDir)) {
+      fs.readdirSync(modsDir).forEach((file) => {
+        const fullPath = path.join(modsDir, file);
+        installedModsPromises.push(ModHandler.getModFromFile(fullPath));
+      });
+    }
     return Promise.all(installedModsPromises);
   }
 
