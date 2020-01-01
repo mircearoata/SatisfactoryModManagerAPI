@@ -1,6 +1,9 @@
 import path from 'path';
 import fs from 'fs';
+import bindings from 'bindings';
 import { downloadFile } from './utils';
+
+const smlVersionNative = bindings('smlVersion');
 
 export class SMLHandler {
   satisfactoryPath: string;
@@ -8,10 +11,8 @@ export class SMLHandler {
     this.satisfactoryPath = satisfactoryPath;
   }
 
-  // eslint-disable-next-line class-methods-use-this
   async getSMLVersion(): Promise<string | undefined> {
-    // TODO
-    return undefined;
+    return smlVersionNative.getSMLVersion(this.satisfactoryPath);
   }
 
   async installSML(version: string): Promise<void> {
