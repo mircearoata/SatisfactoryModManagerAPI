@@ -44,6 +44,33 @@ export async function getModDownloadLink(modID: string, version: string): Promis
   }
 }
 
+interface FicsitAppFetch {
+  time: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: any;
+}
+
+const cachedFetch: {[key: string]: FicsitAppFetch} = {};
+const fetchCooldown = 5 * 60 * 1000;
+
+function cooldownPassed(action: string): boolean {
+  return cachedFetch[action] ? Date.now() - cachedFetch[action].time > fetchCooldown : true;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getCache(action: string): any {
+  return cachedFetch[action]?.data;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function setCache(action: string, data: any): void {
+  cachedFetch[action] = {
+    time: Date.now(),
+    data,
+  };
+}
+
+
 export interface FicsitAppMod {
   name: string;
   short_description: string;
@@ -80,12 +107,8 @@ export interface FicsitAppUser {
   avatar: string;
 }
 
-let lastModsFetch = new Date(0, 0, 0);
-const fetchCooldown = 5 * 60 * 1000;
-let cachedAvailableMods: Array<FicsitAppMod>;
-
 export async function getAvailableMods(): Promise<Array<FicsitAppMod>> {
-  if (Date.now() - lastModsFetch.getTime() > fetchCooldown) {
+  if (cooldownPassed('getAvailableMods')) {
     const res = await fiscitApiQuery(`
     {
       getMods(filter: {
@@ -125,9 +148,47 @@ export async function getAvailableMods(): Promise<Array<FicsitAppMod>> {
     if (res.errors) {
       throw res.errors;
     } else {
-      cachedAvailableMods = res.getMods.mods;
-      lastModsFetch = new Date();
+      setCache('getAvailableMods', res.getMods.mods);
     }
   }
-  return cachedAvailableMods;
+  return getCache('getAvailableMods');
+}
+
+
+export interface FicsitAppSMLVersion {
+  id: string;
+  version: string;
+  satisfactory_version: number;
+  stability: string;
+  link: string;
+  changelog: string;
+  date: string;
+}
+
+export async function getAvailableSMLVersions(): Promise<Array<FicsitAppSMLVersion>> {
+  if (cooldownPassed('getSMLVersions')) {
+    const res = await fiscitApiQuery(`
+    {
+      getSMLVersions(filter: {limit: 100})
+      {
+        sml_versions
+        {
+          id,
+          version,
+          satisfactory_version
+          stability,
+          link,
+          changelog,
+          date
+        }
+      }
+    }
+    `);
+    if (res.errors) {
+      throw res.errors;
+    } else {
+      setCache('getSMLVersions', res.getSMLVersions.sml_versions);
+    }
+  }
+  return getCache('getSMLVersions');
 }
