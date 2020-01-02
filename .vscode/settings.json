@@ -53,6 +53,8 @@
     "xlocbuf": "cpp",
     "xlocmes": "cpp",
     "xlocmon": "cpp",
-    "xloctime": "cpp"
+    "xloctime": "cpp",
+    "iterator": "cpp",
+    "sstream": "cpp"
   }
 }
