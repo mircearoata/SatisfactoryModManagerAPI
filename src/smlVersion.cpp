@@ -9,27 +9,27 @@
 #include <filesystem>
 
 #ifdef _WIN32
-const std::experimental::filesystem::path SML_1_X_RELATIVE_PATH = std::experimental::filesystem::path("FactoryGame") / "Binaries" / "Win64" / "xinput1_3.dll";
-const std::experimental::filesystem::path SML_2_X_RELATIVE_PATH = std::experimental::filesystem::path("loaders") / "UE4-SML-Win64-Shipping.dll";
+const std::filesystem::path SML_1_X_RELATIVE_PATH = std::filesystem::path("FactoryGame") / "Binaries" / "Win64" / "xinput1_3.dll";
+const std::filesystem::path SML_2_X_RELATIVE_PATH = std::filesystem::path("loaders") / "UE4-SML-Win64-Shipping.dll";
 #endif
 
 void GetSMLVersion(const v8::FunctionCallbackInfo<v8::Value>& args)
 {
   v8::Isolate* isolate = args.GetIsolate();
   v8::String::Utf8Value arg0(isolate, args[0]);
-  std::experimental::filesystem::path satisfactoryPath = std::string(*arg0);
+  std::filesystem::path satisfactoryPath = std::string(*arg0);
   std::string smlVersion;
   bool smlFound = false;
 
-#ifdef _WIN32
-  std::experimental::filesystem::path fullSML_1_x_path = satisfactoryPath / SML_1_X_RELATIVE_PATH;
-  std::experimental::filesystem::path fullSML_2_x_path = satisfactoryPath / SML_2_X_RELATIVE_PATH;
+  std::filesystem::path fullSML_1_x_path = satisfactoryPath / SML_1_X_RELATIVE_PATH;
+  std::filesystem::path fullSML_2_x_path = satisfactoryPath / SML_2_X_RELATIVE_PATH;
 
-#ifdef UNICODE
+#ifdef _WIN32
+  #ifdef UNICODE
   HMODULE dll = LoadLibraryEx(fullSML_1_x_path.wstring().c_str(), NULL, DONT_RESOLVE_DLL_REFERENCES);
-#else
+  #else
   HMODULE dll = LoadLibraryEx(fullSML_1_x_path.string().c_str(), NULL, DONT_RESOLVE_DLL_REFERENCES);
-#endif
+  #endif
   if (GetLastError() == 0) {
     char* smlDllVersion = (char*) GetProcAddress(dll, "smlVersion");
     if (smlDllVersion) {
