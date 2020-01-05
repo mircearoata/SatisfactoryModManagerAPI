@@ -5,7 +5,10 @@
       "sources": [ "src/smlVersion.cpp" ],
       "cflags": [
         "-std=c++17"
-      ], 
+      ],
+      "cflags_cc": [
+        "-std=c++17"
+      ],
       "msvs_settings": {
         "VCCLCompilerTool": {
           "AdditionalOptions": [ "/std:c++17", ],
