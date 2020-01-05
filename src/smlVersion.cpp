@@ -2,7 +2,8 @@
 
 #ifdef _WIN32
 #include <Windows.h>
-#elif __LINUX__
+#elif __linux__
+// TODO linux stuff
 #else
 #error Satisfactory only supports Windows, so other OSs are not yet supported by SatisfactoryModLauncher
 #endif
