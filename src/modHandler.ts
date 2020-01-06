@@ -7,6 +7,63 @@ import {
 } from './utils';
 import { getModDownloadLink } from './ficsitApp';
 
+let cachedMods = new Array<Mod>();
+let cacheLoaded = false;
+
+export async function getModFromFile(modPath: string): Promise<Mod> {
+  return util.promisify(fs.readFile)(modPath)
+    .then((data) => JSZip.loadAsync(data))
+    .then((zip) => zip.file('data.json').async('text'))
+    .then((data) => {
+      const mod = JSON.parse(data) as Mod;
+      mod.path = modPath;
+      return mod;
+    });
+}
+
+export async function addModToCache(modFile: string): Promise<void> {
+  cachedMods.push(await getModFromFile(modFile));
+}
+
+export async function loadCache(): Promise<void> {
+  cacheLoaded = true;
+  cachedMods = new Array<Mod>();
+  const cacheAddPromises = Array<Promise<void>>();
+  fs.readdirSync(modCacheDir).forEach((file) => {
+    const fullPath = path.join(modCacheDir, file);
+    cacheAddPromises.push(addModToCache(fullPath));
+  });
+  await Promise.all(cacheAddPromises);
+}
+
+export async function downloadMod(modID: string, version: string): Promise<string> {
+  const downloadURL = await getModDownloadLink(modID, version);
+  const filePath = path.join(modCacheDir, `${modID}_${version}.zip`);
+  await downloadFile(downloadURL, filePath);
+  return filePath;
+}
+
+export async function getCachedMods(): Promise<Array<Mod>> {
+  if (!cacheLoaded) {
+    await loadCache();
+  }
+  return cachedMods;
+}
+
+export async function getCachedModFile(modID: string, version: string): Promise<string> {
+  let modPath = (await getCachedMods())
+    .find((mod) => mod.mod_id === modID && mod.version === version)?.path;
+  if (!modPath) {
+    modPath = await downloadMod(modID, version);
+    await addModToCache(modPath);
+  }
+  return modPath;
+}
+
+export async function getCachedMod(modID: string, version: string): Promise<Mod> {
+  return getModFromFile(await getCachedModFile(modID, version));
+}
+
 export interface Mod {
   mod_id: string;
   mod_reference: string;
@@ -41,7 +98,7 @@ export class ModHandler {
   }
 
   async installMod(modID: string, version: string): Promise<void> {
-    const modPath = await ModHandler.getCachedModFile(modID, version);
+    const modPath = await getCachedModFile(modID, version);
     const modsDir = this.getModsDir();
     copyFile(modPath, modsDir);
   }
@@ -51,7 +108,7 @@ export class ModHandler {
     if (fs.existsSync(modsDir)) {
       await forEachAsync(fs.readdirSync(modsDir), async (file) => {
         const fullPath = path.join(modsDir, file);
-        const mod = await ModHandler.getModFromFile(fullPath);
+        const mod = await getModFromFile(fullPath);
         if (mod.mod_id === modID) {
           fs.unlinkSync(fullPath);
         }
@@ -65,66 +122,9 @@ export class ModHandler {
     if (fs.existsSync(modsDir)) {
       fs.readdirSync(modsDir).forEach((file) => {
         const fullPath = path.join(modsDir, file);
-        installedModsPromises.push(ModHandler.getModFromFile(fullPath));
+        installedModsPromises.push(getModFromFile(fullPath));
       });
     }
     return Promise.all(installedModsPromises);
-  }
-
-  private static cachedMods = new Array<Mod>();
-  private static cacheLoaded = false;
-
-  static async getModFromFile(modPath: string): Promise<Mod> {
-    return util.promisify(fs.readFile)(modPath)
-      .then((data) => JSZip.loadAsync(data))
-      .then((zip) => zip.file('data.json').async('text'))
-      .then((data) => {
-        const mod = JSON.parse(data) as Mod;
-        mod.path = modPath;
-        return mod;
-      });
-  }
-
-  static async downloadMod(modID: string, version: string): Promise<string> {
-    const downloadURL = await getModDownloadLink(modID, version);
-    const filePath = path.join(modCacheDir, `${modID}_${version}.zip`);
-    await downloadFile(downloadURL, filePath);
-    return filePath;
-  }
-
-  static async getCachedModFile(modID: string, version: string): Promise<string> {
-    let modPath = (await ModHandler.getCachedMods())
-      .find((mod) => mod.mod_id === modID && mod.version === version)?.path;
-    if (!modPath) {
-      modPath = await ModHandler.downloadMod(modID, version);
-      await ModHandler.addModToCache(modPath);
-    }
-    return modPath;
-  }
-
-  static async getCachedMod(modID: string, version: string): Promise<Mod> {
-    return ModHandler.getModFromFile(await ModHandler.getCachedModFile(modID, version));
-  }
-
-  static async getCachedMods(): Promise<Array<Mod>> {
-    if (!ModHandler.cacheLoaded) {
-      await ModHandler.loadCache();
-    }
-    return ModHandler.cachedMods;
-  }
-
-  static async loadCache(): Promise<void> {
-    ModHandler.cacheLoaded = true;
-    ModHandler.cachedMods = new Array<Mod>();
-    const cacheAddPromises = Array<Promise<void>>();
-    fs.readdirSync(modCacheDir).forEach((file) => {
-      const fullPath = path.join(modCacheDir, file);
-      cacheAddPromises.push(ModHandler.addModToCache(fullPath));
-    });
-    await Promise.all(cacheAddPromises);
-  }
-
-  private static async addModToCache(modFile: string): Promise<void> {
-    ModHandler.cachedMods.push(await ModHandler.getModFromFile(modFile));
   }
 }

@@ -1,7 +1,7 @@
 import { satisfies } from 'semver';
 import { removeArrayElement, removeArrayElementWhere, forEachAsync } from './utils';
 import { findAllVersionsMatchingAll } from './ficsitApp';
-import { ModHandler } from './modHandler';
+import { getCachedMod } from './modHandler';
 
 export interface ItemVersionList {
   [id: string]: string;
@@ -27,6 +27,19 @@ export interface LockfileItemData {
   dependencies: ItemVersionList;
 }
 
+export async function getItemData(id: string, version: string): Promise<LockfileGraphNode> {
+  if (id === 'SML') {
+    return { id, version, dependencies: {} };
+  }
+  // TODO: Get data from ficsit.app so the mod doesn't have to be downloaded
+  const modData = await getCachedMod(id, version);
+  return {
+    id: modData.mod_id,
+    version: modData.version,
+    dependencies: modData.dependencies ? modData.dependencies : {},
+  };
+}
+
 export class LockfileGraph {
   nodes = new Array<LockfileGraphNode>();
   edges = new Array<LockfileGraphEdge>();
@@ -47,20 +60,6 @@ export class LockfileGraph {
       this.createEdges(node);
     });
     this.rootNodes = this.nodes.filter((node) => this.getDependants(node).length === 0);
-  }
-
-  static async getItemData(id: string, version: string):
-        Promise<LockfileGraphNode> {
-    if (id === 'SML') {
-      return { id, version, dependencies: {} };
-    }
-    // TODO: Get data from ficsit.app so the mod doesn't have to be downloaded
-    const modData = await ModHandler.getCachedMod(id, version);
-    return {
-      id: modData.mod_id,
-      version: modData.version,
-      dependencies: modData.dependencies ? modData.dependencies : {},
-    };
   }
 
   async createEdges(node: LockfileGraphNode): Promise<boolean> {
@@ -84,7 +83,7 @@ export class LockfileGraph {
             const version = matchingDependencyVersions.pop();
             if (!version) { break; }
             // eslint-disable-next-line no-await-in-loop
-            const itemData = await LockfileGraph.getItemData(dependencyID, version);
+            const itemData = await getItemData(dependencyID, version);
             // eslint-disable-next-line no-await-in-loop
             if (await this.add(itemData)) {
               found = true;
@@ -163,12 +162,12 @@ export function lockfileDifference(oldLockfile: Lockfile, newLockfile: Lockfile)
   const uninstall = [] as Array<string>;
   const install = {} as ItemVersionList;
   Object.keys(oldLockfile).forEach((id) => {
-    if (oldLockfile[id] !== newLockfile[id]) {
+    if (!(id in newLockfile) || oldLockfile[id].version !== newLockfile[id].version) {
       uninstall.push(id);
     }
   });
   Object.keys(newLockfile).forEach((id) => {
-    if (oldLockfile[id] !== newLockfile[id]) {
+    if (!(id in oldLockfile) || oldLockfile[id].version !== newLockfile[id].version) {
       install[id] = newLockfile[id].version;
     }
   });

@@ -5,7 +5,7 @@
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "scripts": {
-    "lint": "tsc --noEmit && eslint \"**/*.{js,ts}\" --quiet --fix",
+    "lint": "tsc --noEmit && eslint \"**/*.{js,ts}\" --fix",
     "build:ts": "tsc",
     "build": "yarn lint && node-gyp build && yarn build:ts",
     "watch:ts": "tsc -w",

@@ -1,7 +1,8 @@
 const path = require('path');
 const fs = require('fs');
 const assert = require('assert');
-const { SatisfactoryInstall } = require('../');
+const { SatisfactoryInstall, getManifestFilePath } = require('../');
+const ManifestHandler = require('../lib/manifest');
 
 const installPath = path.join(__dirname, 'TestSatisfactoryInstall');
 
@@ -47,6 +48,7 @@ async function main() {
     console.error(e);
   } finally {
     fs.rmdirSync(installPath, { recursive: true });
+    fs.rmdirSync(getManifestFilePath(installPath), { recursive: true });
   }
 }
 
