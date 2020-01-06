@@ -2,6 +2,8 @@
 
 #ifdef _WIN32
 #include <Windows.h>
+#elif __linux__
+    // TODO linux stuff
 #else
 #error Satisfactory only supports Windows, so other OSs are not yet supported by SatisfactoryModLauncher
 #endif
@@ -11,8 +13,16 @@
 #include "picosha2.h"
 
 #ifdef _WIN32
-const std::filesystem::path SML_1_X_RELATIVE_PATH = std::filesystem::path("FactoryGame") / "Binaries" / "Win64" / "xinput1_3.dll";
-const std::filesystem::path SML_2_X_RELATIVE_PATH = std::filesystem::path("loaders") / "UE4-SML-Win64-Shipping.dll";
+    const std::filesystem::path SML_1_X_RELATIVE_PATH = std::filesystem::path("FactoryGame") / "Binaries" / "Win64" / "xinput1_3.dll";
+    const std::filesystem::path SML_2_X_RELATIVE_PATH = std::filesystem::path("loaders") / "UE4-SML-Win64-Shipping.dll";
+#elif __linux__
+    // TODO linux SML path
+    const std::filesystem::path SML_1_X_RELATIVE_PATH = std::filesystem::path("");
+    const std::filesystem::path SML_2_X_RELATIVE_PATH = std::filesystem::path("");
+#endif
+
+
+
 const std::map<std::string, std::string> knownSMLHashes = {  
 	{"v1.0.0-pr1", "af8f291c9f9534fb0972e976d9e87807126ec7976fd1eb32af9438e34cb0316d"},
 	{"v1.0.0-pr2", "ce0e923f44623626dc500138bf400f030f2175765f7dd33aa84b9611bf36ca1b"},
@@ -24,13 +34,14 @@ const std::map<std::string, std::string> knownSMLHashes = {
 	{"1.0.0",      "29ce7f569ae30c62758adf4dead521b1b16433192f280ab62b59fd8f6dc0e8c7"},
 	{"1.0.1",      "d15894a93db6a14d3c036a9e0f1da5d6e4b97e94f25374305b7ffdbcd3a5ebd9"}
 };
-#endif
 
-std::string hashFile(std::filesystem::path filePath) {
-    std::ifstream file(filePath.string().c_str(), std::ios::binary);
-    
-    return picosha2::hash256_hex_string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
-}
+#ifdef _WIN32
+    std::string hashFile(std::filesystem::path filePath) {
+        std::ifstream file(filePath.string().c_str(), std::ios::binary);
+        
+        return picosha2::hash256_hex_string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+    }
+#endif
 
 void GetSMLVersion(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
