@@ -15,8 +15,8 @@ export interface Mod {
   description: string;
   authors: Array<string>;
   objects: Array<ModObject>;
-  dependencies?: object;
-  optional_dependencies?: object;
+  dependencies?: { [modID: string]: string };
+  optional_dependencies?: { [modID: string]: string };
   path?: string;
 }
 
@@ -41,18 +41,18 @@ export class ModHandler {
   }
 
   async installMod(modID: string, version: string): Promise<void> {
-    const modPath = await ModHandler.getCachedMod(modID, version);
+    const modPath = await ModHandler.getCachedModFile(modID, version);
     const modsDir = this.getModsDir();
     copyFile(modPath, modsDir);
   }
 
-  async uninstallMod(modID: string, version: string): Promise<void> {
+  async uninstallMod(modID: string): Promise<void> {
     const modsDir = this.getModsDir();
     if (fs.existsSync(modsDir)) {
       await forEachAsync(fs.readdirSync(modsDir), async (file) => {
         const fullPath = path.join(modsDir, file);
         const mod = await ModHandler.getModFromFile(fullPath);
-        if (mod.mod_id === modID && mod.version === version) {
+        if (mod.mod_id === modID) {
           fs.unlinkSync(fullPath);
         }
       });
@@ -92,7 +92,7 @@ export class ModHandler {
     return filePath;
   }
 
-  static async getCachedMod(modID: string, version: string): Promise<string> {
+  static async getCachedModFile(modID: string, version: string): Promise<string> {
     let modPath = (await ModHandler.getCachedMods())
       .find((mod) => mod.mod_id === modID && mod.version === version)?.path;
     if (!modPath) {
@@ -100,6 +100,10 @@ export class ModHandler {
       await ModHandler.addModToCache(modPath);
     }
     return modPath;
+  }
+
+  static async getCachedMod(modID: string, version: string): Promise<Mod> {
+    return ModHandler.getModFromFile(await ModHandler.getCachedModFile(modID, version));
   }
 
   static async getCachedMods(): Promise<Array<Mod>> {

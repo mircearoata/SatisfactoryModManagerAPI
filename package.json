@@ -9,10 +9,9 @@
     "build:ts": "tsc",
     "build": "yarn lint && node-gyp build && yarn build:ts",
     "watch:ts": "tsc -w",
-    "debug": "nodemon --watch src/ -e ts --exec yarn serve || exit 1",
-    "serve": "yarn build && node lib/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "prepublishOnly": "yarn build",
+    "debug": "nodemon --watch src/ -e ts --exec yarn test || exit 1",
+    "test": "yarn build && node test/test.js",
+    "prepublishOnly": "yarn test",
     "install": "node-gyp rebuild"
   },
   "gypfile": true,
