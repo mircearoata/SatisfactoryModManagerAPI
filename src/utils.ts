@@ -2,6 +2,7 @@ import { getDataHome, getCacheFolder } from 'platform-folders';
 import path from 'path';
 import fs from 'fs';
 import request from 'request-promise-native';
+import { satisfies } from 'semver';
 
 export const appName = 'SatisfactoryModLauncher';
 
@@ -32,4 +33,28 @@ export async function downloadFile(url: string, file: string): Promise<void> {
 export async function forEachAsync<T>(array: Array<T>,
   callback: {(value: T, index: number, array: T[]): void}): Promise<void> {
   await Promise.all(array.map(callback));
+}
+
+export function removeArrayElement<T>(array: Array<T>, element: T): void {
+  const index = array.indexOf(element);
+  if (index !== -1) {
+    array.splice(index, 1);
+  }
+}
+
+export function removeArrayElementWhere<T>(array: Array<T>,
+  condition: (element: T) => boolean): void {
+  const toRemove = new Array<T>();
+  array.forEach((element) => {
+    if (condition(element)) {
+      toRemove.push(element);
+    }
+  });
+  toRemove.forEach((element) => {
+    removeArrayElement(array, element);
+  });
+}
+
+export function versionSatisfiesAll(version: string, versionConstraints: Array<string>): boolean {
+  return versionConstraints.every((versionConstraint) => satisfies(version, versionConstraint));
 }

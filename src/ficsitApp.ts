@@ -1,4 +1,5 @@
 import request from 'request-promise-native';
+import { versionSatisfiesAll } from './utils';
 
 const API_URL = 'https://api.ficsit.app';
 const GRAPHQL_API_URL = `${API_URL}/v2/query`;
@@ -50,7 +51,7 @@ interface FicsitAppFetch {
   data: any;
 }
 
-const cachedFetch: {[key: string]: FicsitAppFetch} = {};
+const cachedFetch: {[requestID: string]: FicsitAppFetch} = {};
 const fetchCooldown = 5 * 60 * 1000;
 
 function cooldownPassed(action: string): boolean {
@@ -108,7 +109,8 @@ export interface FicsitAppUser {
 }
 
 export async function getAvailableMods(): Promise<Array<FicsitAppMod>> {
-  if (cooldownPassed('getAvailableMods')) {
+  const requestID = 'getAvailableMods';
+  if (cooldownPassed(requestID)) {
     const res = await fiscitApiQuery(`
     {
       getMods(filter: {
@@ -148,10 +150,77 @@ export async function getAvailableMods(): Promise<Array<FicsitAppMod>> {
     if (res.errors) {
       throw res.errors;
     } else {
-      setCache('getAvailableMods', res.getMods.mods);
+      setCache(requestID, res.getMods.mods);
     }
   }
-  return getCache('getAvailableMods');
+  return getCache(requestID);
+}
+
+export async function getMod(modID: string): Promise<FicsitAppMod> {
+  const requestID = `getMod_${modID}`;
+  if (cooldownPassed(requestID)) {
+    const res = await fiscitApiQuery(`
+    query($modID: ModID!){
+      getMod(modId: $modID)
+      {
+          name,
+          short_description,
+          full_description,
+          id,
+          authors
+          {
+            mod_id,
+            user
+            {
+              username,
+              avatar
+            },
+            role
+          },
+          versions
+          {
+            mod_id,
+            version,
+            sml_version,
+            changelog,
+            downloads,
+            stability,
+            link
+          }
+      }
+    }
+    `, {
+      modID,
+    });
+    if (res.errors) {
+      throw res.errors;
+    } else {
+      setCache(requestID, res.getMod);
+    }
+  }
+  return getCache(requestID);
+}
+
+export async function findVersionMatchingAll(modID: string,
+  versionConstraints: Array<string>): Promise<string | undefined> {
+  const modInfo = await getMod(modID);
+  let finalVersion = '';
+  let found = false;
+  modInfo.versions.forEach((modVersion) => {
+    if (!found && versionSatisfiesAll(modVersion.version, versionConstraints)) {
+      found = true;
+      finalVersion = modVersion.version;
+    }
+  });
+  return found ? finalVersion : undefined;
+}
+
+export async function findAllVersionsMatchingAll(modID: string,
+  versionConstraints: Array<string>): Promise<Array<string>> {
+  const modInfo = await getMod(modID);
+  return modInfo.versions
+    .filter((modVersion) => versionSatisfiesAll(modVersion.version, versionConstraints))
+    .map((modVersion) => modVersion.version);
 }
 
 
@@ -166,7 +235,8 @@ export interface FicsitAppSMLVersion {
 }
 
 export async function getAvailableSMLVersions(): Promise<Array<FicsitAppSMLVersion>> {
-  if (cooldownPassed('getSMLVersions')) {
+  const requestID = 'getSMLVersions';
+  if (cooldownPassed(requestID)) {
     const res = await fiscitApiQuery(`
     {
       getSMLVersions(filter: {limit: 100})
@@ -187,8 +257,8 @@ export async function getAvailableSMLVersions(): Promise<Array<FicsitAppSMLVersi
     if (res.errors) {
       throw res.errors;
     } else {
-      setCache('getSMLVersions', res.getSMLVersions.sml_versions);
+      setCache(requestID, res.getSMLVersions.sml_versions);
     }
   }
-  return getCache('getSMLVersions');
+  return getCache(requestID);
 }
