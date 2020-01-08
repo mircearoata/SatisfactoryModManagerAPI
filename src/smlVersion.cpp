@@ -2,26 +2,19 @@
 
 #ifdef _WIN32
 #include <Windows.h>
+#include "picosha2.h"
 #elif __linux__
-    // TODO linux stuff
+#include <dlfcn.h>
 #else
 #error Satisfactory only supports Windows, so other OSs are not yet supported by SatisfactoryModLauncher
 #endif
 
 #include <map>
 #include <filesystem>
-#include "picosha2.h"
 
 #ifdef _WIN32
-    const std::filesystem::path SML_1_X_RELATIVE_PATH = std::filesystem::path("FactoryGame") / "Binaries" / "Win64" / "xinput1_3.dll";
-    const std::filesystem::path SML_2_X_RELATIVE_PATH = std::filesystem::path("loaders") / "UE4-SML-Win64-Shipping.dll";
-#elif __linux__
-    // TODO linux SML path
-    const std::filesystem::path SML_1_X_RELATIVE_PATH = std::filesystem::path("");
-    const std::filesystem::path SML_2_X_RELATIVE_PATH = std::filesystem::path("");
-#endif
-
-
+const std::filesystem::path SML_1_X_RELATIVE_PATH = std::filesystem::path("FactoryGame") / "Binaries" / "Win64" / "xinput1_3.dll";
+const std::filesystem::path SML_2_X_RELATIVE_PATH = std::filesystem::path("loaders") / "UE4-SML-Win64-Shipping.dll";
 
 const std::map<std::string, std::string> knownSMLHashes = {  
 	{"v1.0.0-pr1", "af8f291c9f9534fb0972e976d9e87807126ec7976fd1eb32af9438e34cb0316d"},
@@ -35,12 +28,13 @@ const std::map<std::string, std::string> knownSMLHashes = {
 	{"1.0.1",      "d15894a93db6a14d3c036a9e0f1da5d6e4b97e94f25374305b7ffdbcd3a5ebd9"}
 };
 
-#ifdef _WIN32
-    std::string hashFile(std::filesystem::path filePath) {
-        std::ifstream file(filePath.string().c_str(), std::ios::binary);
-        
-        return picosha2::hash256_hex_string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
-    }
+std::string hashFile(std::filesystem::path filePath) {
+    std::ifstream file(filePath.string().c_str(), std::ios::binary);
+    
+    return picosha2::hash256_hex_string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+}
+#elif __linux__
+const std::filesystem::path SML_2_X_RELATIVE_PATH = std::filesystem::path("loaders") / "UE4-SML-Win64-Shipping.so"; // TODO: Probably wrong
 #endif
 
 void GetSMLVersion(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -50,10 +44,9 @@ void GetSMLVersion(const v8::FunctionCallbackInfo<v8::Value>& args) {
   std::string smlVersion;
   bool smlFound = false;
 
+#ifdef _WIN32
   std::filesystem::path fullSML_1_x_path = satisfactoryPath / SML_1_X_RELATIVE_PATH;
   std::filesystem::path fullSML_2_x_path = satisfactoryPath / SML_2_X_RELATIVE_PATH;
-
-#ifdef _WIN32
   #ifdef UNICODE
   HMODULE dll = LoadLibraryEx(fullSML_1_x_path.wstring().c_str(), NULL, DONT_RESOLVE_DLL_REFERENCES);
   #else
@@ -81,8 +74,15 @@ void GetSMLVersion(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (!smlFound) {
     // TODO: SML 2.0 doesn't export its version yet
   }
-#else
-    // TODO: Other OSs
+#elif __linux__
+  // TODO: SML 2.0 doesn't export its version yet. This was tested on a dummy lib
+  std::filesystem::path fullSML_2_x_path = satisfactoryPath / SML_2_X_RELATIVE_PATH;
+  void* smlLib = dlopen(fullSML_2_x_path.c_str(), RTLD_LAZY);
+  void* smlLibVersion = dlsym(smlLib, "smlVersion");
+  if (smlLibVersion) {
+    smlVersion = std::string((char*)smlLibVersion);
+    smlFound = true;
+  }
 #endif
 
   if (smlFound) {
