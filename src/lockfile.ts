@@ -27,6 +27,11 @@ export interface LockfileItemData {
   dependencies: ItemVersionList;
 }
 
+export interface LockfileDiff {
+  install: ItemVersionList;
+  uninstall: Array<string>;
+}
+
 export async function getItemData(id: string, version: string): Promise<LockfileGraphNode> {
   if (id === 'SML') {
     return { id, version, dependencies: {} };
@@ -157,8 +162,7 @@ export class LockfileGraph {
   }
 }
 
-export function lockfileDifference(oldLockfile: Lockfile, newLockfile: Lockfile):
-                                  {install: ItemVersionList; uninstall: Array<string>} {
+export function lockfileDifference(oldLockfile: Lockfile, newLockfile: Lockfile): LockfileDiff {
   const uninstall = [] as Array<string>;
   const install = {} as ItemVersionList;
   Object.keys(oldLockfile).forEach((id) => {

@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { appDataDir, ensureExists, forEachAsync } from './utils';
 import {
-  LockfileGraph, lockfileDifference, ItemVersionList, Lockfile, getItemData,
+  LockfileGraph, lockfileDifference, ItemVersionList, Lockfile, getItemData, LockfileDiff,
 } from './lockfile';
 
 interface Manifest {
@@ -30,8 +30,7 @@ export class ManifestHandler {
     }
   }
 
-  async mutate(install: ItemVersionList, uninstall: Array<string>):
-      Promise<{install: ItemVersionList; uninstall: Array<string>}> {
+  async mutate(install: ItemVersionList, uninstall: Array<string>): Promise<LockfileDiff> {
     const manifest = this.readManifest();
     uninstall.forEach((item) => {
       delete manifest.items[item];

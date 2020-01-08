@@ -46,9 +46,9 @@ export async function getModDownloadLink(modID: string, version: string): Promis
 }
 
 interface FicsitAppFetch {
-    time: number;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    data: any;
+  time: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: any;
 }
 
 const cachedFetch: { [requestID: string]: FicsitAppFetch } = {};
@@ -73,39 +73,39 @@ function setCache(action: string, data: any): void {
 
 
 export interface FicsitAppMod {
-    name: string;
-    short_description: string;
-    full_description: string;
-    logo: string;
-    source_url: string;
-    views: number;
-    downloads: number;
-    hotness: number;
-    popularity: number;
-    last_version_date: Date;
-    authors: Array<FicsitAppAuthor>;
-    versions: Array<FicsitAppVersion>;
+  name: string;
+  short_description: string;
+  full_description: string;
+  logo: string;
+  source_url: string;
+  views: number;
+  downloads: number;
+  hotness: number;
+  popularity: number;
+  last_version_date: Date;
+  authors: Array<FicsitAppAuthor>;
+  versions: Array<FicsitAppVersion>;
 }
 
 export interface FicsitAppVersion {
-    mod_id: string;
-    version: string;
-    sml_version: string;
-    changelog: string;
-    downloads: string;
-    stability: 'alpha' | 'beta' | 'release';
-    link: string;
+  mod_id: string;
+  version: string;
+  sml_version: string;
+  changelog: string;
+  downloads: string;
+  stability: 'alpha' | 'beta' | 'release';
+  link: string;
 }
 
 export interface FicsitAppAuthor {
-    mod_id: string;
-    user: FicsitAppUser;
-    role: string;
+  mod_id: string;
+  user: FicsitAppUser;
+  role: string;
 }
 
 export interface FicsitAppUser {
-    username: string;
-    avatar: string;
+  username: string;
+  avatar: string;
 }
 
 export async function getAvailableMods(): Promise<Array<FicsitAppMod>> {
@@ -261,13 +261,13 @@ export async function findAllVersionsMatchingAll(modID: string,
 
 
 export interface FicsitAppSMLVersion {
-    id: string;
-    version: string;
-    satisfactory_version: number;
-    stability: string;
-    link: string;
-    changelog: string;
-    date: string;
+  id: string;
+  version: string;
+  satisfactory_version: number;
+  stability: string;
+  link: string;
+  changelog: string;
+  date: string;
 }
 
 export async function getAvailableSMLVersions(): Promise<Array<FicsitAppSMLVersion>> {
