@@ -8,9 +8,9 @@
     "lint": "tsc --noEmit && eslint \"**/*.{js,ts}\" --fix",
     "build:ts": "tsc",
     "build": "yarn lint && node-gyp build && yarn build:ts",
-    "watch:ts": "tsc -w",
-    "debug": "nodemon --watch src/ -e ts --exec yarn test || exit 1",
+    "debug": "nodemon --watch src/ -e ts --exec yarn test:debug || exit 1",
     "test": "yarn build && node test/test.js",
+    "test:debug": "yarn build && cross-env NODE_DEBUG=SMLauncherAPI node test/test.js",
     "prepublishOnly": "yarn test",
     "install": "node-gyp rebuild"
   },
@@ -25,6 +25,7 @@
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^2.13.0",
     "@typescript-eslint/parser": "^2.13.0",
+    "cross-env": "^6.0.3",
     "eslint": "^6.8.0",
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-import-resolver-typescript": "^2.0.0",

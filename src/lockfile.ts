@@ -1,5 +1,7 @@
-import { satisfies } from 'semver';
-import { removeArrayElement, removeArrayElementWhere, forEachAsync } from './utils';
+import { satisfies, compare } from 'semver';
+import {
+  removeArrayElement, removeArrayElementWhere, forEachAsync, debug,
+} from './utils';
 import { findAllVersionsMatchingAll } from './ficsitApp';
 import { getCachedMod } from './modHandler';
 
@@ -11,11 +13,7 @@ export interface LockfileGraphNode {
   id: string;
   version: string;
   dependencies: ItemVersionList;
-}
-
-export interface LockfileGraphEdge {
-  from: LockfileGraphNode;
-  to: LockfileGraphNode;
+  isInManifest?: boolean;
 }
 
 export interface Lockfile {
@@ -38,6 +36,10 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
   }
   // TODO: Get data from ficsit.app so the mod doesn't have to be downloaded
   const modData = await getCachedMod(id, version);
+  if (!modData.dependencies) { modData.dependencies = {}; }
+  if (modData.sml_version) {
+    modData.dependencies['SML'] = modData.sml_version;
+  }
   return {
     id: modData.mod_id,
     version: modData.version,
@@ -47,9 +49,6 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
 
 export class LockfileGraph {
   nodes = new Array<LockfileGraphNode>();
-  edges = new Array<LockfileGraphEdge>();
-  entryNodeMap = new Map<string, LockfileGraphNode>();
-  rootNodes = new Array<LockfileGraphNode>();
 
   async fromLockfile(lockfile: Lockfile): Promise<void> {
     Object.keys(lockfile).forEach((entry) => {
@@ -58,37 +57,40 @@ export class LockfileGraph {
         version: lockfile[entry].version,
         dependencies: lockfile[entry].dependencies,
       } as LockfileGraphNode;
-      this.entryNodeMap.set(entry, node);
       this.nodes.push(node);
     });
-    this.nodes.forEach((node) => {
-      this.createEdges(node);
-    });
-    this.rootNodes = this.nodes.filter((node) => this.getDependants(node).length === 0);
   }
 
-  async createEdges(node: LockfileGraphNode): Promise<boolean> {
+  async validate(node: LockfileGraphNode): Promise<boolean> {
     try {
       await forEachAsync(Object.entries(node.dependencies), (async (dependency) => {
         const dependencyID = dependency[0];
         const versionConstraint = dependency[1];
-        let dependencyNode = this.entryNodeMap.get(dependencyID);
+        const dependencyNode = this.nodes.find((graphNode) => graphNode.id === dependencyID);
         if (!dependencyNode || !satisfies(dependencyNode.version, versionConstraint)) {
           if (dependencyNode) {
-            this.remove(dependencyNode);
+            if (dependencyNode.isInManifest) {
+              throw new Error(`Dependency ${dependencyID}@${dependencyNode.version} is NOT GOOD for ${node.id}@${node.version} (requires ${versionConstraint}), and it is in the manifest.`);
+            } else {
+              debug(`Dependency ${dependencyID}@${dependencyNode.version} is NOT GOOD for ${node.id}@${node.version} (requires ${versionConstraint})`);
+              this.remove(dependencyNode);
+            }
           }
           const versionConstraints = this.nodes
             .filter((graphNode) => dependencyID in graphNode.dependencies)
             .map((graphNode) => graphNode.dependencies[dependencyID]);
+          debug(`Dependency ${dependencyID} must match ${versionConstraints}`);
           const matchingDependencyVersions = await findAllVersionsMatchingAll(dependencyID,
             versionConstraints);
-          matchingDependencyVersions.reverse();
+          matchingDependencyVersions.sort((a, b) => compare(a, b));
+          debug(`Found versions ${matchingDependencyVersions}`);
           let found = false;
           while (!found && matchingDependencyVersions.length > 0) {
             const version = matchingDependencyVersions.pop();
             if (!version) { break; }
             // eslint-disable-next-line no-await-in-loop
             const itemData = await getItemData(dependencyID, version);
+            debug(`Trying ${version}`);
             // eslint-disable-next-line no-await-in-loop
             if (await this.add(itemData)) {
               found = true;
@@ -97,19 +99,24 @@ export class LockfileGraph {
             this.remove(itemData);
           }
           if (!found) {
-            throw new Error(`No version found for dependency ${dependencyID} of ${node.id}`);
+            if (dependencyNode) {
+              await this.add(dependencyNode);
+            }
+            throw new Error(`No version found for dependency ${dependencyID} of ${node.id}. Rolling back.`);
           }
-          dependencyNode = this.entryNodeMap.get(dependencyID);
+        } else {
+          debug(`Dependency ${dependencyID}@${dependencyNode.version} is GOOD for ${node.id}@${node.version} (requires ${versionConstraint})`);
         }
-        this.edges.push({
-          from: node,
-          to: dependencyNode,
-        } as LockfileGraphEdge);
       }));
     } catch (e) {
+      debug(e.message);
       return false;
     }
     return true;
+  }
+
+  async validateAll(): Promise<void> {
+    this.nodes.forEach((graphNode) => this.validate(graphNode));
   }
 
   toLockfile(): Lockfile {
@@ -124,37 +131,39 @@ export class LockfileGraph {
   }
 
   roots(): Array<LockfileGraphNode> {
-    return this.rootNodes;
+    return this.nodes.filter((graphNode) => this.getDependants(graphNode).length === 0);
   }
 
   getDependants(node: LockfileGraphNode): Array<LockfileGraphNode> {
-    return this.edges.filter((edge) => edge.to === node).map((edge) => edge.from);
+    return this.nodes.filter((graphNode) => node.id in graphNode.dependencies);
   }
 
   remove(node: LockfileGraphNode): void {
-    removeArrayElementWhere(this.edges, (edge) => edge.to === node || edge.from === node);
     removeArrayElement(this.nodes, node);
-    removeArrayElement(this.rootNodes, node);
+    debug(`Removed ${node.id}@${node.version}`);
   }
 
   async add(node: LockfileGraphNode): Promise<boolean> {
-    if (this.entryNodeMap.has(node.id)) {
+    if (this.nodes.some((graphNode) => graphNode.id === node.id)) {
+      const existingNode = this.nodes.find((graphNode) => graphNode.id === node.id);
+      debug(`Item ${node.id} already has another version installed: ${existingNode?.version}`);
       return false;
     }
+    debug(`Adding ${node.id}@${node.version}`);
     let success = true;
-    this.entryNodeMap.set(node.id, node);
     this.nodes.push(node);
-    success = await this.createEdges(node);
-    this.rootNodes.push(node);
+    success = await this.validate(node);
     if (!success) {
       this.remove(node);
+      debug(`Failed adding ${node.id}@${node.version}`);
+      return false;
     }
-    return success;
+    debug(`Added ${node.id}@${node.version}`);
+    return true;
   }
 
   isNodeDangling(node: LockfileGraphNode): boolean {
-    return !this.rootNodes.includes(node)
-     && this.getDependants(node).length === 0;
+    return this.getDependants(node).length === 0 && !node.isInManifest;
   }
 
   cleanup(): void {

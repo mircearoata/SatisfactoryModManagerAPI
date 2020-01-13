@@ -75,6 +75,7 @@ export interface Mod {
   dependencies?: { [modID: string]: string };
   optional_dependencies?: { [modID: string]: string };
   path?: string;
+  sml_version?: string;
 }
 
 export interface ModObject {

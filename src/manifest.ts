@@ -1,7 +1,9 @@
 import { createHash } from 'crypto';
 import path from 'path';
 import fs from 'fs';
-import { appDataDir, ensureExists, forEachAsync } from './utils';
+import {
+  appDataDir, ensureExists, forEachAsync, debug,
+} from './utils';
 import {
   LockfileGraph, lockfileDifference, ItemVersionList, Lockfile, getItemData, LockfileDiff,
 } from './lockfile';
@@ -40,24 +42,46 @@ export class ManifestHandler {
       const version = itemVersion[1];
       manifest.items[id] = version;
     });
-    this.writeManifest(manifest);
 
     const initialLockfile = this.readLockfile();
     const graph = new LockfileGraph();
     await graph.fromLockfile(initialLockfile);
     graph.roots().forEach((root) => {
-      if (!(root.id in manifest.items)) {
+      if (!(root.id in manifest.items) || root.version !== manifest.items[root.id]) {
         graph.remove(root);
       }
     });
-    await forEachAsync(Object.entries(manifest.items), async (itemVersion) => {
+    let success = true;
+    Object.entries(manifest.items).forEach((itemVersion) => {
       const id = itemVersion[0];
       const version = itemVersion[1];
-      const itemData = await getItemData(id, version);
-      await graph.add(itemData);
+      const lockfileNode = graph.nodes.find((node) => node.id === id && node.version === version);
+      if (lockfileNode) {
+        lockfileNode.isInManifest = true;
+      }
     });
+    await forEachAsync(Object.entries(manifest.items), async (itemVersion) => {
+      if (success) {
+        const id = itemVersion[0];
+        const version = itemVersion[1];
+        const itemData = await getItemData(id, version);
+        itemData.isInManifest = true;
+        if (!graph.nodes.some((node) => node.id === id && node.version === version)) {
+          if (!await graph.add(itemData)) {
+            debug(`Failed to install ${id}@${version}. Will roll back.`);
+            success = false;
+          }
+        }
+      }
+    });
+    if (!success) {
+      debug('Rolling back manifest mutation.');
+      return { install: {}, uninstall: [] };
+    }
+    await graph.validateAll();
     graph.cleanup();
     const newLockfile = graph.toLockfile();
+    this.writeManifest(manifest);
     this.writeLockfile(newLockfile);
 
     return lockfileDifference(initialLockfile, newLockfile);

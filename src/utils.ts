@@ -3,8 +3,11 @@ import path from 'path';
 import fs from 'fs';
 import request from 'request-promise-native';
 import { satisfies } from 'semver';
+import { debuglog } from 'util';
 
 export const appName = 'SatisfactoryModLauncher';
+
+export const debug = debuglog('SMLauncherAPI');
 
 export function ensureExists(folder: string): void {
   fs.mkdirSync(folder, { recursive: true });
@@ -27,12 +30,16 @@ export async function downloadFile(url: string, file: string): Promise<void> {
     method: 'GET',
     encoding: null,
   });
+  ensureExists(path.dirname(file));
   fs.writeFileSync(file, buffer);
 }
 
 export async function forEachAsync<T>(array: Array<T>,
   callback: {(value: T, index: number, array: T[]): void}): Promise<void> {
-  await Promise.all(array.map(callback));
+  for (let i = 0; i < array.length; i += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await callback(array[i], i, array);
+  }
 }
 
 export function removeArrayElement<T>(array: Array<T>, element: T): void {

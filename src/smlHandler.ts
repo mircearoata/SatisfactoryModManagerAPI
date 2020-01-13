@@ -34,8 +34,15 @@ export class SMLHandler {
   async installSML(version: string): Promise<void> {
     if (!await this.getSMLVersion()) {
       const smlDownloadLink = await getSMLDownloadLink(version);
-      await downloadFile(smlDownloadLink,
-        path.join(this.satisfactoryPath, getSMLRelativePath()));
+      try {
+        await downloadFile(smlDownloadLink,
+          path.join(this.satisfactoryPath, getSMLRelativePath()));
+      } catch (e) {
+        if (version.startsWith('v')) {
+          throw new Error(`SML version ${version.substr(1)} not found`);
+        }
+        await this.installSML(`v${version}`);
+      }
     }
   }
 

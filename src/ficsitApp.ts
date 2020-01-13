@@ -1,4 +1,5 @@
 import request from 'request-promise-native';
+import { compare } from 'semver';
 import { versionSatisfiesAll } from './utils';
 
 const API_URL = 'https://api.ficsit.app';
@@ -21,27 +22,6 @@ export async function fiscitApiQuery(query: string,
     return response.data;
   } catch (e) {
     return JSON.parse(e.error);
-  }
-}
-
-export async function getModDownloadLink(modID: string, version: string): Promise<string> {
-  const res = await fiscitApiQuery(`
-  query($modID: ModID!, $version: String!){
-    getMod(modId: $modID)
-    {
-      version(version: $version)
-      {
-        link
-      }
-    }
-  }
-  `, { modID, version });
-  if (res.errors) {
-    throw res.errors;
-  } else if (res.getMod.version) {
-    return API_URL + res.getMod.version.link;
-  } else {
-    throw new Error(`${modID}@${version} not found`);
   }
 }
 
@@ -73,6 +53,7 @@ function setCache(action: string, data: any): void {
 
 
 export interface FicsitAppMod {
+  id: string;
   name: string;
   short_description: string;
   full_description: string;
@@ -106,6 +87,31 @@ export interface FicsitAppAuthor {
 export interface FicsitAppUser {
   username: string;
   avatar: string;
+}
+
+export async function getModDownloadLink(modID: string, version: string): Promise<string> {
+  const requestID = `getModDownloadLink_${modID}_${version}`;
+  if (cooldownPassed(requestID)) {
+    const res = await fiscitApiQuery(`
+    query($modID: ModID!, $version: String!){
+      getMod(modId: $modID)
+      {
+        version(version: $version)
+        {
+          link
+        }
+      }
+    }
+    `, { modID, version });
+    if (res.errors) {
+      throw res.errors;
+    } else if (res.getMod && res.getMod.version) {
+      setCache(requestID, API_URL + res.getMod.version.link);
+    } else {
+      throw new Error(`${modID}@${version} not found`);
+    }
+  }
+  return getCache(requestID);
 }
 
 export async function getAvailableMods(): Promise<Array<FicsitAppMod>> {
@@ -202,7 +208,7 @@ export async function getMod(modID: string): Promise<FicsitAppMod> {
   return getCache(requestID);
 }
 
-export async function getModVersions(modID: string): Promise<FicsitAppMod> {
+export async function getModVersions(modID: string): Promise<Array<FicsitAppVersion>> {
   const requestID = `getModVersions_${modID}`;
   if (cooldownPassed(requestID)) {
     const res = await fiscitApiQuery(`
@@ -230,11 +236,19 @@ export async function getModVersions(modID: string): Promise<FicsitAppMod> {
     });
     if (res.errors) {
       throw res.errors;
+    } else if (res.getMod) {
+      setCache(requestID, res.getMod.versions);
     } else {
-      setCache(requestID, res.getMod);
+      throw new Error(`Mod ${modID} not found`);
     }
   }
   return getCache(requestID);
+}
+
+export async function getModLatestVersion(modID: string): Promise<FicsitAppVersion> {
+  const versions = await getModVersions(modID);
+  versions.sort((a, b) => -compare(a.version, b.version));
+  return versions[0];
 }
 
 export async function findVersionMatchingAll(modID: string,
@@ -249,14 +263,6 @@ export async function findVersionMatchingAll(modID: string,
     }
   });
   return found ? finalVersion : undefined;
-}
-
-export async function findAllVersionsMatchingAll(modID: string,
-  versionConstraints: Array<string>): Promise<Array<string>> {
-  const modInfo = await getMod(modID);
-  return modInfo.versions
-    .filter((modVersion) => versionSatisfiesAll(modVersion.version, versionConstraints))
-    .map((modVersion) => modVersion.version);
 }
 
 
@@ -297,4 +303,24 @@ export async function getAvailableSMLVersions(): Promise<Array<FicsitAppSMLVersi
     }
   }
   return getCache(requestID);
+}
+
+export async function getLatestSMLVersion(): Promise<FicsitAppSMLVersion> {
+  const versions = await getAvailableSMLVersions();
+  versions.sort((a, b) => -compare(a.version, b.version));
+  return versions[0];
+}
+
+export async function findAllVersionsMatchingAll(modID: string,
+  versionConstraints: Array<string>): Promise<Array<string>> {
+  if (modID === 'SML') {
+    const smlVersions = await getAvailableSMLVersions();
+    return smlVersions
+      .filter((smlVersion) => versionSatisfiesAll(smlVersion.version, versionConstraints))
+      .map((smlVersion) => smlVersion.version);
+  }
+  const modInfo = await getMod(modID);
+  return modInfo.versions
+    .filter((modVersion) => versionSatisfiesAll(modVersion.version, versionConstraints))
+    .map((modVersion) => modVersion.version);
 }
