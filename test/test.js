@@ -86,7 +86,7 @@ async function main() {
     if (!installedMods.some((mod) => mod.mod_id === 'dummyMod1' && mod.version === '1.0.1')) {
       assert.fail('Update mod with existing dependency failed');
     }
-    assert.strictEqual(installedMods.length, 2, 'Update mod with existing dependency failed another wrong way');
+    assert.strictEqual(installedMods.length, 2, 'Update mod with existing dependency failed another way');
 
     await sfInstall.installMod('dummyMod1', '1.0.2');
     installedMods = await sfInstall.getInstalledMods();
@@ -101,6 +101,10 @@ async function main() {
       assert.fail('Update mod failed');
     }
     assert.strictEqual(installedMods.length, 2, 'Update mod failed the wrong way');
+    
+    await sfInstall.uninstallMod('6vQ6ckVYFiidDh');
+    installedMods = await sfInstall.getInstalledMods();
+    assert.strictEqual(installedMods.length, 2, 'Uninstall dependency succeeded');
   } catch (e) {
     console.error(e);
   } finally {

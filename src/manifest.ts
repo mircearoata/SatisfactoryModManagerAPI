@@ -9,7 +9,6 @@ import {
 } from './lockfile';
 
 interface Manifest {
-  manifestForPath: string;
   items: ItemVersionList;
 }
 
@@ -25,7 +24,6 @@ export class ManifestHandler {
     if (!fs.existsSync(this.manifestPath)) {
       ensureExists(this.manifestPath);
       this.writeManifest({
-        manifestForPath,
         items: {} as ItemVersionList,
       } as Manifest);
       this.writeLockfile({} as Lockfile);
