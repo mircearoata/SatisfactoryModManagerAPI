@@ -14,6 +14,12 @@
     "prepublishOnly": "yarn test",
     "install": "node-gyp rebuild --silent"
   },
+  "husky": {
+    "hooks": {
+      "pre-commit": "yarn lint",
+      "pre-push": "yarn test"
+    }
+  },
   "gypfile": true,
   "author": "Mircea Roata",
   "license": "GPL-3.0",
@@ -30,6 +36,7 @@
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-import-resolver-typescript": "^2.0.0",
     "eslint-plugin-import": "^2.19.1",
+    "husky": "^4.0.10",
     "typescript": "^3.7.4"
   },
   "dependencies": {
