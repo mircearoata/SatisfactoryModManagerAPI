@@ -84,48 +84,30 @@ export interface ModObject {
   metadata?: object;
 }
 
-export class ModHandler {
-  private satisfactoryPath: string;
+export async function installMod(modID: string, version: string, modsDir: string): Promise<void> {
+  const modPath = await getCachedModFile(modID, version);
+  copyFile(modPath, modsDir);
+}
 
-  constructor(satisfactoryPath: string) {
-    this.satisfactoryPath = satisfactoryPath;
+export async function uninstallMod(modID: string, modsDir: string): Promise<void> {
+  if (fs.existsSync(modsDir)) {
+    await forEachAsync(fs.readdirSync(modsDir), async (file) => {
+      const fullPath = path.join(modsDir, file);
+      const mod = await getModFromFile(fullPath);
+      if (mod.mod_id === modID) {
+        fs.unlinkSync(fullPath);
+      }
+    });
   }
+}
 
-  getModsDir(): string {
-    // SML 1.x
-    return path.join(this.satisfactoryPath, 'FactoryGame', 'Binaries', 'Win64', 'mods');
-    // SML 2.x
-    // return path.join(this.satisfactoryPath, 'mods');
+export async function getInstalledMods(modsDir: string): Promise<Array<Mod>> {
+  const installedModsPromises = Array<Promise<Mod>>();
+  if (fs.existsSync(modsDir)) {
+    fs.readdirSync(modsDir).forEach((file) => {
+      const fullPath = path.join(modsDir, file);
+      installedModsPromises.push(getModFromFile(fullPath));
+    });
   }
-
-  async installMod(modID: string, version: string): Promise<void> {
-    const modPath = await getCachedModFile(modID, version);
-    const modsDir = this.getModsDir();
-    copyFile(modPath, modsDir);
-  }
-
-  async uninstallMod(modID: string): Promise<void> {
-    const modsDir = this.getModsDir();
-    if (fs.existsSync(modsDir)) {
-      await forEachAsync(fs.readdirSync(modsDir), async (file) => {
-        const fullPath = path.join(modsDir, file);
-        const mod = await getModFromFile(fullPath);
-        if (mod.mod_id === modID) {
-          fs.unlinkSync(fullPath);
-        }
-      });
-    }
-  }
-
-  async getInstalledMods(): Promise<Array<Mod>> {
-    const modsDir = this.getModsDir();
-    const installedModsPromises = Array<Promise<Mod>>();
-    if (fs.existsSync(modsDir)) {
-      fs.readdirSync(modsDir).forEach((file) => {
-        const fullPath = path.join(modsDir, file);
-        installedModsPromises.push(getModFromFile(fullPath));
-      });
-    }
-    return Promise.all(installedModsPromises);
-  }
+  return Promise.all(installedModsPromises);
 }

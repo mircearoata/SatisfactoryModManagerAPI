@@ -270,7 +270,7 @@ export interface FicsitAppSMLVersion {
   id: string;
   version: string;
   satisfactory_version: number;
-  stability: string;
+  stability: 'alpha' | 'beta' | 'release';
   link: string;
   changelog: string;
   date: string;
@@ -303,6 +303,11 @@ export async function getAvailableSMLVersions(): Promise<Array<FicsitAppSMLVersi
     }
   }
   return getCache(requestID);
+}
+
+export async function getSMLVersionInfo(version: string): Promise<FicsitAppSMLVersion | undefined> {
+  const versions = await getAvailableSMLVersions();
+  return versions.find((smlVersion) => smlVersion.version === version);
 }
 
 export async function getLatestSMLVersion(): Promise<FicsitAppSMLVersion> {

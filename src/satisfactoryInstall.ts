@@ -1,5 +1,9 @@
-import { ModHandler, Mod } from './modHandler';
-import { SMLHandler } from './smlHandler';
+import path from 'path';
+import { getDataFolders } from 'platform-folders';
+import fs from 'fs';
+import { compare } from 'semver';
+import * as ModHandler from './modHandler';
+import * as SMLHandler from './smlHandler';
 import {
   FicsitAppVersion, getModLatestVersion, FicsitAppMod, getLatestSMLVersion,
 } from './ficsitApp';
@@ -8,34 +12,48 @@ import { ItemVersionList } from './lockfile';
 import { debug } from './utils';
 
 export class SatisfactoryInstall {
-  satisfactoryPath: string;
-  modHandler: ModHandler;
-  smlHandler: SMLHandler;
-  manifestHandler: ManifestHandler;
+  private manifestHandler: ManifestHandler;
+  name: string;
+  version: string;
+  installLocation: string;
+  launchExecutable?: string;
 
-  constructor(satisfactoryPath: string) {
-    this.satisfactoryPath = satisfactoryPath;
-    this.modHandler = new ModHandler(satisfactoryPath);
-    this.smlHandler = new SMLHandler(satisfactoryPath);
-    this.manifestHandler = new ManifestHandler(satisfactoryPath);
+  constructor(name: string, version: string, installLocation: string, launchExecutable?: string) {
+    this.installLocation = installLocation;
+    this.manifestHandler = new ManifestHandler(installLocation);
+
+    this.name = name;
+    this.version = version;
+    this.launchExecutable = launchExecutable;
   }
 
+  // TODO: always check that what is installed matches the lockfile
+
   async manifestMutate(install: ItemVersionList, uninstall: string[]): Promise<void> {
+    await this.manifestHandler.setSatisfactoryVersion(this.version);
     const changes = await this.manifestHandler.mutate(install, uninstall);
     debug(JSON.stringify(changes));
+    let modsDir = await SMLHandler.getModsDir(this.installLocation);
     await Promise.all(changes.uninstall.map((id) => {
-      if (id === 'SML') {
-        return this.smlHandler.uninstallSML();
+      if (id !== 'SML') {
+        return ModHandler.uninstallMod(id, modsDir);
       }
-      return this.modHandler.uninstallMod(id);
+      return Promise.resolve();
     }));
+    if (changes.uninstall.includes('SML')) {
+      await SMLHandler.uninstallSML(this.installLocation);
+    }
+    if ('SML' in changes.install) {
+      await SMLHandler.installSML(changes.install['SML'], this.installLocation);
+    }
+    modsDir = await SMLHandler.getModsDir(this.installLocation);
     await Promise.all(Object.entries(changes.install).map((modInstall) => {
       const modInstallID = modInstall[0];
       const modInstallVersion = modInstall[1];
-      if (modInstallID === 'SML') {
-        return this.smlHandler.installSML(modInstallVersion);
+      if (modInstallID !== 'SML') {
+        return ModHandler.installMod(modInstallID, modInstallVersion, modsDir);
       }
-      return this.modHandler.installMod(modInstallID, modInstallVersion);
+      return Promise.resolve();
     }));
   }
 
@@ -71,9 +89,9 @@ export class SatisfactoryInstall {
     return this.updateMod(mod.id);
   }
 
-  async getInstalledMods(): Promise<Array<Mod>> {
-    // TODO: replace with manifest/lockfile get
-    return this.modHandler.getInstalledMods();
+  async getInstalledMods(): Promise<Array<ModHandler.Mod>> {
+    // TODO: replace with lockfile get
+    return ModHandler.getInstalledMods(await SMLHandler.getModsDir(this.installLocation));
   }
 
   async installSML(version: string): Promise<void> {
@@ -92,7 +110,55 @@ export class SatisfactoryInstall {
   }
 
   async getSMLVersion(): Promise<string | undefined> {
-    // TODO: replace with manifest/lockfile get
-    return this.smlHandler.getSMLVersion();
+    // TODO: replace with lockfile get
+    return SMLHandler.getSMLVersion(this.installLocation);
   }
+
+  get launchPath(): string | undefined {
+    if (!this.launchExecutable) {
+      return undefined;
+    }
+    return path.join(this.installLocation, this.launchExecutable);
+  }
+
+  get binariesDir(): string {
+    return path.join(this.installLocation, 'FactoryGame', 'Binaries', 'Win64');
+  }
+
+  get displayName(): string {
+    return `${this.name} (${this.version})`;
+  }
+
+  async modsDir(): Promise<string> {
+    return SMLHandler.getModsDir(this.installLocation);
+  }
+}
+
+const EpicManifestsFolder = path.join(getDataFolders()[0], 'Epic', 'EpicGamesLauncher', 'Data', 'Manifests');
+
+export async function getInstalls(): Promise<Array<SatisfactoryInstall>> {
+  const foundInstalls = new Array<SatisfactoryInstall>();
+  fs.readdirSync(EpicManifestsFolder).forEach((fileName) => {
+    if (fileName.endsWith('.item')) {
+      const filePath = path.join(EpicManifestsFolder, fileName);
+      const jsonString = fs.readFileSync(filePath, 'utf8');
+      const manifest = JSON.parse(jsonString);
+      if (manifest.CatalogNamespace === 'crab') {
+        foundInstalls.push(new SatisfactoryInstall(
+          manifest.DisplayName,
+          manifest.AppVersionString,
+          manifest.InstallLocation,
+          manifest.LaunchExecutable,
+        ));
+      }
+    }
+  });
+  foundInstalls.sort((a, b) => {
+    const semverCmp = compare(a.version, b.version);
+    if (semverCmp === 0) {
+      return a.name.localeCompare(b.name);
+    }
+    return semverCmp;
+  });
+  return foundInstalls;
 }

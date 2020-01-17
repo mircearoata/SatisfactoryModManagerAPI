@@ -1,8 +1,10 @@
-import { satisfies, compare } from 'semver';
+import {
+  satisfies, compare, valid, coerce,
+} from 'semver';
 import {
   removeArrayElement, removeArrayElementWhere, forEachAsync, debug,
 } from './utils';
-import { findAllVersionsMatchingAll } from './ficsitApp';
+import { findAllVersionsMatchingAll, getSMLVersionInfo } from './ficsitApp';
 import { getCachedMod } from './modHandler';
 
 export interface ItemVersionList {
@@ -32,13 +34,20 @@ export interface LockfileDiff {
 
 export async function getItemData(id: string, version: string): Promise<LockfileGraphNode> {
   if (id === 'SML') {
-    return { id, version, dependencies: {} };
+    const smlVersionInfo = await getSMLVersionInfo(version);
+    if (smlVersionInfo === undefined) {
+      throw new Error(`SML@${version} not found.`);
+    }
+    return { id, version, dependencies: { SatisfactoryGame: `>=${valid(coerce(smlVersionInfo.satisfactory_version.toString()))}` } };
   }
-  // TODO: Get data from ficsit.app so the mod doesn't have to be downloaded
+  if (id === 'SatisfactoryGame') {
+    throw new Error('SMLauncher cannot modify Satisfactory Game version');
+  }
+  // TODO: Get mod data from ficsit.app so the mod doesn't have to be downloaded
   const modData = await getCachedMod(id, version);
   if (!modData.dependencies) { modData.dependencies = {}; }
   if (modData.sml_version) {
-    modData.dependencies['SML'] = modData.sml_version;
+    modData.dependencies['SML'] = `>=${valid(coerce(modData.sml_version))}`;
   }
   return {
     id: modData.mod_id,

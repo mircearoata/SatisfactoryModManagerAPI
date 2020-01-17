@@ -5,10 +5,12 @@ import {
   appDataDir, ensureExists, forEachAsync, debug,
 } from './utils';
 import {
-  LockfileGraph, lockfileDifference, ItemVersionList, Lockfile, getItemData, LockfileDiff,
+  LockfileGraph, Lockfile, LockfileDiff, LockfileGraphNode, ItemVersionList,
+  lockfileDifference, getItemData,
 } from './lockfile';
 
 interface Manifest {
+  satisfactoryVersion: string;
   items: ItemVersionList;
 }
 
@@ -24,10 +26,17 @@ export class ManifestHandler {
     if (!fs.existsSync(this.manifestPath)) {
       ensureExists(this.manifestPath);
       this.writeManifest({
+        satisfactoryVersion: '0',
         items: {} as ItemVersionList,
       } as Manifest);
       this.writeLockfile({} as Lockfile);
     }
+  }
+
+  async setSatisfactoryVersion(satisfactoryVersion: string): Promise<void> {
+    const manifest = this.readManifest();
+    manifest.satisfactoryVersion = satisfactoryVersion;
+    this.writeManifest(manifest);
   }
 
   async mutate(install: ItemVersionList, uninstall: Array<string>): Promise<LockfileDiff> {
@@ -50,6 +59,13 @@ export class ManifestHandler {
       }
     });
     let success = true;
+    const satisfactoryNode = {
+      id: 'SatisfactoryGame',
+      version: manifest.satisfactoryVersion,
+      dependencies: {},
+      isInManifest: true,
+    } as LockfileGraphNode;
+    graph.add(satisfactoryNode);
     Object.entries(manifest.items).forEach((itemVersion) => {
       const id = itemVersion[0];
       const version = itemVersion[1];
@@ -78,6 +94,7 @@ export class ManifestHandler {
     }
     await graph.validateAll();
     graph.cleanup();
+    graph.remove(satisfactoryNode);
     const newLockfile = graph.toLockfile();
     this.writeManifest(manifest);
     this.writeLockfile(newLockfile);

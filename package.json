@@ -12,7 +12,7 @@
     "test": "yarn build && node test/test.js",
     "test:debug": "yarn build && cross-env NODE_DEBUG=SMLauncherAPI node test/test.js",
     "prepublishOnly": "yarn test",
-    "install": "node-gyp rebuild"
+    "install": "node-gyp rebuild --silent"
   },
   "gypfile": true,
   "author": "Mircea Roata",

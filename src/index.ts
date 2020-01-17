@@ -1,4 +1,7 @@
-export * from './satisfactoryInstall';
+export {
+  SatisfactoryInstall,
+  getInstalls,
+} from './satisfactoryInstall';
 export { Mod, ModObject } from './modHandler';
 export {
   getAvailableMods, getMod, getModVersions, getModLatestVersion,
