@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import path from 'path';
 import fs from 'fs';
+import { valid, coerce } from 'semver';
 import {
   appDataDir, ensureExists, forEachAsync, debug,
 } from './utils';
@@ -61,7 +62,7 @@ export class ManifestHandler {
     let success = true;
     const satisfactoryNode = {
       id: 'SatisfactoryGame',
-      version: manifest.satisfactoryVersion,
+      version: valid(coerce(manifest.satisfactoryVersion)),
       dependencies: {},
       isInManifest: true,
     } as LockfileGraphNode;

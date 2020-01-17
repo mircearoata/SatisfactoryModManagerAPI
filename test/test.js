@@ -7,7 +7,7 @@ const { modCacheDir, forEachAsync } = require('../lib/utils');
 const JSZip = require('jszip');
 
 const dummySfName = 'DummySF';
-const dummySfVersion = semver.valid(semver.coerce('109000'));
+const dummySfVersion = '109000';
 const dummySfPath = path.join(__dirname, 'TestSatisfactoryInstall');
 const dummySfExecutable = 'sf.exe';
 const dummyMods = [
