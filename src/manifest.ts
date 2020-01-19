@@ -59,7 +59,6 @@ export class ManifestHandler {
         graph.remove(root);
       }
     });
-    let success = true;
     const satisfactoryNode = {
       id: 'SatisfactoryGame',
       version: valid(coerce(manifest.satisfactoryVersion)),
@@ -76,23 +75,19 @@ export class ManifestHandler {
       }
     });
     await forEachAsync(Object.entries(manifest.items), async (itemVersion) => {
-      if (success) {
-        const id = itemVersion[0];
-        const version = itemVersion[1];
-        const itemData = await getItemData(id, version);
-        itemData.isInManifest = true;
-        if (!graph.nodes.some((node) => node.id === id && node.version === version)) {
-          if (!await graph.add(itemData)) {
-            debug(`Failed to install ${id}@${version}. Will roll back.`);
-            success = false;
-          }
+      const id = itemVersion[0];
+      const version = itemVersion[1];
+      const itemData = await getItemData(id, version);
+      itemData.isInManifest = true;
+      if (!graph.nodes.some((node) => node.id === id && node.version === version)) {
+        try {
+          await graph.add(itemData);
+        } catch (e) {
+          debug(`Failed to install ${id}@${version}. Changes will be discarded. ${e}`);
+          throw e;
         }
       }
     });
-    if (!success) {
-      debug('Rolling back manifest mutation.');
-      return { install: {}, uninstall: [] };
-    }
     await graph.validateAll();
     graph.cleanup();
     graph.remove(satisfactoryNode);

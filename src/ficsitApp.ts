@@ -1,6 +1,7 @@
 import request from 'request-promise-native';
 import { compare } from 'semver';
 import { versionSatisfiesAll } from './utils';
+import { ModNotFoundError } from './errors';
 
 const API_URL = 'https://api.ficsit.app';
 const GRAPHQL_API_URL = `${API_URL}/v2/query`;
@@ -108,7 +109,7 @@ export async function getModDownloadLink(modID: string, version: string): Promis
     } else if (res.getMod && res.getMod.version) {
       setCache(requestID, API_URL + res.getMod.version.link);
     } else {
-      throw new Error(`${modID}@${version} not found`);
+      throw new ModNotFoundError(`${modID}@${version} not found`);
     }
   }
   return getCache(requestID);
@@ -239,7 +240,7 @@ export async function getModVersions(modID: string): Promise<Array<FicsitAppVers
     } else if (res.getMod) {
       setCache(requestID, res.getMod.versions);
     } else {
-      throw new Error(`Mod ${modID} not found`);
+      throw new ModNotFoundError(`Mod ${modID} not found`);
     }
   }
   return getCache(requestID);

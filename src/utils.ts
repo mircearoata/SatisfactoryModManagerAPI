@@ -3,11 +3,10 @@ import path from 'path';
 import fs from 'fs';
 import request from 'request-promise-native';
 import { satisfies } from 'semver';
-import { debuglog } from 'util';
+
+import SimpleNodeLogger = require('simple-node-logger');
 
 export const appName = 'SatisfactoryModLauncher';
-
-export const debug = debuglog('SMLauncherAPI');
 
 export function ensureExists(folder: string): void {
   fs.mkdirSync(folder, { recursive: true });
@@ -19,6 +18,74 @@ export const cacheDir = path.join(getCacheFolder(), appName);
 ensureExists(cacheDir);
 export const modCacheDir = path.join(cacheDir, 'mods');
 ensureExists(modCacheDir);
+
+export const logsDir = path.join(cacheDir, 'logs');
+ensureExists(logsDir);
+
+const logLevel = process.env.NODE_DEBUG?.includes('SMLauncherAPI') ? 'debug' : 'info';
+
+function formatDate(date: Date): string {
+  return `${date.getFullYear().toString().padStart(4, '0')}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+}
+
+export function getLogFilePath(): string {
+  return path.join(logsDir, `${appName}-${formatDate(new Date())}.log`);
+}
+
+const consoleLoggerOpts = {
+  level: logLevel,
+  timestampFormat: 'YYYY-MM-DD HH:mm:ss.SSS',
+};
+
+const fileLoggerOpts = {
+  level: logLevel,
+  timestampFormat: 'YYYY-MM-DD HH:mm:ss.SSS',
+  logFilePath: getLogFilePath(),
+};
+
+const logManager = SimpleNodeLogger.createLogManager(consoleLoggerOpts);
+let fileAppender = new SimpleNodeLogger.appenders.FileAppender(fileLoggerOpts);
+logManager.addAppender(fileAppender);
+
+let log = logManager.createLogger();
+
+function checkRoll(): void {
+  const logFile = getLogFilePath();
+  const currentLogFile = fileLoggerOpts.logFilePath;
+  if (logFile !== currentLogFile) {
+    fileAppender.closeWriter();
+    fileLoggerOpts.logFilePath = logFile;
+    logManager.getAppenders().pop();
+    fileAppender = new SimpleNodeLogger.appenders.FileAppender(fileLoggerOpts);
+    logManager.addAppender(fileAppender);
+    log = logManager.createLogger();
+  }
+}
+
+export function debug(message: string): void {
+  checkRoll();
+  log.debug(message);
+}
+
+export function info(message: string): void {
+  checkRoll();
+  log.info(message);
+}
+
+export function warn(message: string): void {
+  checkRoll();
+  log.warn(message);
+}
+
+export function error(message: string): void {
+  checkRoll();
+  log.error(message);
+}
+
+export function fatal(message: string): void {
+  checkRoll();
+  log.fatal(message);
+}
 
 export function copyFile(file: string, toDir: string): void {
   ensureExists(toDir);

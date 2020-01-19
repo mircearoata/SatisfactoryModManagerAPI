@@ -3,6 +3,7 @@ import fs from 'fs';
 import bindings from 'bindings';
 import { satisfies } from 'semver';
 import { downloadFile } from './utils';
+import { ModNotFoundError } from './errors';
 
 const smlVersionNative = bindings('smlVersion');
 
@@ -34,7 +35,7 @@ export async function installSML(version: string, satisfactoryPath: string): Pro
         path.join(satisfactoryPath, getSMLRelativePath(version)));
     } catch (e) {
       if (version.startsWith('v')) {
-        throw new Error(`SML version ${version.substr(1)} not found`);
+        throw new ModNotFoundError(`SML version ${version.substr(1)} not found`);
       }
       await installSML(`v${version}`, satisfactoryPath);
     }

@@ -6,6 +6,11 @@ import {
 } from './utils';
 import { findAllVersionsMatchingAll, getSMLVersionInfo } from './ficsitApp';
 import { getCachedMod } from './modHandler';
+import {
+  UnsolvableDependencyError, DependencyManifestMismatchError,
+  InvalidLockfileOperation,
+  ModNotFoundError,
+} from './errors';
 
 export interface ItemVersionList {
   [id: string]: string;
@@ -36,12 +41,12 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
   if (id === 'SML') {
     const smlVersionInfo = await getSMLVersionInfo(version);
     if (smlVersionInfo === undefined) {
-      throw new Error(`SML@${version} not found.`);
+      throw new ModNotFoundError(`SML@${version} not found`);
     }
     return { id, version, dependencies: { SatisfactoryGame: `>=${valid(coerce(smlVersionInfo.satisfactory_version.toString()))}` } };
   }
   if (id === 'SatisfactoryGame') {
-    throw new Error('SMLauncher cannot modify Satisfactory Game version');
+    throw new InvalidLockfileOperation('SMLauncher cannot modify Satisfactory Game version. This should never happen, unless Satisfactory was not temporarily added to the lockfile as a manifest entry');
   }
   // TODO: Get mod data from ficsit.app so the mod doesn't have to be downloaded
   const modData = await getCachedMod(id, version);
@@ -70,62 +75,58 @@ export class LockfileGraph {
     });
   }
 
-  async validate(node: LockfileGraphNode): Promise<boolean> {
-    try {
-      await forEachAsync(Object.entries(node.dependencies), (async (dependency) => {
-        const dependencyID = dependency[0];
-        const versionConstraint = dependency[1];
-        const dependencyNode = this.nodes.find((graphNode) => graphNode.id === dependencyID);
-        if (!dependencyNode || !satisfies(dependencyNode.version, versionConstraint)) {
-          if (dependencyNode) {
-            if (dependencyNode.isInManifest) {
-              throw new Error(`Dependency ${dependencyID}@${dependencyNode.version} is NOT GOOD for ${node.id}@${node.version} (requires ${versionConstraint}), and it is in the manifest.`);
-            } else {
-              debug(`Dependency ${dependencyID}@${dependencyNode.version} is NOT GOOD for ${node.id}@${node.version} (requires ${versionConstraint})`);
-              this.remove(dependencyNode);
-            }
+  async validate(node: LockfileGraphNode): Promise<void> {
+    await forEachAsync(Object.entries(node.dependencies), (async (dependency) => {
+      const dependencyID = dependency[0];
+      const versionConstraint = dependency[1];
+      const dependencyNode = this.nodes.find((graphNode) => graphNode.id === dependencyID);
+      if (!dependencyNode || !satisfies(dependencyNode.version, versionConstraint)) {
+        if (dependencyNode) {
+          if (dependencyNode.isInManifest) {
+            throw new DependencyManifestMismatchError(`Dependency ${dependencyID}@${dependencyNode.version} is NOT GOOD for ${node.id}@${node.version} (requires ${versionConstraint}), and it is in the manifest`);
+          } else {
+            debug(`Dependency ${dependencyID}@${dependencyNode.version} is NOT GOOD for ${node.id}@${node.version} (requires ${versionConstraint})`);
+            this.remove(dependencyNode);
           }
-          const versionConstraints = this.nodes
-            .filter((graphNode) => dependencyID in graphNode.dependencies)
-            .map((graphNode) => graphNode.dependencies[dependencyID]);
-          debug(`Dependency ${dependencyID} must match ${versionConstraints}`);
-          const matchingDependencyVersions = await findAllVersionsMatchingAll(dependencyID,
-            versionConstraints);
-          matchingDependencyVersions.sort((a, b) => compare(a, b));
-          debug(`Found versions ${matchingDependencyVersions}`);
-          let found = false;
-          while (!found && matchingDependencyVersions.length > 0) {
-            const version = matchingDependencyVersions.pop();
-            if (!version) { break; }
+        }
+        const versionConstraints = this.nodes
+          .filter((graphNode) => dependencyID in graphNode.dependencies)
+          .map((graphNode) => graphNode.dependencies[dependencyID]);
+        debug(`Dependency ${dependencyID} must match ${versionConstraints}`);
+        const matchingDependencyVersions = await findAllVersionsMatchingAll(dependencyID,
+          versionConstraints);
+        matchingDependencyVersions.sort((a, b) => compare(a, b));
+        debug(`Found versions ${matchingDependencyVersions}`);
+        let found = false;
+        while (!found && matchingDependencyVersions.length > 0) {
+          const version = matchingDependencyVersions.pop();
+          if (!version) { break; }
+          // eslint-disable-next-line no-await-in-loop
+          const itemData = await getItemData(dependencyID, version);
+          debug(`Trying ${version}`);
+          try {
             // eslint-disable-next-line no-await-in-loop
-            const itemData = await getItemData(dependencyID, version);
-            debug(`Trying ${version}`);
-            // eslint-disable-next-line no-await-in-loop
-            if (await this.add(itemData)) {
-              found = true;
-              break;
-            }
+            await this.add(itemData);
+            found = true;
+            break;
+          } catch (e) {
             this.remove(itemData);
           }
-          if (!found) {
-            if (dependencyNode) {
-              await this.add(dependencyNode);
-            }
-            throw new Error(`No version found for dependency ${dependencyID} of ${node.id}. Rolling back.`);
-          }
-        } else {
-          debug(`Dependency ${dependencyID}@${dependencyNode.version} is GOOD for ${node.id}@${node.version} (requires ${versionConstraint})`);
         }
-      }));
-    } catch (e) {
-      debug(e.message);
-      return false;
-    }
-    return true;
+        if (!found) {
+          if (dependencyNode) {
+            await this.add(dependencyNode);
+          }
+          throw new UnsolvableDependencyError(`No version found for dependency ${dependencyID} of ${node.id}`);
+        }
+      } else {
+        debug(`Dependency ${dependencyID}@${dependencyNode.version} is GOOD for ${node.id}@${node.version} (requires ${versionConstraint})`);
+      }
+    }));
   }
 
   async validateAll(): Promise<void> {
-    this.nodes.forEach((graphNode) => this.validate(graphNode));
+    return forEachAsync(this.nodes, async (graphNode) => this.validate(graphNode));
   }
 
   toLockfile(): Lockfile {
@@ -152,23 +153,22 @@ export class LockfileGraph {
     debug(`Removed ${node.id}@${node.version}`);
   }
 
-  async add(node: LockfileGraphNode): Promise<boolean> {
+  async add(node: LockfileGraphNode): Promise<void> {
     if (this.nodes.some((graphNode) => graphNode.id === node.id)) {
       const existingNode = this.nodes.find((graphNode) => graphNode.id === node.id);
       debug(`Item ${node.id} already has another version installed: ${existingNode?.version}`);
-      return false;
+    } else {
+      debug(`Adding ${node.id}@${node.version}`);
+      try {
+        this.nodes.push(node);
+        // await this.validate(node);
+        debug(`Added ${node.id}@${node.version}`);
+      } catch (e) {
+        this.remove(node);
+        debug(`Failed adding ${node.id}@${node.version}. ${e.message}`);
+        throw e;
+      }
     }
-    debug(`Adding ${node.id}@${node.version}`);
-    let success = true;
-    this.nodes.push(node);
-    success = await this.validate(node);
-    if (!success) {
-      this.remove(node);
-      debug(`Failed adding ${node.id}@${node.version}`);
-      return false;
-    }
-    debug(`Added ${node.id}@${node.version}`);
-    return true;
   }
 
   isNodeDangling(node: LockfileGraphNode): boolean {
