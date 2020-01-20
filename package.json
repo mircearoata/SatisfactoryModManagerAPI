@@ -1,6 +1,6 @@
 {
   "name": "satisfactory-mod-launcher-api",
-  "version": "0.0.1",
+  "version": "1.0.0-pr1",
   "description": "API to manage installed Satisfactory mods",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
