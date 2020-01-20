@@ -8,6 +8,6 @@ export {
   getAvailableSMLVersions, getLatestSMLVersion,
   FicsitAppMod, FicsitAppVersion, FicsitAppAuthor, FicsitAppUser, FicsitAppSMLVersion,
 } from './ficsitApp';
-export { getManifestFilePath } from './manifest';
+export { getManifestFolderPath } from './manifest';
 export * from './errors';
 export { getLogFilePath } from './utils';

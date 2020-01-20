@@ -43,8 +43,9 @@ module.exports = {
         'exceptAfterSingleLine': true
       }
     ],
-    indent: 0,
+    'indent': 0,
     '@typescript-eslint/indent': ['error', 2],
+    'no-underscore-dangle': 0
   },
   settings: {
     'import/extensions': ['.js', '.jsx', '.json', '.ts', '.tsx'],

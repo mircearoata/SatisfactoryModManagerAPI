@@ -15,17 +15,17 @@ interface Manifest {
   items: ItemVersionList;
 }
 
-export function getManifestFilePath(satisfactoryPath: string): string {
+export function getManifestFolderPath(satisfactoryPath: string): string {
   return path.join(appDataDir, createHash('sha256').update(satisfactoryPath, 'utf8').digest('hex'));
 }
 
 export class ManifestHandler {
-  private manifestPath: string;
+  private _manifestPath: string;
 
   constructor(manifestForPath: string) {
-    this.manifestPath = getManifestFilePath(manifestForPath);
-    if (!fs.existsSync(this.manifestPath)) {
-      ensureExists(this.manifestPath);
+    this._manifestPath = getManifestFolderPath(manifestForPath);
+    if (!fs.existsSync(this._manifestPath)) {
+      ensureExists(this._manifestPath);
       this.writeManifest({
         satisfactoryVersion: '0',
         items: {} as ItemVersionList,
@@ -114,11 +114,11 @@ export class ManifestHandler {
   }
 
   getManifestFilePath(): string {
-    return path.join(this.manifestPath, 'manifest.json');
+    return path.join(this._manifestPath, 'manifest.json');
   }
 
   getLockfilePath(): string {
-    return path.join(this.manifestPath, 'lock.json');
+    return path.join(this._manifestPath, 'lock.json');
   }
 
   getItemsList(): ItemVersionList {

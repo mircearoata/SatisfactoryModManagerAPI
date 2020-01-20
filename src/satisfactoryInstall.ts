@@ -14,7 +14,7 @@ import {
 } from './utils';
 
 export class SatisfactoryInstall {
-  private manifestHandler: ManifestHandler;
+  private _manifestHandler: ManifestHandler;
   name: string;
   version: string;
   installLocation: string;
@@ -22,7 +22,7 @@ export class SatisfactoryInstall {
 
   constructor(name: string, version: string, installLocation: string, launchExecutable?: string) {
     this.installLocation = installLocation;
-    this.manifestHandler = new ManifestHandler(installLocation);
+    this._manifestHandler = new ManifestHandler(installLocation);
 
     this.name = name;
     this.version = version;
@@ -31,7 +31,7 @@ export class SatisfactoryInstall {
 
   // TODO: always check that what is installed matches the lockfile
 
-  private async getInstalledMismatches(items: ItemVersionList):
+  private async _getInstalledMismatches(items: ItemVersionList):
   Promise<{ install: ItemVersionList; uninstall: Array<string>}> {
     const installedSML = await SMLHandler.getSMLVersion(this.installLocation);
     const installedMods = await ModHandler.getInstalledMods(
@@ -65,20 +65,20 @@ export class SatisfactoryInstall {
   }
 
   async validateInstall(): Promise<void> {
-    const items = this.manifestHandler.getItemsList();
+    const items = this._manifestHandler.getItemsList();
     debug(JSON.stringify(items));
-    let mismatches = await this.getInstalledMismatches(items);
+    let mismatches = await this._getInstalledMismatches(items);
     debug(JSON.stringify(mismatches));
     if ('SML' in mismatches.install || mismatches.uninstall.includes('SML')) {
-      if (SMLHandler.getRelativeModsPath(await this.getInstalledSMLVersion())
+      if (SMLHandler.getRelativeModsPath(await this._getInstalledSMLVersion())
        !== SMLHandler.getRelativeModsPath(items['SML']) || !('SML' in mismatches.install)) {
         const currentModsDir = await SMLHandler.getModsDir(this.installLocation);
         if (currentModsDir) {
-          const installedMods = await this.getInstalledMods();
+          const installedMods = await this._getInstalledMods();
           await Promise.all(installedMods.map(
             (mod) => ModHandler.uninstallMod(mod.mod_id, currentModsDir),
           ));
-          mismatches = await this.getInstalledMismatches(items);
+          mismatches = await this._getInstalledMismatches(items);
         }
       }
     }
@@ -112,8 +112,8 @@ export class SatisfactoryInstall {
 
   async manifestMutate(changes: ItemVersionList): Promise<void> {
     try {
-      await this.manifestHandler.setSatisfactoryVersion(this.version);
-      await this.manifestHandler.mutate(changes);
+      await this._manifestHandler.setSatisfactoryVersion(this.version);
+      await this._manifestHandler.mutate(changes);
       await this.validateInstall();
     } catch (e) {
       e.message = `${e.message}. All changes were discarded.`;
@@ -123,7 +123,7 @@ export class SatisfactoryInstall {
   }
 
   async installMod(modID: string, version: string): Promise<void> {
-    if ((await this.getInstalledMods()).some((mod) => mod.mod_id === modID)) {
+    if ((await this._getInstalledMods()).some((mod) => mod.mod_id === modID)) {
       info(`Updating ${modID}@${version}`);
       return this.manifestMutate({ [modID]: version });
     }
@@ -156,7 +156,7 @@ export class SatisfactoryInstall {
     return this.updateMod(mod.id);
   }
 
-  private async getInstalledMods(): Promise<Array<ModHandler.Mod>> {
+  private async _getInstalledMods(): Promise<Array<ModHandler.Mod>> {
     const modsDir = await SMLHandler.getModsDir(this.installLocation);
     if (!modsDir) {
       return [];
@@ -165,7 +165,7 @@ export class SatisfactoryInstall {
   }
 
   getMods(): ItemVersionList {
-    return filterObject(this.manifestHandler.getItemsList(), (id) => id !== 'SML');
+    return filterObject(this._manifestHandler.getItemsList(), (id) => id !== 'SML');
   }
 
   async installSML(version: string): Promise<void> {
@@ -183,13 +183,13 @@ export class SatisfactoryInstall {
     return this.manifestMutate({ SML: (await getLatestSMLVersion()).version });
   }
 
-  private async getInstalledSMLVersion(): Promise<string | undefined> {
+  private async _getInstalledSMLVersion(): Promise<string | undefined> {
     // TODO: replace with lockfile get
     return SMLHandler.getSMLVersion(this.installLocation);
   }
 
   getSMLVersion(): string | undefined {
-    return this.manifestHandler.getItemsList()['SML'];
+    return this._manifestHandler.getItemsList()['SML'];
   }
 
   get launchPath(): string | undefined {
