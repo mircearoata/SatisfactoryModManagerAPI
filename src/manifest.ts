@@ -3,11 +3,11 @@ import path from 'path';
 import fs from 'fs';
 import { valid, coerce } from 'semver';
 import {
-  appDataDir, ensureExists, forEachAsync, debug,
+  appDataDir, ensureExists, forEachAsync, debug, mapObject,
 } from './utils';
 import {
-  LockfileGraph, Lockfile, LockfileDiff, LockfileGraphNode, ItemVersionList,
-  lockfileDifference, getItemData,
+  LockfileGraph, Lockfile, LockfileGraphNode, ItemVersionList,
+  getItemData,
 } from './lockfile';
 
 interface Manifest {
@@ -40,12 +40,13 @@ export class ManifestHandler {
     this.writeManifest(manifest);
   }
 
-  async mutate(install: ItemVersionList, uninstall: Array<string>): Promise<LockfileDiff> {
+  async mutate(changes: ItemVersionList): Promise<void> {
     const manifest = this.readManifest();
-    uninstall.forEach((item) => {
-      delete manifest.items[item];
+    Object.entries(changes).filter((change) => change[1].length === 0).forEach((itemVersion) => {
+      const id = itemVersion[0];
+      delete manifest.items[id];
     });
-    Object.entries(install).forEach((itemVersion) => {
+    Object.entries(changes).filter((change) => change[1].length !== 0).forEach((itemVersion) => {
       const id = itemVersion[0];
       const version = itemVersion[1];
       manifest.items[id] = version;
@@ -94,8 +95,6 @@ export class ManifestHandler {
     const newLockfile = graph.toLockfile();
     this.writeManifest(manifest);
     this.writeLockfile(newLockfile);
-
-    return lockfileDifference(initialLockfile, newLockfile);
   }
 
   readManifest(): Manifest {
@@ -120,5 +119,9 @@ export class ManifestHandler {
 
   getLockfilePath(): string {
     return path.join(this.manifestPath, 'lock.json');
+  }
+
+  getItemsList(): ItemVersionList {
+    return mapObject(this.readLockfile(), (id, data) => [id, data.version]);
   }
 }

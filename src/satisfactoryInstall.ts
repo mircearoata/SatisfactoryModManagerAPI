@@ -9,7 +9,9 @@ import {
 } from './ficsitApp';
 import { ManifestHandler } from './manifest';
 import { ItemVersionList } from './lockfile';
-import { debug, info, error } from './utils';
+import {
+  debug, info, error, filterObject, mergeArrays,
+} from './utils';
 
 export class SatisfactoryInstall {
   private manifestHandler: ManifestHandler;
@@ -29,33 +31,90 @@ export class SatisfactoryInstall {
 
   // TODO: always check that what is installed matches the lockfile
 
-  async manifestMutate(install: ItemVersionList, uninstall: string[]): Promise<void> {
-    try {
-      await this.manifestHandler.setSatisfactoryVersion(this.version);
-      const changes = await this.manifestHandler.mutate(install, uninstall);
-      debug(JSON.stringify(changes));
-      let modsDir = await SMLHandler.getModsDir(this.installLocation);
-      await Promise.all(changes.uninstall.map((id) => {
-        if (id !== 'SML') {
+  private async getInstalledMismatches(items: ItemVersionList):
+  Promise<{ install: ItemVersionList; uninstall: Array<string>}> {
+    const installedSML = await SMLHandler.getSMLVersion(this.installLocation);
+    const installedMods = await ModHandler.getInstalledMods(
+      await SMLHandler.getModsDir(this.installLocation),
+    );
+    const mismatches: { install: ItemVersionList; uninstall: Array<string>} = {
+      install: {},
+      uninstall: [],
+    };
+
+    if (installedSML !== items['SML']) {
+      if (!items['SML'] || (installedSML && items['SML'])) {
+        mismatches.uninstall.push('SML');
+      }
+      mismatches.install['SML'] = items['SML'];
+    }
+
+    const allMods = mergeArrays(Object.keys(items).filter((item) => item !== 'SML'), installedMods.map((mod) => mod.mod_id));
+    allMods.forEach((mod) => {
+      const installedModVersion = installedMods
+        .find((installedMod) => installedMod.mod_id === mod)?.version;
+      if (installedModVersion !== items[mod]) {
+        if (!items[mod] || (installedModVersion && items[mod])) {
+          mismatches.uninstall.push(mod);
+        }
+        mismatches.install[mod] = items[mod];
+      }
+    });
+
+    return mismatches;
+  }
+
+  async validateInstall(): Promise<void> {
+    const items = this.manifestHandler.getItemsList();
+    debug(JSON.stringify(items));
+    let mismatches = await this.getInstalledMismatches(items);
+    debug(JSON.stringify(mismatches));
+    if ('SML' in mismatches.install || mismatches.uninstall.includes('SML')) {
+      if (SMLHandler.getRelativeModsPath(await this.getInstalledSMLVersion())
+       !== SMLHandler.getRelativeModsPath(items['SML']) || !('SML' in mismatches.install)) {
+        const currentModsDir = await SMLHandler.getModsDir(this.installLocation);
+        if (currentModsDir) {
+          const installedMods = await this.getInstalledMods();
+          await Promise.all(installedMods.map(
+            (mod) => ModHandler.uninstallMod(mod.mod_id, currentModsDir),
+          ));
+          mismatches = await this.getInstalledMismatches(items);
+        }
+      }
+    }
+    let modsDir = await SMLHandler.getModsDir(this.installLocation);
+    await Promise.all(mismatches.uninstall.map((id) => {
+      if (id !== 'SML') {
+        if (modsDir) {
           return ModHandler.uninstallMod(id, modsDir);
         }
-        return Promise.resolve();
-      }));
-      if (changes.uninstall.includes('SML')) {
-        await SMLHandler.uninstallSML(this.installLocation);
       }
-      if ('SML' in changes.install) {
-        await SMLHandler.installSML(changes.install['SML'], this.installLocation);
-      }
-      modsDir = await SMLHandler.getModsDir(this.installLocation);
-      await Promise.all(Object.entries(changes.install).map((modInstall) => {
-        const modInstallID = modInstall[0];
-        const modInstallVersion = modInstall[1];
-        if (modInstallID !== 'SML') {
+      return Promise.resolve();
+    }));
+    if (mismatches.uninstall.includes('SML')) {
+      await SMLHandler.uninstallSML(this.installLocation);
+    }
+    if ('SML' in mismatches.install) {
+      await SMLHandler.installSML(mismatches.install['SML'], this.installLocation);
+    }
+    modsDir = await SMLHandler.getModsDir(this.installLocation);
+    await Promise.all(Object.entries(mismatches.install).map((modInstall) => {
+      const modInstallID = modInstall[0];
+      const modInstallVersion = modInstall[1];
+      if (modInstallID !== 'SML') {
+        if (modsDir) {
           return ModHandler.installMod(modInstallID, modInstallVersion, modsDir);
         }
-        return Promise.resolve();
-      }));
+      }
+      return Promise.resolve();
+    }));
+  }
+
+  async manifestMutate(changes: ItemVersionList): Promise<void> {
+    try {
+      await this.manifestHandler.setSatisfactoryVersion(this.version);
+      await this.manifestHandler.mutate(changes);
+      await this.validateInstall();
     } catch (e) {
       e.message = `${e.message}. All changes were discarded.`;
       error(e.message);
@@ -66,10 +125,10 @@ export class SatisfactoryInstall {
   async installMod(modID: string, version: string): Promise<void> {
     if ((await this.getInstalledMods()).some((mod) => mod.mod_id === modID)) {
       info(`Updating ${modID}@${version}`);
-      return this.manifestMutate({ [modID]: version }, [modID]);
+      return this.manifestMutate({ [modID]: version });
     }
     info(`Installing ${modID}@${version}`);
-    return this.manifestMutate({ [modID]: version }, []);
+    return this.manifestMutate({ [modID]: version });
   }
 
   async installFicsitAppMod(modVersion: FicsitAppVersion): Promise<void> {
@@ -78,7 +137,7 @@ export class SatisfactoryInstall {
 
   async uninstallMod(modID: string): Promise<void> {
     info(`Uninstalling ${modID}`);
-    return this.manifestMutate({}, [modID]);
+    return this.manifestMutate({ [modID]: '' });
   }
 
   async uninstallFicsitAppMod(mod: FicsitAppMod): Promise<void> {
@@ -86,38 +145,51 @@ export class SatisfactoryInstall {
   }
 
   async updateMod(modID: string): Promise<void> {
+    const latestVersion = (await getModLatestVersion(modID)).version;
+    info(`Updating ${modID}@${latestVersion} (latest version)`);
     return this.manifestMutate({
-      [modID]: (await getModLatestVersion(modID)).version,
-    }, [modID]);
+      [modID]: latestVersion,
+    });
   }
 
   async updateFicsitAppMod(mod: FicsitAppMod): Promise<void> {
     return this.updateMod(mod.id);
   }
 
-  async getInstalledMods(): Promise<Array<ModHandler.Mod>> {
-    // TODO: replace with lockfile get
-    return ModHandler.getInstalledMods(await SMLHandler.getModsDir(this.installLocation));
+  private async getInstalledMods(): Promise<Array<ModHandler.Mod>> {
+    const modsDir = await SMLHandler.getModsDir(this.installLocation);
+    if (!modsDir) {
+      return [];
+    }
+    return ModHandler.getInstalledMods(modsDir);
+  }
+
+  getMods(): ItemVersionList {
+    return filterObject(this.manifestHandler.getItemsList(), (id) => id !== 'SML');
   }
 
   async installSML(version: string): Promise<void> {
     if (await this.getSMLVersion()) {
-      return this.manifestMutate({ SML: version }, ['SML']);
+      return this.manifestMutate({ SML: version });
     }
-    return this.manifestMutate({ SML: version }, []);
+    return this.manifestMutate({ SML: version });
   }
 
   async uninstallSML(): Promise<void> {
-    return this.manifestMutate({}, ['SML']);
+    return this.manifestMutate({ SML: '' });
   }
 
   async updateSML(): Promise<void> {
-    return this.manifestMutate({ SML: (await getLatestSMLVersion()).version }, ['SML']);
+    return this.manifestMutate({ SML: (await getLatestSMLVersion()).version });
   }
 
-  async getSMLVersion(): Promise<string | undefined> {
+  private async getInstalledSMLVersion(): Promise<string | undefined> {
     // TODO: replace with lockfile get
     return SMLHandler.getSMLVersion(this.installLocation);
+  }
+
+  getSMLVersion(): string | undefined {
+    return this.manifestHandler.getItemsList()['SML'];
   }
 
   get launchPath(): string | undefined {
@@ -135,7 +207,7 @@ export class SatisfactoryInstall {
     return `${this.name} (${this.version})`;
   }
 
-  async modsDir(): Promise<string> {
+  async modsDir(): Promise<string | undefined> {
     return SMLHandler.getModsDir(this.installLocation);
   }
 }

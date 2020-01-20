@@ -101,7 +101,10 @@ export async function uninstallMod(modID: string, modsDir: string): Promise<void
   }
 }
 
-export async function getInstalledMods(modsDir: string): Promise<Array<Mod>> {
+export async function getInstalledMods(modsDir: string | undefined): Promise<Array<Mod>> {
+  if (!modsDir) {
+    return [];
+  }
   const installedModsPromises = Array<Promise<Mod>>();
   if (fs.existsSync(modsDir)) {
     fs.readdirSync(modsDir).forEach((file) => {

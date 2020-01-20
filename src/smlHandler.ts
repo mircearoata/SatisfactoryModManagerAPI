@@ -50,13 +50,22 @@ export async function uninstallSML(satisfactoryPath: string): Promise<void> {
   fs.unlinkSync(path.join(satisfactoryPath, getSMLRelativePath(smlVersion)));
 }
 
-export async function getModsDir(satisfactoryPath: string): Promise<string> {
-  let smlVersion = await getSMLVersion(satisfactoryPath);
-  if (!smlVersion) {
-    smlVersion = '1.1.0'; // default to pre 2.0. Should default to 2.0 after 2.0 is released
+
+export function getRelativeModsPath(version: string | undefined): string | undefined {
+  if (!version) {
+    return undefined;
   }
-  if (satisfies(smlVersion, '<2.0.0')) {
-    return path.join(satisfactoryPath, 'FactoryGame', 'Binaries', 'Win64', 'mods');
+  if (satisfies(version, '<2.0.0')) {
+    return path.join('FactoryGame', 'Binaries', 'Win64', 'mods');
   }
-  return path.join(satisfactoryPath, 'mods');
+  return path.join('mods');
+}
+
+export async function getModsDir(satisfactoryPath: string): Promise<string | undefined> {
+  const smlVersion = await getSMLVersion(satisfactoryPath);
+  const relativePath = getRelativeModsPath(smlVersion);
+  if (!relativePath) {
+    return undefined;
+  }
+  return path.join(satisfactoryPath, relativePath);
 }

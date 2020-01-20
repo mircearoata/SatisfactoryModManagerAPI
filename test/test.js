@@ -80,6 +80,9 @@ async function main() {
       installedMods = await sfInstall.getInstalledMods();
       assert.strictEqual(installedMods.length, 1, 'Install without dependency failed');
     } catch(e) {
+      if(e instanceof assert.AssertionError) {
+        throw e;
+      }
       assert.fail(`Unexpected error: ${e}`);
     }
 
@@ -91,6 +94,9 @@ async function main() {
       }
       assert.strictEqual(installedMods.length, 1, 'Install removed/added a mod');
     } catch(e) {
+      if(e instanceof assert.AssertionError) {
+        throw e;
+      }
       if(!e instanceof UnsolvableDependencyError) {
         assert.fail(`Unexpected error: ${e}`);
       }
@@ -104,6 +110,9 @@ async function main() {
       }
       assert.strictEqual(installedMods.length, 2, 'Update removed/added a mod');
     } catch(e) {
+      if(e instanceof assert.AssertionError) {
+        throw e;
+      }
       assert.fail(`Unexpected error: ${e}`);
     }
 
@@ -115,6 +124,9 @@ async function main() {
       }
       assert.strictEqual(installedMods.length, 2, 'Update removed/added a mod');
     } catch(e) {
+      if(e instanceof assert.AssertionError) {
+        throw e;
+      }
       assert.fail(`Unexpected error: ${e}`);
     }
 
@@ -126,6 +138,9 @@ async function main() {
       }
       assert.strictEqual(installedMods.length, 2, 'Update removed/added a mod');
     } catch(e) {
+      if(e instanceof assert.AssertionError) {
+        throw e;
+      }
       if(!e instanceof DependencyManifestMismatchError) {
         assert.fail(`Unexpected error: ${e}`);
       }
@@ -137,6 +152,19 @@ async function main() {
       assert.strictEqual(installedMods.length, 2, 'Uninstall dependency succeeded');
       assert.strictEqual(installedMods.some((mod) => mod.mod_id === '6vQ6ckVYFiidDh' && mod.version === '1.4.1'), true, 'Uninstall dependency changed version');
     } catch(e) {
+      if(e instanceof assert.AssertionError) {
+        throw e;
+      }
+      assert.fail(`Unexpected error: ${e}`);
+    }
+
+    try {
+      await sfInstall.manifestMutate({});
+      assert.deepStrictEqual(installedMods, await sfInstall.getInstalledMods(), 'Empty mutation changed something');
+    } catch(e) {
+      if(e instanceof assert.AssertionError) {
+        throw e;
+      }
       assert.fail(`Unexpected error: ${e}`);
     }
   } catch (e) {

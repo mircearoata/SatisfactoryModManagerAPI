@@ -132,3 +132,35 @@ export function removeArrayElementWhere<T>(array: Array<T>,
 export function versionSatisfiesAll(version: string, versionConstraints: Array<string>): boolean {
   return versionConstraints.every((versionConstraint) => satisfies(version, versionConstraint));
 }
+
+export function filterObject<V>(object: { [key: string]: V },
+  filterFunction: (key: string, value: V) => boolean): { [key: string]: V } {
+  const filtered: { [key: string]: V } = {};
+  Object.entries(object).filter((entry) => filterFunction(entry[0], entry[1])).forEach((entry) => {
+    const key = entry[0];
+    const val = entry[1];
+    filtered[key] = val;
+  });
+  return filtered;
+}
+
+export function mapObject<U, V>(object: { [key: string]: U },
+  mapFunction: (key: string, value: U) => [string, V]): { [key: string]: V } {
+  const mapped: { [key: string]: V } = {};
+  Object.entries(object).map((entry) => mapFunction(entry[0], entry[1])).forEach((entry) => {
+    const key = entry[0];
+    const val = entry[1];
+    mapped[key] = val;
+  });
+  return mapped;
+}
+
+export function mergeArrays<T>(...arrays: Array<Array<T>>): Array<T> {
+  let jointArray: Array<T> = [];
+
+  arrays.forEach((array) => {
+    jointArray = [...jointArray, ...array];
+  });
+  const uniqueArray = jointArray.filter((item, index) => jointArray.indexOf(item) === index);
+  return uniqueArray;
+}
