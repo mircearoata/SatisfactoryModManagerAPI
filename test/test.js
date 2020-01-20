@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const assert = require('assert');
 const semver = require('semver');
-const { SatisfactoryInstall, getManifestFilePath, UnsolvableDependencyError, DependencyManifestMismatchError } = require('../');
+const { SatisfactoryInstall, getManifestFolderPath, UnsolvableDependencyError, DependencyManifestMismatchError } = require('../');
 const { modCacheDir, forEachAsync } = require('../lib/utils');
 const JSZip = require('jszip');
 
@@ -70,6 +70,8 @@ async function main() {
   fs.mkdirSync(dummySfPath, { recursive: true });
   await createDummyMods()
 
+  let success = true;
+
   try {
     // TODO: maybe better testing
     const sfInstall = new SatisfactoryInstall(dummySfName, dummySfVersion, dummySfPath, dummySfExecutable);
@@ -77,7 +79,7 @@ async function main() {
 
     try {
       await sfInstall.installMod('6vQ6ckVYFiidDh', '1.4.1');
-      installedMods = await sfInstall.getInstalledMods();
+      installedMods = await sfInstall._getInstalledMods();
       assert.strictEqual(installedMods.length, 1, 'Install without dependency failed');
     } catch(e) {
       if(e instanceof assert.AssertionError) {
@@ -88,7 +90,7 @@ async function main() {
 
     try {
       await sfInstall.installMod('dummyMod1', '1.0.0');
-      installedMods = await sfInstall.getInstalledMods();
+      installedMods = await sfInstall._getInstalledMods();
       if (installedMods.some((mod) => mod.mod_id === 'dummyMod1' && mod.version === '1.0.0')) {
         assert.fail('Install mod with conflicting SML succeeded');
       }
@@ -104,7 +106,7 @@ async function main() {
 
     try {
       await sfInstall.installMod('dummyMod1', '1.0.1');
-      installedMods = await sfInstall.getInstalledMods();
+      installedMods = await sfInstall._getInstalledMods();
       if (!installedMods.some((mod) => mod.mod_id === 'dummyMod1' && mod.version === '1.0.1')) {
         assert.fail('Update mod with existing dependency failed');
       }
@@ -118,7 +120,7 @@ async function main() {
 
     try {
       await sfInstall.installMod('dummyMod1', '1.0.2');
-      installedMods = await sfInstall.getInstalledMods();
+      installedMods = await sfInstall._getInstalledMods();
       if (!installedMods.some((mod) => mod.mod_id === 'dummyMod1' && mod.version === '1.0.2')) {
         assert.fail('Update mod with solvable SML version conflict failed');
       }
@@ -132,7 +134,7 @@ async function main() {
 
     try {
       await sfInstall.installMod('dummyMod1', '1.0.3');
-      installedMods = await sfInstall.getInstalledMods();
+      installedMods = await sfInstall._getInstalledMods();
       if (installedMods.some((mod) => mod.mod_id === 'dummyMod1' && mod.version === '1.0.3')) {
         assert.fail('Update mod with conflicting dependency version failed');
       }
@@ -148,7 +150,7 @@ async function main() {
 
     try {
       await sfInstall.uninstallMod('6vQ6ckVYFiidDh');
-      installedMods = await sfInstall.getInstalledMods();
+      installedMods = await sfInstall._getInstalledMods();
       assert.strictEqual(installedMods.length, 2, 'Uninstall dependency succeeded');
       assert.strictEqual(installedMods.some((mod) => mod.mod_id === '6vQ6ckVYFiidDh' && mod.version === '1.4.1'), true, 'Uninstall dependency changed version');
     } catch(e) {
@@ -160,7 +162,7 @@ async function main() {
 
     try {
       await sfInstall.manifestMutate({});
-      assert.deepStrictEqual(installedMods, await sfInstall.getInstalledMods(), 'Empty mutation changed something');
+      assert.deepStrictEqual(installedMods, await sfInstall._getInstalledMods(), 'Empty mutation changed something');
     } catch(e) {
       if(e instanceof assert.AssertionError) {
         throw e;
@@ -169,10 +171,14 @@ async function main() {
     }
   } catch (e) {
     console.error(e);
+    success = false;
   } finally {
     fs.rmdirSync(dummySfPath, { recursive: true });
-    fs.rmdirSync(getManifestFilePath(dummySfPath), { recursive: true });
+    fs.rmdirSync(getManifestFolderPath(dummySfPath), { recursive: true });
     await removeDummyMods();
+  }
+  if(!success) {
+    process.exit(1);
   }
 }
 
