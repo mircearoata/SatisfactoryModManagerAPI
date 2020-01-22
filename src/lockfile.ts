@@ -170,7 +170,21 @@ export class LockfileGraph {
     return this.getDependants(node).length === 0 && !node.isInManifest;
   }
 
+  private get _danglingCount(): number {
+    return this.nodes.filter((node) => this.isNodeDangling(node)).length;
+  }
+
   cleanup(): void {
-    removeArrayElementWhere(this.nodes, (node) => this.isNodeDangling(node));
+    while (this._danglingCount > 0) {
+      this.nodes.forEach((node) => {
+        if (this.isNodeDangling(node)) {
+          debug(`${node.id}@${node.version} is not needed anymore. Will be deleted`);
+        }
+      });
+      removeArrayElementWhere(this.nodes, (node) => this.isNodeDangling(node));
+    }
+    this.nodes.forEach((node) => {
+      debug(`${node.id}@${node.version} is still needed by ${this.getDependants(node)}`);
+    });
   }
 }

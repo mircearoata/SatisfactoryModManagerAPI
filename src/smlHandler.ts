@@ -47,7 +47,9 @@ export async function uninstallSML(satisfactoryPath: string): Promise<void> {
   if (!smlVersion) {
     return;
   }
-  fs.unlinkSync(path.join(satisfactoryPath, getSMLRelativePath(smlVersion)));
+  if (fs.existsSync(path.join(satisfactoryPath, getSMLRelativePath(smlVersion)))) {
+    fs.unlinkSync(path.join(satisfactoryPath, getSMLRelativePath(smlVersion)));
+  }
 }
 
 

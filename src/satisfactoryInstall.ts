@@ -1,7 +1,7 @@
 import path from 'path';
 import { getDataFolders } from 'platform-folders';
 import fs from 'fs';
-import { compare } from 'semver';
+import { compare, valid, coerce } from 'semver';
 import * as ModHandler from './modHandler';
 import * as SMLHandler from './smlHandler';
 import {
@@ -28,8 +28,6 @@ export class SatisfactoryInstall {
     this.version = version;
     this.launchExecutable = launchExecutable;
   }
-
-  // TODO: always check that what is installed matches the lockfile
 
   private async _getInstalledMismatches(items: ItemVersionList):
   Promise<{ install: ItemVersionList; uninstall: Array<string>}> {
@@ -69,7 +67,7 @@ export class SatisfactoryInstall {
     debug(JSON.stringify(items));
     let mismatches = await this._getInstalledMismatches(items);
     debug(JSON.stringify(mismatches));
-    if ('SML' in mismatches.install || mismatches.uninstall.includes('SML')) {
+    if (mismatches.install['SML'] || mismatches.uninstall.includes('SML')) {
       if (SMLHandler.getRelativeModsPath(await this._getInstalledSMLVersion())
        !== SMLHandler.getRelativeModsPath(items['SML']) || !('SML' in mismatches.install)) {
         const currentModsDir = await SMLHandler.getModsDir(this.installLocation);
@@ -94,7 +92,7 @@ export class SatisfactoryInstall {
     if (mismatches.uninstall.includes('SML')) {
       await SMLHandler.uninstallSML(this.installLocation);
     }
-    if ('SML' in mismatches.install) {
+    if (mismatches.install['SML']) {
       await SMLHandler.installSML(mismatches.install['SML'], this.installLocation);
     }
     modsDir = await SMLHandler.getModsDir(this.installLocation);
@@ -125,9 +123,9 @@ export class SatisfactoryInstall {
   async installMod(modID: string, version: string): Promise<void> {
     if ((await this._getInstalledMods()).some((mod) => mod.mod_id === modID)) {
       info(`Updating ${modID}@${version}`);
-      return this.manifestMutate({ [modID]: version });
+    } else {
+      info(`Installing ${modID}@${version}`);
     }
-    info(`Installing ${modID}@${version}`);
     return this.manifestMutate({ [modID]: version });
   }
 
@@ -164,14 +162,11 @@ export class SatisfactoryInstall {
     return ModHandler.getInstalledMods(modsDir);
   }
 
-  getMods(): ItemVersionList {
+  get mods(): ItemVersionList {
     return filterObject(this._manifestHandler.getItemsList(), (id) => id !== 'SML');
   }
 
   async installSML(version: string): Promise<void> {
-    if (await this.getSMLVersion()) {
-      return this.manifestMutate({ SML: version });
-    }
     return this.manifestMutate({ SML: version });
   }
 
@@ -184,11 +179,10 @@ export class SatisfactoryInstall {
   }
 
   private async _getInstalledSMLVersion(): Promise<string | undefined> {
-    // TODO: replace with lockfile get
     return SMLHandler.getSMLVersion(this.installLocation);
   }
 
-  getSMLVersion(): string | undefined {
+  get smlVersion(): string | undefined {
     return this._manifestHandler.getItemsList()['SML'];
   }
 
@@ -232,7 +226,7 @@ export async function getInstalls(): Promise<Array<SatisfactoryInstall>> {
     }
   });
   foundInstalls.sort((a, b) => {
-    const semverCmp = compare(a.version, b.version);
+    const semverCmp = compare(valid(coerce(a.version)) || '0.0.0', valid(coerce(b.version)) || '0.0.0');
     if (semverCmp === 0) {
       return a.name.localeCompare(b.name);
     }

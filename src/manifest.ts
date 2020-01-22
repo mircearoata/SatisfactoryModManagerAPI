@@ -56,7 +56,7 @@ export class ManifestHandler {
     const graph = new LockfileGraph();
     await graph.fromLockfile(initialLockfile);
     graph.roots().forEach((root) => {
-      if (!(root.id in manifest.items) || root.version !== manifest.items[root.id]) {
+      if (!(manifest.items[root.id]) || root.version !== manifest.items[root.id]) {
         graph.remove(root);
       }
     });
