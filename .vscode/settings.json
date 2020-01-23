@@ -55,6 +55,8 @@
     "xlocmon": "cpp",
     "xloctime": "cpp",
     "iterator": "cpp",
-    "sstream": "cpp"
+    "sstream": "cpp",
+    "cctype": "cpp",
+    "concepts": "cpp"
   }
 }

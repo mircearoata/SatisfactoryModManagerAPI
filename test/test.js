@@ -66,6 +66,20 @@ async function removeDummyMods() {
   });
 }
 
+function deleteFolderRecursive(path) {
+  if (fs.existsSync(path)) {
+    fs.readdirSync(path).forEach(function (file, index) {
+      var curPath = path + "/" + file;
+      if (fs.lstatSync(curPath).isDirectory()) { // recurse
+        deleteFolderRecursive(curPath);
+      } else { // delete file
+        fs.unlinkSync(curPath);
+      }
+    });
+    fs.rmdirSync(path);
+  }
+};
+
 async function main() {
   fs.mkdirSync(dummySfPath, { recursive: true });
   await createDummyMods()
@@ -81,8 +95,8 @@ async function main() {
       await sfInstall.installMod('6vQ6ckVYFiidDh', '1.4.1');
       installedMods = await sfInstall._getInstalledMods();
       assert.strictEqual(installedMods.length, 1, 'Install without dependency failed');
-    } catch(e) {
-      if(e instanceof assert.AssertionError) {
+    } catch (e) {
+      if (e instanceof assert.AssertionError) {
         throw e;
       }
       assert.fail(`Unexpected error: ${e}`);
@@ -95,11 +109,11 @@ async function main() {
         assert.fail('Install mod with conflicting SML succeeded');
       }
       assert.strictEqual(installedMods.length, 1, 'Install removed/added a mod');
-    } catch(e) {
-      if(e instanceof assert.AssertionError) {
+    } catch (e) {
+      if (e instanceof assert.AssertionError) {
         throw e;
       }
-      if(!e instanceof UnsolvableDependencyError) {
+      if (!e instanceof UnsolvableDependencyError) {
         assert.fail(`Unexpected error: ${e}`);
       }
     }
@@ -111,8 +125,8 @@ async function main() {
         assert.fail('Update mod with existing dependency failed');
       }
       assert.strictEqual(installedMods.length, 2, 'Update removed/added a mod');
-    } catch(e) {
-      if(e instanceof assert.AssertionError) {
+    } catch (e) {
+      if (e instanceof assert.AssertionError) {
         throw e;
       }
       assert.fail(`Unexpected error: ${e}`);
@@ -125,8 +139,8 @@ async function main() {
         assert.fail('Update mod with solvable SML version conflict failed');
       }
       assert.strictEqual(installedMods.length, 2, 'Update removed/added a mod');
-    } catch(e) {
-      if(e instanceof assert.AssertionError) {
+    } catch (e) {
+      if (e instanceof assert.AssertionError) {
         throw e;
       }
       assert.fail(`Unexpected error: ${e}`);
@@ -139,11 +153,11 @@ async function main() {
         assert.fail('Update mod with conflicting dependency version failed');
       }
       assert.strictEqual(installedMods.length, 2, 'Update removed/added a mod');
-    } catch(e) {
-      if(e instanceof assert.AssertionError) {
+    } catch (e) {
+      if (e instanceof assert.AssertionError) {
         throw e;
       }
-      if(!e instanceof DependencyManifestMismatchError) {
+      if (!e instanceof DependencyManifestMismatchError) {
         assert.fail(`Unexpected error: ${e}`);
       }
     }
@@ -153,8 +167,8 @@ async function main() {
       installedMods = await sfInstall._getInstalledMods();
       assert.strictEqual(installedMods.length, 2, 'Uninstall dependency succeeded');
       assert.strictEqual(installedMods.some((mod) => mod.mod_id === '6vQ6ckVYFiidDh' && mod.version === '1.4.1'), true, 'Uninstall dependency changed version');
-    } catch(e) {
-      if(e instanceof assert.AssertionError) {
+    } catch (e) {
+      if (e instanceof assert.AssertionError) {
         throw e;
       }
       assert.fail(`Unexpected error: ${e}`);
@@ -163,8 +177,8 @@ async function main() {
     try {
       await sfInstall.manifestMutate({});
       assert.deepStrictEqual(installedMods, await sfInstall._getInstalledMods(), 'Empty mutation changed something');
-    } catch(e) {
-      if(e instanceof assert.AssertionError) {
+    } catch (e) {
+      if (e instanceof assert.AssertionError) {
         throw e;
       }
       assert.fail(`Unexpected error: ${e}`);
@@ -173,11 +187,20 @@ async function main() {
     console.error(e);
     success = false;
   } finally {
-    fs.rmdirSync(dummySfPath, { recursive: true });
-    fs.rmdirSync(getManifestFolderPath(dummySfPath), { recursive: true });
+    try {
+      fs.rmdirSync(dummySfPath, { recursive: true });
+      fs.rmdirSync(getManifestFolderPath(dummySfPath), { recursive: true });
+    } catch (e) {
+      if (e.code === "ENOTEMPTY") {
+        deleteFolderRecursive(dummySfPath);
+        deleteFolderRecursive(getManifestFolderPath(dummySfPath));
+      } else {
+        throw e;
+      }
+    }
     await removeDummyMods();
   }
-  if(!success) {
+  if (!success) {
     process.exit(1);
   }
 }

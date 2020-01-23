@@ -1,0 +1,11 @@
+language: node_js
+node_js:
+  - "10"
+  - "12"
+os:
+#  - linux
+  - windows
+env:
+  # Fix Windows build never ending in Travis CI
+  # https://travis-ci.community/t/timeout-after-build-finished-and-succeeded/1336
+  - YARN_GPG=no

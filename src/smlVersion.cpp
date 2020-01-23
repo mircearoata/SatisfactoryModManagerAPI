@@ -10,7 +10,7 @@
 #endif
 
 #include <map>
-#include <filesystem>
+#include "autoFilesystem.h"
 
 #ifdef _WIN32
 const std::filesystem::path SML_1_X_RELATIVE_PATH = std::filesystem::path("FactoryGame") / "Binaries" / "Win64" / "xinput1_3.dll";
