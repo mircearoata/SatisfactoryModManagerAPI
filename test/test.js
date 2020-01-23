@@ -91,6 +91,8 @@ async function main() {
     const sfInstall = new SatisfactoryInstall(dummySfName, dummySfVersion, dummySfPath, dummySfExecutable);
     let installedMods;
 
+    fs.mkdirSync(path.join(dummySfPath, 'FactoryGame', 'Binaries', 'Win64', 'mods'), { recursive: true });
+
     try {
       await sfInstall.installMod('6vQ6ckVYFiidDh', '1.4.1');
       installedMods = await sfInstall._getInstalledMods();
@@ -101,6 +103,8 @@ async function main() {
       }
       assert.fail(`Unexpected error: ${e}`);
     }
+
+    assert.strictEqual(fs.existsSync(path.join(dummySfPath, 'FactoryGame', 'Binaries', 'Win64', 'mods-backup')), true, 'Did not backup existing mods dir');
 
     try {
       await sfInstall.installMod('dummyMod1', '1.0.0');

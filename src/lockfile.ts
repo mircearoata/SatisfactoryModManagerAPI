@@ -85,7 +85,7 @@ export class LockfileGraph {
           }
         }
         const versionConstraints = this.nodes
-          .filter((graphNode) => dependencyID in graphNode.dependencies)
+          .filter((graphNode) => graphNode.dependencies[dependencyID])
           .map((graphNode) => graphNode.dependencies[dependencyID]);
         debug(`Dependency ${dependencyID} must match ${versionConstraints}`);
         const matchingDependencyVersions = await findAllVersionsMatchingAll(dependencyID,
@@ -140,7 +140,7 @@ export class LockfileGraph {
   }
 
   getDependants(node: LockfileGraphNode): Array<LockfileGraphNode> {
-    return this.nodes.filter((graphNode) => node.id in graphNode.dependencies);
+    return this.nodes.filter((graphNode) => graphNode.dependencies[node.id]);
   }
 
   remove(node: LockfileGraphNode): void {
@@ -184,7 +184,8 @@ export class LockfileGraph {
       removeArrayElementWhere(this.nodes, (node) => this.isNodeDangling(node));
     }
     this.nodes.forEach((node) => {
-      debug(`${node.id}@${node.version} is still needed by ${this.getDependants(node)}`);
+      debug(`${node.id}@${node.version} is still needed by [${this.getDependants(node)
+        .reduce((previous, current) => `${previous}${previous.length > 0 ? ', ' : ''}${current.id}@${current.version}`, node.isInManifest ? 'manifest' : '')}]`);
     });
   }
 }

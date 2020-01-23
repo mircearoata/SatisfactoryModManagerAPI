@@ -31,9 +31,9 @@ export class SatisfactoryInstall {
 
   private async _getInstalledMismatches(items: ItemVersionList):
   Promise<{ install: ItemVersionList; uninstall: Array<string>}> {
-    const installedSML = await SMLHandler.getSMLVersion(this.installLocation);
+    const installedSML = SMLHandler.getSMLVersion(this.installLocation);
     const installedMods = await ModHandler.getInstalledMods(
-      await SMLHandler.getModsDir(this.installLocation),
+      SMLHandler.getModsDir(this.installLocation),
     );
     const mismatches: { install: ItemVersionList; uninstall: Array<string>} = {
       install: {},
@@ -65,22 +65,9 @@ export class SatisfactoryInstall {
   async validateInstall(): Promise<void> {
     const items = this._manifestHandler.getItemsList();
     debug(JSON.stringify(items));
-    let mismatches = await this._getInstalledMismatches(items);
+    const mismatches = await this._getInstalledMismatches(items);
     debug(JSON.stringify(mismatches));
-    if (mismatches.install['SML'] || mismatches.uninstall.includes('SML')) {
-      if (SMLHandler.getRelativeModsPath(await this._getInstalledSMLVersion())
-       !== SMLHandler.getRelativeModsPath(items['SML']) || !('SML' in mismatches.install)) {
-        const currentModsDir = await SMLHandler.getModsDir(this.installLocation);
-        if (currentModsDir) {
-          const installedMods = await this._getInstalledMods();
-          await Promise.all(installedMods.map(
-            (mod) => ModHandler.uninstallMod(mod.mod_id, currentModsDir),
-          ));
-          mismatches = await this._getInstalledMismatches(items);
-        }
-      }
-    }
-    let modsDir = await SMLHandler.getModsDir(this.installLocation);
+    const modsDir = SMLHandler.getModsDir(this.installLocation);
     await Promise.all(mismatches.uninstall.map((id) => {
       if (id !== 'SML') {
         if (modsDir) {
@@ -95,7 +82,6 @@ export class SatisfactoryInstall {
     if (mismatches.install['SML']) {
       await SMLHandler.installSML(mismatches.install['SML'], this.installLocation);
     }
-    modsDir = await SMLHandler.getModsDir(this.installLocation);
     await Promise.all(Object.entries(mismatches.install).map((modInstall) => {
       const modInstallID = modInstall[0];
       const modInstallVersion = modInstall[1];
@@ -155,11 +141,7 @@ export class SatisfactoryInstall {
   }
 
   private async _getInstalledMods(): Promise<Array<ModHandler.Mod>> {
-    const modsDir = await SMLHandler.getModsDir(this.installLocation);
-    if (!modsDir) {
-      return [];
-    }
-    return ModHandler.getInstalledMods(modsDir);
+    return ModHandler.getInstalledMods(SMLHandler.getModsDir(this.installLocation));
   }
 
   get mods(): ItemVersionList {
