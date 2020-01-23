@@ -104,7 +104,7 @@ async function main() {
       assert.fail(`Unexpected error: ${e}`);
     }
 
-    assert.strictEqual(fs.existsSync(path.join(dummySfPath, 'FactoryGame', 'Binaries', 'Win64', 'mods-backup')), true, 'Did not backup existing mods dir');
+    assert.strictEqual(fs.readdirSync(path.join(dummySfPath, 'FactoryGame', 'Binaries', 'Win64')).some((folder) => folder.match(/mods-backup-\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}/g)), true, 'Did not backup existing mods dir');
 
     try {
       await sfInstall.installMod('dummyMod1', '1.0.0');

@@ -2,7 +2,9 @@ import path from 'path';
 import fs from 'fs';
 import bindings from 'bindings';
 import { satisfies } from 'semver';
-import { downloadFile, info } from './utils';
+import {
+  formatDateTime, downloadFile, info,
+} from './utils';
 import { ModNotFoundError } from './errors';
 
 const smlVersionNative = bindings('smlVersion');
@@ -45,8 +47,14 @@ function installSymlink(satisfactoryPath: string, version: string): void {
     return;
   }
   if (fs.existsSync(actualModsDir)) {
-    info('Mods directory already exists. Renaming to mods-backup');
-    fs.renameSync(actualModsDir, `${actualModsDir}-backup`);
+    const stat = fs.lstatSync(actualModsDir);
+    if (!stat.isSymbolicLink()) {
+      info('Backing up old mods dir.');
+      const backupFolderName = `${actualModsDir}-backup-${formatDateTime(new Date())}`;
+      fs.renameSync(actualModsDir, backupFolderName);
+    } else {
+      fs.unlinkSync(actualModsDir);
+    }
   }
   if (!fs.existsSync(modsDir)) {
     fs.mkdirSync(modsDir, { recursive: true });
@@ -69,10 +77,14 @@ export async function installSML(version: string, satisfactoryPath: string): Pro
         path.join(satisfactoryPath, getSMLRelativePath(version)));
       installSymlink(satisfactoryPath, version);
     } catch (e) {
-      if (version.startsWith('v')) {
-        throw new ModNotFoundError(`SML version ${version.substr(1)} not found`);
+      if (e.statusCode === 404) {
+        if (version.startsWith('v')) {
+          throw new ModNotFoundError(`SML version ${version.substr(1)} not found`);
+        }
+        await installSML(`v${version}`, satisfactoryPath);
+      } else {
+        throw e;
       }
-      await installSML(`v${version}`, satisfactoryPath);
     }
   }
 }
