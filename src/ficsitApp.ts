@@ -130,6 +130,7 @@ export async function getAvailableMods(): Promise<Array<FicsitAppMod>> {
           short_description,
           full_description,
           id,
+          logo,
           authors
           {
             mod_id,
