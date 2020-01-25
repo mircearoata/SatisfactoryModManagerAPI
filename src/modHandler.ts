@@ -3,22 +3,37 @@ import path from 'path';
 import util from 'util';
 import JSZip from 'jszip';
 import {
-  modCacheDir, copyFile, downloadFile, forEachAsync,
+  modCacheDir, copyFile, downloadFile, forEachAsync, error,
 } from './utils';
 import { getModDownloadLink } from './ficsitApp';
+import { InvalidModFileError } from './errors';
 
 let cachedMods = new Array<Mod>();
 let cacheLoaded = false;
 
+const modExtensions = ['.zip', '.smod'];
+
 export async function getModFromFile(modPath: string): Promise<Mod> {
-  return util.promisify(fs.readFile)(modPath)
-    .then((data) => JSZip.loadAsync(data))
-    .then((zip) => zip.file('data.json').async('text'))
-    .then((data) => {
-      const mod = JSON.parse(data) as Mod;
-      mod.path = modPath;
-      return mod;
-    });
+  if (modExtensions.includes(path.extname(modPath))) {
+    return util.promisify(fs.readFile)(modPath)
+      .then((data) => JSZip.loadAsync(data))
+      .then((zip) => zip.file('data.json').async('text'))
+      .then((data) => {
+        const mod = JSON.parse(data) as Mod;
+        mod.path = modPath;
+        return mod;
+      })
+      .catch((e) => {
+        error(e.message);
+        const mod = {
+          name: 'Error reading mod file',
+          description: e.message,
+          path: modPath,
+        } as Mod;
+        return mod;
+      });
+  }
+  throw new InvalidModFileError(`Invalid mod file ${modPath}. Extension is ${path.extname(modPath)}, required ${modExtensions.join(', ')}`);
 }
 
 export async function addModToCache(modFile: string): Promise<void> {
@@ -93,9 +108,11 @@ export async function uninstallMod(modID: string, modsDir: string): Promise<void
   if (fs.existsSync(modsDir)) {
     await forEachAsync(fs.readdirSync(modsDir), async (file) => {
       const fullPath = path.join(modsDir, file);
-      const mod = await getModFromFile(fullPath);
-      if (mod.mod_id === modID) {
-        fs.unlinkSync(fullPath);
+      if (modExtensions.includes(path.extname(fullPath))) {
+        const mod = await getModFromFile(fullPath);
+        if (mod.mod_id === modID) {
+          fs.unlinkSync(fullPath);
+        }
       }
     });
   }
@@ -109,7 +126,9 @@ export async function getInstalledMods(modsDir: string | undefined): Promise<Arr
   if (fs.existsSync(modsDir)) {
     fs.readdirSync(modsDir).forEach((file) => {
       const fullPath = path.join(modsDir, file);
-      installedModsPromises.push(getModFromFile(fullPath));
+      if (modExtensions.includes(path.extname(fullPath))) {
+        installedModsPromises.push(getModFromFile(fullPath));
+      }
     });
   }
   return Promise.all(installedModsPromises);

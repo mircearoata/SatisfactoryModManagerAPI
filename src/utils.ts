@@ -66,29 +66,49 @@ function checkRoll(): void {
   }
 }
 
-export function debug(message: string): void {
+export function debug<T>(message: T): void {
   checkRoll();
-  log.debug(message);
+  if (message instanceof String) {
+    log.debug(message);
+  } else {
+    log.debug(JSON.stringify(message));
+  }
 }
 
-export function info(message: string): void {
+export function info<T>(message: T): void {
   checkRoll();
-  log.info(message);
+  if (message instanceof String) {
+    log.info(message);
+  } else {
+    log.info(JSON.stringify(message));
+  }
 }
 
-export function warn(message: string): void {
+export function warn<T>(message: T): void {
   checkRoll();
-  log.warn(message);
+  if (message instanceof String) {
+    log.warn(message);
+  } else {
+    log.warn(JSON.stringify(message));
+  }
 }
 
-export function error(message: string): void {
+export function error<T>(message: T): void {
   checkRoll();
-  log.error(message);
+  if (message instanceof String) {
+    log.error(message);
+  } else {
+    log.error(JSON.stringify(message));
+  }
 }
 
-export function fatal(message: string): void {
+export function fatal<T>(message: T): void {
   checkRoll();
-  log.fatal(message);
+  if (message instanceof String) {
+    log.fatal(message);
+  } else {
+    log.fatal(JSON.stringify(message));
+  }
 }
 
 export function copyFile(file: string, toDir: string): void {

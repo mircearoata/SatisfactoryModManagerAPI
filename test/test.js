@@ -91,6 +91,9 @@ async function main() {
     const sfInstall = new SatisfactoryInstall(dummySfName, dummySfVersion, dummySfPath, dummySfExecutable);
     let installedMods;
 
+    fs.mkdirSync(sfInstall.modsDir, { recursive: true });
+    fs.writeFileSync(path.join(sfInstall.modsDir, 'someFile.randomExt'), '');
+    fs.writeFileSync(path.join(sfInstall.modsDir, 'data.json'), '');
     fs.mkdirSync(path.join(dummySfPath, 'FactoryGame', 'Binaries', 'Win64', 'mods'), { recursive: true });
 
     try {

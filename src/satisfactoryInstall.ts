@@ -44,7 +44,9 @@ export class SatisfactoryInstall {
       if (!items['SML'] || (installedSML && items['SML'])) {
         mismatches.uninstall.push('SML');
       }
-      mismatches.install['SML'] = items['SML'];
+      if (items['SML']) {
+        mismatches.install['SML'] = items['SML'];
+      }
     }
 
     const allMods = mergeArrays(Object.keys(items).filter((item) => item !== 'SML'), installedMods.map((mod) => mod.mod_id));
@@ -55,7 +57,9 @@ export class SatisfactoryInstall {
         if (!items[mod] || (installedModVersion && items[mod])) {
           mismatches.uninstall.push(mod);
         }
-        mismatches.install[mod] = items[mod];
+        if (items[mod]) {
+          mismatches.install[mod] = items[mod];
+        }
       }
     });
 
@@ -64,22 +68,25 @@ export class SatisfactoryInstall {
 
   async validateInstall(): Promise<void> {
     const items = this._manifestHandler.getItemsList();
-    debug(JSON.stringify(items));
+    debug(items);
     const mismatches = await this._getInstalledMismatches(items);
-    debug(JSON.stringify(mismatches));
+    debug(mismatches);
     const modsDir = SMLHandler.getModsDir(this.installLocation);
     await Promise.all(mismatches.uninstall.map((id) => {
       if (id !== 'SML') {
         if (modsDir) {
+          debug(`Removing ${id} from Satisfactory install`);
           return ModHandler.uninstallMod(id, modsDir);
         }
       }
       return Promise.resolve();
     }));
     if (mismatches.uninstall.includes('SML')) {
+      debug('Removing SML from Satisfactory install');
       await SMLHandler.uninstallSML(this.installLocation);
     }
     if (mismatches.install['SML']) {
+      debug('Copying SML to Satisfactory install');
       await SMLHandler.installSML(mismatches.install['SML'], this.installLocation);
     }
     await Promise.all(Object.entries(mismatches.install).map((modInstall) => {
@@ -87,6 +94,7 @@ export class SatisfactoryInstall {
       const modInstallVersion = modInstall[1];
       if (modInstallID !== 'SML') {
         if (modsDir) {
+          debug(`Copying ${modInstallID}@${modInstallVersion} to Satisfactory install`);
           return ModHandler.installMod(modInstallID, modInstallVersion, modsDir);
         }
       }
@@ -183,7 +191,7 @@ export class SatisfactoryInstall {
     return `${this.name} (${this.version})`;
   }
 
-  async modsDir(): Promise<string | undefined> {
+  get modsDir(): string {
     return SMLHandler.getModsDir(this.installLocation);
   }
 }

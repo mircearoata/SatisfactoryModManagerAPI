@@ -185,7 +185,7 @@ export class LockfileGraph {
     }
     this.nodes.forEach((node) => {
       debug(`${node.id}@${node.version} is still needed by [${this.getDependants(node)
-        .reduce((previous, current) => `${previous}${previous.length > 0 ? ', ' : ''}${current.id}@${current.version}`, node.isInManifest ? 'manifest' : '')}]`);
+        .map((current) => `${current.id}@${current.version}`).join(', ')}]${node.isInManifest ? ' and is in manifest' : ''}`);
     });
   }
 }
