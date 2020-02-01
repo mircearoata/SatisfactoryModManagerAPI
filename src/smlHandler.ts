@@ -59,7 +59,7 @@ function installSymlink(satisfactoryPath: string, version: string): void {
   if (!fs.existsSync(modsDir)) {
     fs.mkdirSync(modsDir, { recursive: true });
   }
-  fs.symlinkSync(modsDir, actualModsDir);
+  fs.symlinkSync(modsDir, actualModsDir, 'junction');
 }
 
 function uninstallSymlink(satisfactoryPath: string, version: string): void {
