@@ -4,7 +4,7 @@
       'targets': [
         {
           'target_name': 'smlVersion',
-          'sources': ['src/smlVersion.cpp'],
+          'sources': ['src/cpp/smlVersion.cpp'],
           'link_settings': {
             'libraries': ['-lstdc++fs']
           },
@@ -17,7 +17,7 @@
         },
         {
           'target_name': 'bootstrapperVersion',
-          'sources': ['src/bootstrapperVersion.cpp'],
+          'sources': ['src/cpp/bootstrapperVersion.cpp'],
           'link_settings': {
             'libraries': ['-lstdc++fs']
           },
@@ -34,7 +34,7 @@
       'targets': [
         {
           'target_name': 'smlVersion',
-          'sources': ['src/smlVersion.cpp'],
+          'sources': ['src/cpp/smlVersion.cpp'],
           'msvs_settings': {
             'VCCLCompilerTool': {
               'AdditionalOptions': ['/std:c++17']
@@ -43,7 +43,7 @@
         },
         {
           'target_name': 'bootstrapperVersion',
-          'sources': ['src/bootstrapperVersion.cpp'],
+          'sources': ['src/cpp/bootstrapperVersion.cpp'],
           'msvs_settings': {
             'VCCLCompilerTool': {
               'AdditionalOptions': ['/std:c++17']
