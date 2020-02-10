@@ -45,7 +45,16 @@ module.exports = {
     ],
     'indent': 0,
     '@typescript-eslint/indent': ['error', 2],
-    'no-underscore-dangle': 0
+    'no-underscore-dangle': 0,
+    'max-len': ['error', {
+      code: 150,
+      ignoreComments: true,
+      ignoreTrailingComments: true,
+      ignoreUrls: true,
+      ignoreStrings: true,
+      ignoreTemplateLiterals: true,
+      ignoreRegExpLiterals: true
+    }]
   },
   settings: {
     'import/extensions': ['.js', '.jsx', '.json', '.ts', '.tsx'],

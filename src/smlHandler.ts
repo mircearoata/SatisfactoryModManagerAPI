@@ -1,28 +1,20 @@
 import path from 'path';
 import fs from 'fs';
 import bindings from 'bindings';
-import { satisfies } from 'semver';
 import {
-  formatDateTime, downloadFile, info,
+  downloadFile,
 } from './utils';
 import { ModNotFoundError } from './errors';
 
 const smlVersionNative = bindings('smlVersion');
 
-export function getSMLRelativePath(version: string): string {
-  if (satisfies(version, '<2.0.0')) {
-    return path.join('FactoryGame', 'Binaries', 'Win64', 'xinput1_3.dll');
-  }
-  return path.join('loaders', 'UE4-SML-Win64-Shipping.dll');
-  // bootstrapper?
-  // probably another handler for it
-}
+export const minSMLVersion = '2.0.0';
+export const SMLModID = 'SML';
+
+export const SMLRelativePath = path.join('loaders', 'UE4-SML-Win64-Shipping.dll'); // TODO: other platforms
 
 export function getSMLDownloadLink(version: string): string {
-  // if (semver.satisfies(version, '<2.0.0')) {
-  return `https://github.com/satisfactorymodding/SatisfactoryModLoader/releases/download/${version}/xinput1_3.dll`;
-  // }
-  // throw new Error('Not implemented');
+  return `https://github.com/satisfactorymodding/SatisfactoryModLoader/releases/download/${version}/UE4-SML-Win64-Shipping.dll`; // TODO: probably right, but better check
 }
 
 export function getSMLVersion(satisfactoryPath: string): string | undefined {
@@ -33,49 +25,12 @@ export function getModsDir(satisfactoryPath: string): string {
   return path.join(satisfactoryPath, 'mods');
 }
 
-function getActualModsDir(satisfactoryPath: string, version: string): string {
-  if (satisfies(version, '<2.0.0')) {
-    return path.join(satisfactoryPath, 'FactoryGame', 'Binaries', 'Win64', 'mods');
-  }
-  return path.join(satisfactoryPath, 'mods');
-}
-
-function installSymlink(satisfactoryPath: string, version: string): void {
-  const modsDir = getModsDir(satisfactoryPath);
-  const actualModsDir = getActualModsDir(satisfactoryPath, version);
-  if (modsDir === actualModsDir) {
-    return;
-  }
-  if (fs.existsSync(actualModsDir)) {
-    const stat = fs.lstatSync(actualModsDir);
-    if (!stat.isSymbolicLink()) {
-      info('Backing up old mods dir.');
-      const backupFolderName = `${actualModsDir}-backup-${formatDateTime(new Date())}`;
-      fs.renameSync(actualModsDir, backupFolderName);
-    } else {
-      fs.unlinkSync(actualModsDir);
-    }
-  }
-  if (!fs.existsSync(modsDir)) {
-    fs.mkdirSync(modsDir, { recursive: true });
-  }
-  fs.symlinkSync(modsDir, actualModsDir, 'junction');
-}
-
-function uninstallSymlink(satisfactoryPath: string, version: string): void {
-  const actualModsDir = getActualModsDir(satisfactoryPath, version);
-  if (fs.existsSync(actualModsDir)) {
-    fs.unlinkSync(actualModsDir);
-  }
-}
-
 export async function installSML(version: string, satisfactoryPath: string): Promise<void> {
   if (!getSMLVersion(satisfactoryPath)) {
     const smlDownloadLink = getSMLDownloadLink(version);
     try {
       await downloadFile(smlDownloadLink,
-        path.join(satisfactoryPath, getSMLRelativePath(version)));
-      installSymlink(satisfactoryPath, version);
+        path.join(satisfactoryPath, SMLRelativePath));
     } catch (e) {
       if (e.statusCode === 404) {
         if (version.startsWith('v')) {
@@ -94,8 +49,7 @@ export async function uninstallSML(satisfactoryPath: string): Promise<void> {
   if (!smlVersion) {
     return;
   }
-  if (fs.existsSync(path.join(satisfactoryPath, getSMLRelativePath(smlVersion)))) {
-    fs.unlinkSync(path.join(satisfactoryPath, getSMLRelativePath(smlVersion)));
-    uninstallSymlink(satisfactoryPath, smlVersion);
+  if (fs.existsSync(path.join(satisfactoryPath, SMLRelativePath))) {
+    fs.unlinkSync(path.join(satisfactoryPath, SMLRelativePath));
   }
 }

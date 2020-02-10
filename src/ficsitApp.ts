@@ -1,7 +1,9 @@
 import request from 'request-promise-native';
-import { compare } from 'semver';
+import { compare, satisfies } from 'semver';
 import { versionSatisfiesAll } from './utils';
 import { ModNotFoundError } from './errors';
+import { minSMLVersion, SMLModID } from './smlHandler';
+import { bootstrapperModID } from './bootstrapperHandler';
 
 const API_URL = 'https://api.ficsit.app';
 const GRAPHQL_API_URL = `${API_URL}/v2/query`;
@@ -307,6 +309,44 @@ export async function getAvailableSMLVersions(): Promise<Array<FicsitAppSMLVersi
   return getCache(requestID);
 }
 
+// TODO: 99% chance to be wrong
+export interface FicsitAppBootstrapperVersion {
+  id: string;
+  version: string;
+  stability: 'alpha' | 'beta' | 'release';
+  link: string;
+  changelog: string;
+  date: string;
+}
+
+export async function getAvailableBootstrapperVersions(): Promise<Array<FicsitAppBootstrapperVersion>> {
+  const requestID = 'getBootstrapperVersions';
+  if (cooldownPassed(requestID)) {
+    const res = await fiscitApiQuery(`
+    {
+      getBootstrapperVersions(filter: {limit: 100})
+      {
+        bootstrapper_versions
+        {
+          id,
+          version,
+          stability,
+          link,
+          changelog,
+          date
+        }
+      }
+    }
+    `);
+    if (res.errors) {
+      throw res.errors;
+    } else {
+      setCache(requestID, res.getBootstrapperVersions.bootstrapper_versions);
+    }
+  }
+  return getCache(requestID);
+}
+
 export async function getSMLVersionInfo(version: string): Promise<FicsitAppSMLVersion | undefined> {
   const versions = await getAvailableSMLVersions();
   return versions.find((smlVersion) => smlVersion.version === version);
@@ -318,13 +358,30 @@ export async function getLatestSMLVersion(): Promise<FicsitAppSMLVersion> {
   return versions[0];
 }
 
-export async function findAllVersionsMatchingAll(modID: string,
-  versionConstraints: Array<string>): Promise<Array<string>> {
-  if (modID === 'SML') {
+export async function getBootstrapperVersionInfo(version: string): Promise<FicsitAppBootstrapperVersion | undefined> {
+  const versions = await getAvailableBootstrapperVersions();
+  return versions.find((bootstrapperVersion) => bootstrapperVersion.version === version);
+}
+
+export async function getLatestBootstrapperVersion(): Promise<FicsitAppBootstrapperVersion> {
+  const versions = await getAvailableBootstrapperVersions();
+  versions.sort((a, b) => -compare(a.version, b.version));
+  return versions[0];
+}
+
+export async function findAllVersionsMatchingAll(modID: string, versionConstraints: Array<string>): Promise<Array<string>> {
+  if (modID === SMLModID) {
     const smlVersions = await getAvailableSMLVersions();
     return smlVersions
+      .filter((smlVersion) => satisfies(smlVersion.version, `>=${minSMLVersion}`))
       .filter((smlVersion) => versionSatisfiesAll(smlVersion.version, versionConstraints))
       .map((smlVersion) => smlVersion.version);
+  }
+  if (modID === bootstrapperModID) {
+    const bootstrapperVersions = await getAvailableBootstrapperVersions();
+    return bootstrapperVersions
+      .filter((bootstrapperVersion) => versionSatisfiesAll(bootstrapperVersion.version, versionConstraints))
+      .map((bootstrapperVersion) => bootstrapperVersion.version);
   }
   const modInfo = await getMod(modID);
   return modInfo.versions

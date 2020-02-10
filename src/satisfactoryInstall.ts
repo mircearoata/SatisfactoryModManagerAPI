@@ -2,8 +2,9 @@ import path from 'path';
 import { getDataFolders } from 'platform-folders';
 import fs from 'fs';
 import { compare, valid, coerce } from 'semver';
-import * as ModHandler from './modHandler';
-import * as SMLHandler from './smlHandler';
+import * as MH from './modHandler';
+import * as SH from './smlHandler';
+import * as BH from './bootstrapperHandler';
 import {
   FicsitAppVersion, getModLatestVersion, FicsitAppMod, getLatestSMLVersion,
 } from './ficsitApp';
@@ -31,25 +32,37 @@ export class SatisfactoryInstall {
 
   private async _getInstalledMismatches(items: ItemVersionList):
   Promise<{ install: ItemVersionList; uninstall: Array<string>}> {
-    const installedSML = SMLHandler.getSMLVersion(this.installLocation);
-    const installedMods = await ModHandler.getInstalledMods(
-      SMLHandler.getModsDir(this.installLocation),
+    const installedSML = SH.getSMLVersion(this.installLocation);
+    const installedBootstrapper = BH.getBootstrapperVersion(this.installLocation);
+    const installedMods = await MH.getInstalledMods(
+      SH.getModsDir(this.installLocation),
     );
     const mismatches: { install: ItemVersionList; uninstall: Array<string>} = {
       install: {},
       uninstall: [],
     };
 
-    if (installedSML !== items['SML']) {
-      if (!items['SML'] || (installedSML && items['SML'])) {
-        mismatches.uninstall.push('SML');
+    if (installedSML !== items[SH.SMLModID]) {
+      if (!items[SH.SMLModID] || (installedSML && items[SH.SMLModID])) {
+        mismatches.uninstall.push(SH.SMLModID);
       }
-      if (items['SML']) {
-        mismatches.install['SML'] = items['SML'];
+      if (items[SH.SMLModID]) {
+        mismatches.install[SH.SMLModID] = items[SH.SMLModID];
       }
     }
 
-    const allMods = mergeArrays(Object.keys(items).filter((item) => item !== 'SML'), installedMods.map((mod) => mod.mod_id));
+    if (installedBootstrapper !== items[BH.bootstrapperModID]) {
+      if (!items[BH.bootstrapperModID] || (installedBootstrapper && items[BH.bootstrapperModID])) {
+        mismatches.uninstall.push(BH.bootstrapperModID);
+      }
+      if (items[BH.bootstrapperModID]) {
+        mismatches.install[BH.bootstrapperModID] = items[BH.bootstrapperModID];
+      }
+    }
+
+    const allMods = mergeArrays(Object.keys(items)
+      .filter((item) => item !== SH.SMLModID && item !== BH.bootstrapperModID),
+    installedMods.map((mod) => mod.mod_id));
     allMods.forEach((mod) => {
       const installedModVersion = installedMods
         .find((installedMod) => installedMod.mod_id === mod)?.version;
@@ -71,31 +84,31 @@ export class SatisfactoryInstall {
     debug(items);
     const mismatches = await this._getInstalledMismatches(items);
     debug(mismatches);
-    const modsDir = SMLHandler.getModsDir(this.installLocation);
+    const modsDir = SH.getModsDir(this.installLocation);
     await Promise.all(mismatches.uninstall.map((id) => {
-      if (id !== 'SML') {
+      if (id !== SH.SMLModID) {
         if (modsDir) {
           debug(`Removing ${id} from Satisfactory install`);
-          return ModHandler.uninstallMod(id, modsDir);
+          return MH.uninstallMod(id, modsDir);
         }
       }
       return Promise.resolve();
     }));
-    if (mismatches.uninstall.includes('SML')) {
+    if (mismatches.uninstall.includes(SH.SMLModID)) {
       debug('Removing SML from Satisfactory install');
-      await SMLHandler.uninstallSML(this.installLocation);
+      await SH.uninstallSML(this.installLocation);
     }
-    if (mismatches.install['SML']) {
+    if (mismatches.install[SH.SMLModID]) {
       debug('Copying SML to Satisfactory install');
-      await SMLHandler.installSML(mismatches.install['SML'], this.installLocation);
+      await SH.installSML(mismatches.install[SH.SMLModID], this.installLocation);
     }
     await Promise.all(Object.entries(mismatches.install).map((modInstall) => {
       const modInstallID = modInstall[0];
       const modInstallVersion = modInstall[1];
-      if (modInstallID !== 'SML') {
+      if (modInstallID !== SH.SMLModID) {
         if (modsDir) {
           debug(`Copying ${modInstallID}@${modInstallVersion} to Satisfactory install`);
-          return ModHandler.installMod(modInstallID, modInstallVersion, modsDir);
+          return MH.installMod(modInstallID, modInstallVersion, modsDir);
         }
       }
       return Promise.resolve();
@@ -136,6 +149,7 @@ export class SatisfactoryInstall {
     return this.uninstallMod(mod.id);
   }
 
+  // TODO: Update dependencies without adding them to manifest
   async updateMod(modID: string): Promise<void> {
     const latestVersion = (await getModLatestVersion(modID)).version;
     info(`Updating ${modID}@${latestVersion} (latest version)`);
@@ -148,12 +162,12 @@ export class SatisfactoryInstall {
     return this.updateMod(mod.id);
   }
 
-  private async _getInstalledMods(): Promise<Array<ModHandler.Mod>> {
-    return ModHandler.getInstalledMods(SMLHandler.getModsDir(this.installLocation));
+  private async _getInstalledMods(): Promise<Array<MH.Mod>> {
+    return MH.getInstalledMods(SH.getModsDir(this.installLocation));
   }
 
   get mods(): ItemVersionList {
-    return filterObject(this._manifestHandler.getItemsList(), (id) => id !== 'SML');
+    return filterObject(this._manifestHandler.getItemsList(), (id) => id !== SH.SMLModID);
   }
 
   async installSML(version: string): Promise<void> {
@@ -169,11 +183,11 @@ export class SatisfactoryInstall {
   }
 
   private async _getInstalledSMLVersion(): Promise<string | undefined> {
-    return SMLHandler.getSMLVersion(this.installLocation);
+    return SH.getSMLVersion(this.installLocation);
   }
 
   get smlVersion(): string | undefined {
-    return this._manifestHandler.getItemsList()['SML'];
+    return this._manifestHandler.getItemsList()[SH.SMLModID];
   }
 
   get launchPath(): string | undefined {
@@ -184,7 +198,7 @@ export class SatisfactoryInstall {
   }
 
   get binariesDir(): string {
-    return path.join(this.installLocation, 'FactoryGame', 'Binaries', 'Win64');
+    return path.join(this.installLocation, 'FactoryGame', 'Binaries', 'Win64'); // TODO: other platforms
   }
 
   get displayName(): string {
@@ -192,11 +206,11 @@ export class SatisfactoryInstall {
   }
 
   get modsDir(): string {
-    return SMLHandler.getModsDir(this.installLocation);
+    return SH.getModsDir(this.installLocation);
   }
 }
 
-const EpicManifestsFolder = path.join(getDataFolders()[0], 'Epic', 'EpicGamesLauncher', 'Data', 'Manifests');
+const EpicManifestsFolder = path.join(getDataFolders()[0], 'Epic', 'EpicGamesLauncher', 'Data', 'Manifests'); // TODO: other platforms
 
 export async function getInstalls(): Promise<Array<SatisfactoryInstall>> {
   const foundInstalls = new Array<SatisfactoryInstall>();
