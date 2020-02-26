@@ -45,37 +45,58 @@ void GetSMLVersion(const v8::FunctionCallbackInfo<v8::Value>& args) {
   bool smlFound = false;
 
 #ifdef _WIN32
-  std::filesystem::path fullSML_1_x_path = satisfactoryPath / SML_1_X_RELATIVE_PATH;
-  std::filesystem::path fullSML_2_x_path = satisfactoryPath / SML_2_X_RELATIVE_PATH;
-  #ifdef UNICODE
-  HMODULE dll = LoadLibraryEx(fullSML_1_x_path.wstring().c_str(), NULL, DONT_RESOLVE_DLL_REFERENCES);
-  #else
-  HMODULE dll = LoadLibraryEx(fullSML_1_x_path.string().c_str(), NULL, DONT_RESOLVE_DLL_REFERENCES);
-  #endif
-  if (GetLastError() == 0) {
-    // get the dll exported SML version
-    char* smlDllVersion = (char*) GetProcAddress(dll, "smlVersion");
-    if (smlDllVersion) {
-      smlVersion = std::string(smlDllVersion);
-      smlFound = true;
-    }
-    FreeLibrary(dll);
-
-    // check against known versions hashes
-    std::string smlHash = hashFile(fullSML_1_x_path);
-    for(auto knownSMLHash : knownSMLHashes) {
-      if(knownSMLHash.second == smlHash) {
-        smlVersion = knownSMLHash.first;
+  {
+    std::filesystem::path fullSML_1_x_path = satisfactoryPath / SML_1_X_RELATIVE_PATH;
+    #ifdef UNICODE
+    HMODULE dll = LoadLibraryEx(fullSML_1_x_path.wstring().c_str(), NULL, DONT_RESOLVE_DLL_REFERENCES);
+    #else
+    HMODULE dll = LoadLibraryEx(fullSML_1_x_path.string().c_str(), NULL, DONT_RESOLVE_DLL_REFERENCES);
+    #endif
+    if (GetLastError() == 0) {
+      // get the dll exported SML version
+      char* smlDllVersion = (char*) GetProcAddress(dll, "smlVersion");
+      if (smlDllVersion) {
+        smlVersion = std::string(smlDllVersion);
         smlFound = true;
-        break;
       }
-    }
-  } 
+      FreeLibrary(dll);
+
+      // check against known versions hashes
+      std::string smlHash = hashFile(fullSML_1_x_path);
+      for(auto knownSMLHash : knownSMLHashes) {
+        if(knownSMLHash.second == smlHash) {
+          smlVersion = knownSMLHash.first;
+          smlFound = true;
+          break;
+        }
+      }
+    } 
+  }
   if (!smlFound) {
-    // TODO: SML 2.0 doesn't export its version yet
+    std::filesystem::path fullSML_2_x_path = satisfactoryPath / SML_2_X_RELATIVE_PATH;
+    #ifdef UNICODE
+    HMODULE dll = LoadLibraryEx(fullSML_2_x_path.wstring().c_str(), NULL, DONT_RESOLVE_DLL_REFERENCES);
+    #else
+    HMODULE dll = LoadLibraryEx(fullSML_2_x_path.string().c_str(), NULL, DONT_RESOLVE_DLL_REFERENCES);
+    #endif
+    if (GetLastError() == 0) {
+      // get the dll exported SML version
+      TCHAR* smlDllVersion = (TCHAR*) GetProcAddress(dll, "modLoaderVersionString");
+      if (smlDllVersion) {
+#ifndef UNICODE
+        smlVersion = std::string(smlDllVersion);
+#else
+        char smlDllVersionMB[50];
+        std::wcstombs(smlDllVersionMB, smlDllVersion, 50);
+        smlVersion = std::string(smlDllVersionMB);
+#endif
+        smlFound = true;
+      }
+      FreeLibrary(dll);
+    }
   }
 #elif __linux__
-  // TODO: SML 2.0 doesn't export its version yet. This was tested on a dummy lib
+  // TODO: SML was not compiled for linux yet. This was tested on a dummy lib
   std::filesystem::path fullSML_2_x_path = satisfactoryPath / SML_2_X_RELATIVE_PATH;
   void* smlLib = dlopen(fullSML_2_x_path.c_str(), RTLD_LAZY);
   void* smlLibVersion = dlsym(smlLib, "smlVersion");

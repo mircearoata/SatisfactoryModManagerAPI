@@ -21,7 +21,9 @@ const std::map<std::string, std::string> knownBootstrapperHashes = {
 	{"v1.2.0", "8c52b7291b42e246f0c60ca2b65e2499728008ee8a13a3d74f224340cd6b5e20"},
 	{"v1.2.1", "556cfc594f55b39a4d8a3632c723b224ba63b6bbb21d039ac6eb3e6a487c4ac4"},
 	{"v1.3.0", "772cd6ad8d9616c55d1c8db75ef9b012a8bb6ea15239da84b8484991357b6eb3"},
-	{"v1.3.1", "9770c2d1f30fb63ba694ce74f449bb370dfc0de798df43356c7364bb387ca049"}
+	{"v1.3.1", "9770c2d1f30fb63ba694ce74f449bb370dfc0de798df43356c7364bb387ca049"},
+  {"v2.0.0", "12d284e8942ac19bdaa6cd665d8e8eb63349ddf0c3f26937bd6671bf0ddbbc37"},
+  {"v2.0.1", "c63b7d55622c5bce4828dfe37d691801f3677a239d578fb764ff02d4a8dd44cd"}
 };
 
 std::string hashFile(std::filesystem::path filePath) {
