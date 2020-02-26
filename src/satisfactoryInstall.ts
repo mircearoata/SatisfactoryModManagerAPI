@@ -6,7 +6,7 @@ import * as MH from './modHandler';
 import * as SH from './smlHandler';
 import * as BH from './bootstrapperHandler';
 import {
-  FicsitAppVersion, getModLatestVersion, FicsitAppMod, getLatestSMLVersion,
+  FicsitAppVersion, getModLatestVersion, FicsitAppMod, getLatestSMLVersion, getLatestBootstrapperVersion,
 } from './ficsitApp';
 import { ManifestHandler } from './manifest';
 import { ItemVersionList } from './lockfile';
@@ -149,13 +149,18 @@ export class SatisfactoryInstall {
     return this.uninstallMod(mod.id);
   }
 
-  // TODO: Update dependencies without adding them to manifest
   async updateMod(modID: string): Promise<void> {
     const latestVersion = (await getModLatestVersion(modID)).version;
     info(`Updating ${modID}@${latestVersion} (latest version)`);
-    return this.manifestMutate({
+    const wasModInManifest = modID in this.mods;
+    this.manifestMutate({
       [modID]: latestVersion,
     });
+    if (!wasModInManifest) {
+      this.manifestMutate({
+        [modID]: '',
+      });
+    }
   }
 
   async updateFicsitAppMod(mod: FicsitAppMod): Promise<void> {
@@ -167,19 +172,27 @@ export class SatisfactoryInstall {
   }
 
   get mods(): ItemVersionList {
-    return filterObject(this._manifestHandler.getItemsList(), (id) => id !== SH.SMLModID);
+    return filterObject(this._manifestHandler.getItemsList(), (id) => id !== SH.SMLModID && id !== BH.bootstrapperModID);
   }
 
   async installSML(version: string): Promise<void> {
-    return this.manifestMutate({ SML: version });
+    return this.manifestMutate({ [SH.SMLModID]: version });
   }
 
   async uninstallSML(): Promise<void> {
-    return this.manifestMutate({ SML: '' });
+    return this.manifestMutate({ [SH.SMLModID]: '' });
   }
 
   async updateSML(): Promise<void> {
-    return this.manifestMutate({ SML: (await getLatestSMLVersion()).version });
+    const latestVersion = (await getLatestSMLVersion()).version;
+    info(`Updating SML@${latestVersion} (latest version)`);
+    const wasSMLInManifest = this.smlVersion !== undefined;
+    this.manifestMutate({ [SH.SMLModID]: latestVersion });
+    if (!wasSMLInManifest) {
+      this.manifestMutate({
+        [SH.SMLModID]: '',
+      });
+    }
   }
 
   private async _getInstalledSMLVersion(): Promise<string | undefined> {
@@ -188,6 +201,22 @@ export class SatisfactoryInstall {
 
   get smlVersion(): string | undefined {
     return this._manifestHandler.getItemsList()[SH.SMLModID];
+  }
+
+  async updateBootstrapper(): Promise<void> {
+    const latestVersion = (await getLatestBootstrapperVersion()).version;
+    info(`Updating bootstrapper@${latestVersion} (latest version)`);
+    const wasBootstrapperInManifest = this.bootstrapperVersion !== undefined;
+    this.manifestMutate({ [BH.bootstrapperModID]: latestVersion });
+    if (!wasBootstrapperInManifest) {
+      this.manifestMutate({
+        [BH.bootstrapperModID]: '',
+      });
+    }
+  }
+
+  get bootstrapperVersion(): string | undefined {
+    return this._manifestHandler.getItemsList()[BH.bootstrapperModID];
   }
 
   get launchPath(): string | undefined {
