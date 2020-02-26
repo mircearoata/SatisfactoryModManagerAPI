@@ -278,6 +278,7 @@ export interface FicsitAppSMLVersion {
   link: string;
   changelog: string;
   date: string;
+  bootstrap_version: string;
 }
 
 export async function getAvailableSMLVersions(): Promise<Array<FicsitAppSMLVersion>> {
@@ -295,7 +296,8 @@ export async function getAvailableSMLVersions(): Promise<Array<FicsitAppSMLVersi
           stability,
           link,
           changelog,
-          date
+          date,
+          bootstrap_version
         }
       }
     }
@@ -313,6 +315,7 @@ export async function getAvailableSMLVersions(): Promise<Array<FicsitAppSMLVersi
 export interface FicsitAppBootstrapperVersion {
   id: string;
   version: string;
+  satisfactory_version: number;
   stability: 'alpha' | 'beta' | 'release';
   link: string;
   changelog: string;
@@ -324,12 +327,13 @@ export async function getAvailableBootstrapperVersions(): Promise<Array<FicsitAp
   if (cooldownPassed(requestID)) {
     const res = await fiscitApiQuery(`
     {
-      getBootstrapperVersions(filter: {limit: 100})
+      getBootstrapVersions(filter: {limit: 100})
       {
-        bootstrapper_versions
+        bootstrap_versions
         {
           id,
           version,
+          satisfactory_version,
           stability,
           link,
           changelog,
@@ -341,7 +345,7 @@ export async function getAvailableBootstrapperVersions(): Promise<Array<FicsitAp
     if (res.errors) {
       throw res.errors;
     } else {
-      setCache(requestID, res.getBootstrapperVersions.bootstrapper_versions);
+      setCache(requestID, res.getBootstrapVersions.bootstrap_versions);
     }
   }
   return getCache(requestID);

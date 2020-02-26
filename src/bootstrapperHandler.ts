@@ -11,9 +11,14 @@ const bootstrapperVersionNative = bindings('bootstrapperVersion');
 export const bootstrapperModID = 'bootstrapper';
 
 export const bootstrapperRelativePath = path.join('FactoryGame', 'Binaries', 'Win64', 'xinput1_3.dll'); // TODO: support other platforms
+export const bootstrapperDIARelativePath = path.join('FactoryGame', 'Binaries', 'Win64', 'msdia140.dll'); // TODO: support other platforms
 
 export function getBootstrapperDownloadLink(version: string): string {
   return `https://github.com/Archengius/SatisfactoryModBootstrapper/releases/download/${version}/xinput1_3.dll`; // TODO: Will it move to the org?
+}
+
+export function getBootstrapperDIADownloadLink(version: string): string {
+  return `https://github.com/Archengius/SatisfactoryModBootstrapper/releases/download/${version}/msdia140.dll`; // TODO: Will it move to the org?
 }
 
 export function getBootstrapperVersion(satisfactoryPath: string): string | undefined {
@@ -23,9 +28,12 @@ export function getBootstrapperVersion(satisfactoryPath: string): string | undef
 export async function installBootstrapper(version: string, satisfactoryPath: string): Promise<void> {
   if (!getBootstrapperVersion(satisfactoryPath)) {
     const bootstrapperDownloadLink = getBootstrapperDownloadLink(version);
+    const bootstrapperDIADownloadLink = getBootstrapperDIADownloadLink(version);
     try {
       await downloadFile(bootstrapperDownloadLink,
         path.join(satisfactoryPath, bootstrapperRelativePath));
+      await downloadFile(bootstrapperDIADownloadLink,
+        path.join(satisfactoryPath, bootstrapperDIARelativePath));
     } catch (e) {
       if (e.statusCode === 404) {
         if (version.startsWith('v')) {
@@ -46,5 +54,8 @@ export async function uninstallBootstrapper(satisfactoryPath: string): Promise<v
   }
   if (fs.existsSync(path.join(satisfactoryPath, bootstrapperRelativePath))) {
     fs.unlinkSync(path.join(satisfactoryPath, bootstrapperRelativePath));
+  }
+  if (fs.existsSync(path.join(satisfactoryPath, bootstrapperDIARelativePath))) {
+    fs.unlinkSync(path.join(satisfactoryPath, bootstrapperDIARelativePath));
   }
 }
