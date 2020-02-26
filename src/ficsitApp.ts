@@ -305,7 +305,9 @@ export async function getAvailableSMLVersions(): Promise<Array<FicsitAppSMLVersi
     if (res.errors) {
       throw res.errors;
     } else {
-      setCache(requestID, res.getSMLVersions.sml_versions);
+      // filter SML versions supported by SMLauncher
+      const smlVersionsCompatible = res.getSMLVersions.sml_versions.filter((version: FicsitAppSMLVersion) => satisfies(version.version, '>=2.0.0'));
+      setCache(requestID, smlVersionsCompatible);
     }
   }
   return getCache(requestID);

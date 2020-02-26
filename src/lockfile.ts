@@ -40,14 +40,14 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
     if (smlVersionInfo === undefined) {
       throw new ModNotFoundError(`SML@${version} not found`);
     }
-    return { id, version, dependencies: { SatisfactoryGame: `>=${valid(coerce(smlVersionInfo.satisfactory_version.toString()))}`, bootstrapper: '>=1.3.1' } };
+    return { id, version, dependencies: { SatisfactoryGame: `>=${valid(coerce(smlVersionInfo.satisfactory_version.toString()))}`, [bootstrapperModID]: `>=${smlVersionInfo.bootstrap_version}` } };
   }
   if (id === bootstrapperModID) {
     const bootstrapperVersionInfo = await getBootstrapperVersionInfo(version);
     if (bootstrapperVersionInfo === undefined) {
       throw new ModNotFoundError(`bootstrapper@${version} not found`);
     }
-    return { id, version, dependencies: {} };
+    return { id, version, dependencies: { SatisfactoryGame: `>=${valid(coerce(bootstrapperVersionInfo.satisfactory_version.toString()))}` } };
   }
   if (id === 'SatisfactoryGame') {
     throw new InvalidLockfileOperation('SMLauncher cannot modify Satisfactory Game version. This should never happen, unless Satisfactory was not temporarily added to the lockfile as a manifest entry');
@@ -56,7 +56,7 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
   const modData = await getCachedMod(id, version);
   if (!modData.dependencies) { modData.dependencies = {}; }
   if (modData.sml_version) {
-    modData.dependencies[SMLModID] = `>=${valid(coerce(modData.sml_version))}`;
+    modData.dependencies[SMLModID] = `^${valid(coerce(modData.sml_version))}`;
   }
   return {
     id: modData.mod_id,
