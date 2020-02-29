@@ -3,8 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import request from 'request-promise-native';
 import { satisfies } from 'semver';
-
-import SimpleNodeLogger = require('simple-node-logger');
+import { setLogsDir, setLogFileNameFormat } from './logging';
 
 export const appName = 'SatisfactoryModLauncher';
 
@@ -22,99 +21,13 @@ ensureExists(modCacheDir);
 export const logsDir = path.join(cacheDir, 'logs');
 ensureExists(logsDir);
 
-const logLevel = process.env.NODE_DEBUG?.includes('SMLauncherAPI') ? 'debug' : 'info';
-
-export function formatDate(date: Date): string {
-  return `${date.getFullYear().toString().padStart(4, '0')}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
-}
-
-export function formatDateTime(date: Date): string {
-  return `${date.getFullYear().toString().padStart(4, '0')}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}_${date.getHours().toString().padStart(2, '0')}-${date.getMinutes().toString().padStart(2, '0')}-${date.getSeconds().toString().padStart(2, '0')}`;
-}
-
-export function getLogFilePath(): string {
-  return path.join(logsDir, `${appName}-${formatDate(new Date())}.log`);
-}
-
-const consoleLoggerOpts = {
-  level: logLevel,
-  timestampFormat: 'YYYY-MM-DD HH:mm:ss.SSS',
-};
-
-const fileLoggerOpts = {
-  level: logLevel,
-  timestampFormat: 'YYYY-MM-DD HH:mm:ss.SSS',
-  logFilePath: getLogFilePath(),
-};
-
-const logManager = SimpleNodeLogger.createLogManager(consoleLoggerOpts);
-let fileAppender = new SimpleNodeLogger.appenders.FileAppender(fileLoggerOpts);
-logManager.addAppender(fileAppender);
-
-let log = logManager.createLogger();
-
-function checkRoll(): void {
-  const logFile = getLogFilePath();
-  const currentLogFile = fileLoggerOpts.logFilePath;
-  if (logFile !== currentLogFile) {
-    fileAppender.closeWriter();
-    fileLoggerOpts.logFilePath = logFile;
-    logManager.getAppenders().pop();
-    fileAppender = new SimpleNodeLogger.appenders.FileAppender(fileLoggerOpts);
-    logManager.addAppender(fileAppender);
-    log = logManager.createLogger();
-  }
-}
-
-export function debug<T>(message: T): void {
-  checkRoll();
-  if (message instanceof String) {
-    log.debug(message);
-  } else {
-    log.debug(JSON.stringify(message));
-  }
-}
-
-export function info<T>(message: T): void {
-  checkRoll();
-  if (message instanceof String) {
-    log.info(message);
-  } else {
-    log.info(JSON.stringify(message));
-  }
-}
-
-export function warn<T>(message: T): void {
-  checkRoll();
-  if (message instanceof String) {
-    log.warn(message);
-  } else {
-    log.warn(JSON.stringify(message));
-  }
-}
-
-export function error<T>(message: T): void {
-  checkRoll();
-  if (message instanceof String) {
-    log.error(message);
-  } else {
-    log.error(JSON.stringify(message));
-  }
-}
-
-export function fatal<T>(message: T): void {
-  checkRoll();
-  if (message instanceof String) {
-    log.fatal(message);
-  } else {
-    log.fatal(JSON.stringify(message));
-  }
-}
-
 export function copyFile(file: string, toDir: string): void {
   ensureExists(toDir);
   fs.copyFileSync(file, path.join(toDir, path.basename(file)));
 }
+
+setLogsDir(logsDir);
+setLogFileNameFormat(`${appName}-%DATE%.log`);
 
 export async function downloadFile(url: string, file: string): Promise<void> {
   const buffer: Buffer = await request(url, {

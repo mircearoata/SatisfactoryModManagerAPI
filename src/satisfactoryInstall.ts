@@ -11,8 +11,10 @@ import {
 import { ManifestHandler } from './manifest';
 import { ItemVersionList } from './lockfile';
 import {
-  debug, info, error, filterObject, mergeArrays,
+  filterObject, mergeArrays,
 } from './utils';
+import { debug, info, error } from './logging';
+
 
 export class SatisfactoryInstall {
   private _manifestHandler: ManifestHandler;

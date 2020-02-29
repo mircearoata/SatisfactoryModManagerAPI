@@ -2,7 +2,7 @@ import {
   satisfies, compare, valid, coerce,
 } from 'semver';
 import {
-  removeArrayElement, removeArrayElementWhere, forEachAsync, debug,
+  removeArrayElement, removeArrayElementWhere, forEachAsync,
 } from './utils';
 import { findAllVersionsMatchingAll, getSMLVersionInfo, getBootstrapperVersionInfo } from './ficsitApp';
 import { getCachedMod } from './modHandler';
@@ -13,6 +13,7 @@ import {
 } from './errors';
 import { SMLModID } from './smlHandler';
 import { bootstrapperModID } from './bootstrapperHandler';
+import { debug } from './logging';
 
 export interface ItemVersionList {
   [id: string]: string;

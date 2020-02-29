@@ -3,12 +3,13 @@ import path from 'path';
 import fs from 'fs';
 import { valid, coerce } from 'semver';
 import {
-  appDataDir, ensureExists, forEachAsync, debug, mapObject,
+  appDataDir, ensureExists, forEachAsync, mapObject,
 } from './utils';
 import {
   LockfileGraph, Lockfile, LockfileGraphNode, ItemVersionList,
   getItemData,
 } from './lockfile';
+import { debug } from './logging';
 
 interface Manifest {
   satisfactoryVersion: string;

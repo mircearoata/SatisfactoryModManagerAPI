@@ -10,4 +10,4 @@ export {
 } from './ficsitApp';
 export { getManifestFolderPath } from './manifest';
 export * from './errors';
-export { getLogFilePath } from './utils';
+export { getLogFilePath } from './logging';

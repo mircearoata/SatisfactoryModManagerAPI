@@ -3,10 +3,11 @@ import path from 'path';
 import util from 'util';
 import JSZip from 'jszip';
 import {
-  modCacheDir, copyFile, downloadFile, forEachAsync, error,
+  modCacheDir, copyFile, downloadFile, forEachAsync,
 } from './utils';
 import { getModDownloadLink } from './ficsitApp';
 import { InvalidModFileError } from './errors';
+import { error } from './logging';
 
 let cachedMods = new Array<Mod>();
 let cacheLoaded = false;
