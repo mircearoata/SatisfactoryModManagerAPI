@@ -14,11 +14,11 @@ export const bootstrapperRelativePath = path.join('FactoryGame', 'Binaries', 'Wi
 export const bootstrapperDIARelativePath = path.join('FactoryGame', 'Binaries', 'Win64', 'msdia140.dll'); // TODO: support other platforms
 
 export function getBootstrapperDownloadLink(version: string): string {
-  return `https://github.com/Archengius/SatisfactoryModBootstrapper/releases/download/${version}/xinput1_3.dll`; // TODO: Will it move to the org?
+  return `https://github.com/satisfactorymodding/SatisfactoryModBootstrapper/releases/download/${version}/xinput1_3.dll`;
 }
 
 export function getBootstrapperDIADownloadLink(version: string): string {
-  return `https://github.com/Archengius/SatisfactoryModBootstrapper/releases/download/${version}/msdia140.dll`; // TODO: Will it move to the org?
+  return `https://github.com/satisfactorymodding/SatisfactoryModBootstrapper/releases/download/${version}/msdia140.dll`;
 }
 
 export function getBootstrapperVersion(satisfactoryPath: string): string | undefined {
