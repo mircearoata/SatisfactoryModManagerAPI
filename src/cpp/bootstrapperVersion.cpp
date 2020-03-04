@@ -51,9 +51,11 @@ void GetBootstrapperVersion(const v8::FunctionCallbackInfo<v8::Value>& args) {
   #endif
   if (GetLastError() == 0) {
     // get the dll exported bootstrapper version
-    char* bootstrapperDllVersion = (char*) GetProcAddress(dll, "bootstrapperVersion");
+    wchar_t** bootstrapperDllVersion = (wchar_t**) GetProcAddress(dll, "bootstrapperVersion");
     if (bootstrapperDllVersion) {
-      bootstrapperVersion = std::string(bootstrapperDllVersion);
+      char bootstrapperDllVersionMB[50];
+      std::wcstombs(bootstrapperDllVersionMB, *bootstrapperDllVersion, 50);
+      bootstrapperVersion = std::string(bootstrapperDllVersionMB);
       bootstrapperFound = true;
     }
     FreeLibrary(dll);

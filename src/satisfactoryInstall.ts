@@ -221,6 +221,10 @@ export class SatisfactoryInstall {
     return this._manifestHandler.getItemsList()[BH.bootstrapperModID];
   }
 
+  private async _getInstalledBootstrapperVersion(): Promise<string | undefined> {
+    return BH.getBootstrapperVersion(this.installLocation);
+  }
+
   get launchPath(): string | undefined {
     if (!this.launchExecutable) {
       return undefined;

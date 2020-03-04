@@ -81,15 +81,11 @@ void GetSMLVersion(const v8::FunctionCallbackInfo<v8::Value>& args) {
     #endif
     if (GetLastError() == 0) {
       // get the dll exported SML version
-      TCHAR* smlDllVersion = (TCHAR*) GetProcAddress(dll, "modLoaderVersionString");
+      wchar_t** smlDllVersion = (wchar_t**) GetProcAddress(dll, "modLoaderVersionString");
       if (smlDllVersion) {
-#ifndef UNICODE
-        smlVersion = std::string(smlDllVersion);
-#else
         char smlDllVersionMB[50];
-        std::wcstombs(smlDllVersionMB, smlDllVersion, 50);
+        std::wcstombs(smlDllVersionMB, *smlDllVersion, 50);
         smlVersion = std::string(smlDllVersionMB);
-#endif
         smlFound = true;
       }
       FreeLibrary(dll);
