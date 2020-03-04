@@ -47,7 +47,7 @@ const dummyMods = [
 
 async function createDummyMods() {
   await forEachAsync(dummyMods, async (mod) => new Promise((resolve) => {
-    const filePath = path.join(modCacheDir, `${mod.mod_id}_${mod.version}.zip`);
+    const filePath = path.join(modCacheDir, `${mod.mod_id}_${mod.version}.smod`);
     const zip = new JSZip();
     zip.file("data.json", JSON.stringify(mod));
     zip
@@ -61,7 +61,7 @@ async function createDummyMods() {
 
 async function removeDummyMods() {
   await forEachAsync(dummyMods, async (mod) => {
-    const filePath = path.join(modCacheDir, `${mod.mod_id}_${mod.version}.zip`);
+    const filePath = path.join(modCacheDir, `${mod.mod_id}_${mod.version}.smod`);
     fs.unlinkSync(filePath);
   });
 }
