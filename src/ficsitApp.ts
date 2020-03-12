@@ -133,6 +133,7 @@ export async function getAvailableMods(): Promise<Array<FicsitAppMod>> {
           full_description,
           id,
           logo,
+          last_version_date,
           authors
           {
             mod_id,
@@ -178,6 +179,7 @@ export async function getMod(modID: string): Promise<FicsitAppMod> {
           full_description,
           id,
           logo,
+          last_version_date,
           authors
           {
             mod_id,
