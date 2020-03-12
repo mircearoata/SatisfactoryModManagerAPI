@@ -100,14 +100,22 @@ export class SatisfactoryInstall {
       debug('Removing SML from Satisfactory install');
       await SH.uninstallSML(this.installLocation);
     }
+    if (mismatches.uninstall.includes(BH.bootstrapperModID)) {
+      debug('Removing Bootstrapper from Satisfactory install');
+      await BH.uninstallBootstrapper(this.installLocation);
+    }
     if (mismatches.install[SH.SMLModID]) {
       debug('Copying SML to Satisfactory install');
       await SH.installSML(mismatches.install[SH.SMLModID], this.installLocation);
     }
+    if (mismatches.install[BH.bootstrapperModID]) {
+      debug('Copying Bootstrapper to Satisfactory install');
+      await BH.installBootstrapper(mismatches.install[BH.bootstrapperModID], this.installLocation);
+    }
     await Promise.all(Object.entries(mismatches.install).map((modInstall) => {
       const modInstallID = modInstall[0];
       const modInstallVersion = modInstall[1];
-      if (modInstallID !== SH.SMLModID) {
+      if (modInstallID !== SH.SMLModID && modInstallID !== BH.bootstrapperModID) {
         if (modsDir) {
           debug(`Copying ${modInstallID}@${modInstallVersion} to Satisfactory install`);
           return MH.installMod(modInstallID, modInstallVersion, modsDir);

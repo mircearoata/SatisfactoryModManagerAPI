@@ -7,7 +7,7 @@ import {
 } from './utils';
 import { getModDownloadLink } from './ficsitApp';
 import { InvalidModFileError } from './errors';
-import { error } from './logging';
+import { error, debug } from './logging';
 
 let cachedMods = new Array<Mod>();
 let cacheLoaded = false;
@@ -70,6 +70,7 @@ export async function getCachedModFile(modID: string, version: string): Promise<
   let modPath = (await getCachedMods())
     .find((mod) => mod.mod_id === modID && mod.version === version)?.path;
   if (!modPath) {
+    debug(`${modID}@${version} is not downloaded. Downloading now.`);
     modPath = await downloadMod(modID, version);
     await addModToCache(modPath);
   }
