@@ -1,12 +1,16 @@
 import path from 'path';
 import fs from 'fs';
 import bindings from 'bindings';
+import { satisfies } from 'semver';
+import glob from 'glob';
 import {
-  downloadFile,
+  downloadFile, deleteFolderRecursive,
 } from './utils';
 import { ModNotFoundError } from './errors';
 
 const smlVersionNative = bindings('smlVersion');
+
+const oldSMLFiles = ['FactoryGame/Binaries/Win64/mods', 'FactoryGame/Binaries/Win64/configs', 'FactoryGame/Content/Paks/!(FactoryGame-WindowsNoEditor).*', 'FactoryGame/Binaries/Win64/xinput1_3.dll'];
 
 export const minSMLVersion = '2.0.0';
 export const SMLModID = 'SML';
@@ -48,6 +52,25 @@ export async function uninstallSML(satisfactoryPath: string): Promise<void> {
   const smlVersion = getSMLVersion(satisfactoryPath);
   if (!smlVersion) {
     return;
+  }
+  if (satisfies(smlVersion, '<2.0.0')) {
+    // Cleanup old files
+    oldSMLFiles.forEach((fileRelativePath) => {
+      const oldFilePath = path.join(satisfactoryPath, fileRelativePath);
+      if (fs.existsSync(oldFilePath)) {
+        if (fs.lstatSync(oldFilePath).isFile()) {
+          fs.unlinkSync(oldFilePath);
+        } else {
+          deleteFolderRecursive(oldFilePath);
+        }
+      } else {
+        glob(oldFilePath, (er, files) => {
+          files.forEach((file) => {
+            fs.unlinkSync(file);
+          });
+        });
+      }
+    });
   }
   if (fs.existsSync(path.join(satisfactoryPath, SMLRelativePath))) {
     fs.unlinkSync(path.join(satisfactoryPath, SMLRelativePath));

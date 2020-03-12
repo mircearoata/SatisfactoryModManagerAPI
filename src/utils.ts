@@ -101,3 +101,18 @@ export function mergeArrays<T>(...arrays: Array<Array<T>>): Array<T> {
   const uniqueArray = jointArray.filter((item, index) => jointArray.indexOf(item) === index);
   return uniqueArray;
 }
+
+
+export function deleteFolderRecursive(deletePath: string): void {
+  if (fs.existsSync(deletePath)) {
+    fs.readdirSync(deletePath).forEach((file) => {
+      const curPath = `${deletePath}/${file}`;
+      if (fs.lstatSync(curPath).isDirectory()) { // recurse
+        deleteFolderRecursive(curPath);
+      } else { // delete file
+        fs.unlinkSync(curPath);
+      }
+    });
+    fs.rmdirSync(deletePath);
+  }
+}
