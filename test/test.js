@@ -7,7 +7,7 @@ const { modCacheDir, forEachAsync } = require('../lib/utils');
 const JSZip = require('jszip');
 
 const dummySfName = 'DummySF';
-const dummySfVersion = '109000';
+const dummySfVersion = '117050';
 const dummySfPath = path.join(__dirname, 'TestSatisfactoryInstall');
 const dummySfExecutable = 'sf.exe';
 const dummyMods = [
@@ -16,31 +16,44 @@ const dummyMods = [
     version: '1.0.0',
     dependencies: {
       'SML': '2.0.0',
-      '6vQ6ckVYFiidDh': '^1.1.0'
     }
   },
   {
     mod_id: 'dummyMod1',
     version: '1.0.1',
     dependencies: {
-      'SML': '>=1.0.0',
-      '6vQ6ckVYFiidDh': '^1.2.0'
+      'SML': '^1.0.0',
     }
   },
   {
     mod_id: 'dummyMod1',
     version: '1.0.2',
     dependencies: {
-      'SML': '1.0.1',
-      '6vQ6ckVYFiidDh': '^1.3.0'
+      'SML': '>=1.0.0',
     }
   },
   {
-    mod_id: 'dummyMod1',
-    version: '1.0.3',
+    mod_id: 'dummyMod2',
+    version: '1.0.0',
     dependencies: {
-      'SML': '^1.0.0',
-      '6vQ6ckVYFiidDh': '^1.5.2'
+      'SML': '1.0.0',
+      'dummyMod1': '^1.0.0'
+    }
+  },
+  {
+    mod_id: 'dummyMod2',
+    version: '1.0.1',
+    dependencies: {
+      'SML': '2.0.0',
+      'dummyMod1': '^1.0.0'
+    }
+  },
+  {
+    mod_id: 'dummyMod2',
+    version: '1.0.2',
+    dependencies: {
+      'SML': '>1.0.0',
+      'dummyMod1': '^1.0.1'
     }
   }
 ];
@@ -95,9 +108,15 @@ async function main() {
     fs.writeFileSync(path.join(sfInstall.modsDir, 'someFile.randomExt'), '');
     fs.writeFileSync(path.join(sfInstall.modsDir, 'data.json'), '');
     fs.mkdirSync(path.join(dummySfPath, 'FactoryGame', 'Binaries', 'Win64', 'mods'), { recursive: true });
+    fs.writeFileSync(path.join(dummySfPath, 'FactoryGame', 'Binaries', 'Win64', 'xinput1_3.dll'), '');
+    fs.mkdirSync(path.join(dummySfPath, 'FactoryGame', 'Binaries', 'Win64', 'config'), { recursive: true });
+    fs.writeFileSync(path.join(dummySfPath, 'FactoryGame', 'Content', 'Paks', 'Test.pak'), '');
+    fs.writeFileSync(path.join(dummySfPath, 'FactoryGame', 'Content', 'Paks', 'Test.sig'), '');
+    fs.writeFileSync(path.join(dummySfPath, 'FactoryGame', 'Content', 'Paks', 'FactoryGame-WindowsNoEditor.pak'), '');
+    fs.writeFileSync(path.join(dummySfPath, 'FactoryGame', 'Content', 'Paks', 'FactoryGame-WindowsNoEditor.sig'), '');
 
     try {
-      await sfInstall.installMod('6vQ6ckVYFiidDh', '1.4.1');
+      await sfInstall.installMod('dummyMod1', '1.0.0');
       installedMods = await sfInstall._getInstalledMods();
       assert.strictEqual(installedMods.length, 1, 'Install without dependency failed');
     } catch (e) {
@@ -107,12 +126,15 @@ async function main() {
       assert.fail(`Unexpected error: ${e}`);
     }
 
-    assert.strictEqual(fs.readdirSync(path.join(dummySfPath, 'FactoryGame', 'Binaries', 'Win64')).some((folder) => folder.match(/mods-backup-\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}/g)), true, 'Did not backup existing mods dir');
-    assert.strictEqual(fs.existsSync(path.join(dummySfPath, 'FactoryGame', 'Binaries', 'Win64', 'mods')), true, 'Actual mods folder does not exist');
-    assert.strictEqual(fs.lstatSync(path.join(dummySfPath, 'FactoryGame', 'Binaries', 'Win64', 'mods')).isSymbolicLink(), true, 'Actual mods folder is not symlink');
+    assert.strictEqual(fs.existsSync(path.join(dummySfPath, 'FactoryGame', 'Binaries', 'Win64', 'mods')), false, 'Old mods folder still exists');
+    assert.strictEqual(fs.existsSync(path.join(dummySfPath, 'FactoryGame', 'Binaries', 'Win64', 'config')), false, 'Old config folder still exists');
+    assert.strictEqual(fs.existsSync(path.join(dummySfPath, 'FactoryGame', 'Content', 'Paks', 'Test.pak')), false, 'Old mod pak still exists');
+    assert.strictEqual(fs.existsSync(path.join(dummySfPath, 'FactoryGame', 'Content', 'Paks', 'Test.sig')), false, 'Old mod sig still exists');
+    assert.strictEqual(fs.existsSync(path.join(dummySfPath, 'FactoryGame', 'Content', 'Paks', 'FactoryGame-WindowsNoEditor.pak')), true, 'FG pak does not exist');
+    assert.strictEqual(fs.existsSync(path.join(dummySfPath, 'FactoryGame', 'Content', 'Paks', 'FactoryGame-WindowsNoEditor.sig')), true, 'FG sig does not exist');
 
     try {
-      await sfInstall.installMod('dummyMod1', '1.0.0');
+      await sfInstall.installMod('dummyMod2', '1.0.0');
       installedMods = await sfInstall._getInstalledMods();
       if (installedMods.some((mod) => mod.mod_id === 'dummyMod1' && mod.version === '1.0.0')) {
         assert.fail('Install mod with conflicting SML succeeded');
@@ -128,9 +150,23 @@ async function main() {
     }
 
     try {
-      await sfInstall.installMod('dummyMod1', '1.0.1');
+      await sfInstall.installMod('dummyMod2', '1.0.1');
       installedMods = await sfInstall._getInstalledMods();
-      if (!installedMods.some((mod) => mod.mod_id === 'dummyMod1' && mod.version === '1.0.1')) {
+      if (!installedMods.some((mod) => mod.mod_id === 'dummyMod2' && mod.version === '1.0.1')) {
+        assert.fail('Install mod with existing dependency failed');
+      }
+      assert.strictEqual(installedMods.length, 2, 'Install removed/added a mod');
+    } catch (e) {
+      if (e instanceof assert.AssertionError) {
+        throw e;
+      }
+      assert.fail(`Unexpected error: ${e}`);
+    }
+
+    try {
+      await sfInstall.updateMod('dummyMod2');
+      installedMods = await sfInstall._getInstalledMods();
+      if (!installedMods.some((mod) => mod.mod_id === 'dummyMod2' && mod.version === '1.0.1') || !installedMods.some((mod) => mod.mod_id === 'dummyMod1' && mod.version === '1.0.2')) {
         assert.fail('Update mod with existing dependency failed');
       }
       assert.strictEqual(installedMods.length, 2, 'Update removed/added a mod');
@@ -142,40 +178,10 @@ async function main() {
     }
 
     try {
-      await sfInstall.installMod('dummyMod1', '1.0.2');
-      installedMods = await sfInstall._getInstalledMods();
-      if (!installedMods.some((mod) => mod.mod_id === 'dummyMod1' && mod.version === '1.0.2')) {
-        assert.fail('Update mod with solvable SML version conflict failed');
-      }
-      assert.strictEqual(installedMods.length, 2, 'Update removed/added a mod');
-    } catch (e) {
-      if (e instanceof assert.AssertionError) {
-        throw e;
-      }
-      assert.fail(`Unexpected error: ${e}`);
-    }
-
-    try {
-      await sfInstall.installMod('dummyMod1', '1.0.3');
-      installedMods = await sfInstall._getInstalledMods();
-      if (installedMods.some((mod) => mod.mod_id === 'dummyMod1' && mod.version === '1.0.3')) {
-        assert.fail('Update mod with conflicting dependency version failed');
-      }
-      assert.strictEqual(installedMods.length, 2, 'Update removed/added a mod');
-    } catch (e) {
-      if (e instanceof assert.AssertionError) {
-        throw e;
-      }
-      if (!e instanceof DependencyManifestMismatchError) {
-        assert.fail(`Unexpected error: ${e}`);
-      }
-    }
-
-    try {
-      await sfInstall.uninstallMod('6vQ6ckVYFiidDh');
+      await sfInstall.uninstallMod('dummyMod1');
       installedMods = await sfInstall._getInstalledMods();
       assert.strictEqual(installedMods.length, 2, 'Uninstall dependency succeeded');
-      assert.strictEqual(installedMods.some((mod) => mod.mod_id === '6vQ6ckVYFiidDh' && mod.version === '1.4.1'), true, 'Uninstall dependency changed version');
+      assert.strictEqual(installedMods.some((mod) => mod.mod_id === 'dummyMod1' && mod.version === '1.0.2'), true, 'Uninstall dependency changed version');
     } catch (e) {
       if (e instanceof assert.AssertionError) {
         throw e;
