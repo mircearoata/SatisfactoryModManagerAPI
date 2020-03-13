@@ -4,9 +4,10 @@ import bindings from 'bindings';
 import { satisfies } from 'semver';
 import glob from 'glob';
 import {
-  downloadFile, deleteFolderRecursive,
+  downloadFile, deleteFolderRecursive, smlCacheDir, ensureExists,
 } from './utils';
 import { ModNotFoundError } from './errors';
+import { debug } from './logging';
 
 const smlVersionNative = bindings('smlVersion');
 
@@ -15,7 +16,9 @@ const oldSMLFiles = ['FactoryGame/Binaries/Win64/mods', 'FactoryGame/Binaries/Wi
 export const minSMLVersion = '2.0.0';
 export const SMLModID = 'SML';
 
-export const SMLRelativePath = path.join('loaders', 'UE4-SML-Win64-Shipping.dll'); // TODO: other platforms
+const SMLFileName = 'UE4-SML-Win64-Shipping.dll';
+
+export const SMLRelativePath = path.join('loaders', SMLFileName); // TODO: other platforms
 
 export function getSMLDownloadLink(version: string): string {
   return `https://github.com/satisfactorymodding/SatisfactoryModLoader/releases/download/${version}/UE4-SML-Win64-Shipping.dll`; // TODO: probably right, but better check
@@ -29,22 +32,32 @@ export function getModsDir(satisfactoryPath: string): string {
   return path.join(satisfactoryPath, 'mods');
 }
 
-export async function installSML(version: string, satisfactoryPath: string): Promise<void> {
-  if (!getSMLVersion(satisfactoryPath)) {
+async function getSMLVersionCache(version: string): Promise<string> {
+  const smlVersionCacheDir = path.join(smlCacheDir, version);
+  if (!fs.existsSync(smlVersionCacheDir)) {
     const smlDownloadLink = getSMLDownloadLink(version);
     try {
       await downloadFile(smlDownloadLink,
-        path.join(satisfactoryPath, SMLRelativePath));
+        path.join(smlVersionCacheDir, SMLFileName));
+      debug(`SML ${version} is not cached. Downloading`);
     } catch (e) {
       if (e.statusCode === 404) {
         if (version.startsWith('v')) {
           throw new ModNotFoundError(`SML version ${version.substr(1)} not found`);
         }
-        await installSML(`v${version}`, satisfactoryPath);
-      } else {
-        throw e;
+        return getSMLVersionCache(`v${version}`);
       }
+      throw e;
     }
+  }
+  return smlVersionCacheDir;
+}
+
+export async function installSML(version: string, satisfactoryPath: string): Promise<void> {
+  if (!getSMLVersion(satisfactoryPath)) {
+    const smlVersionCache = await getSMLVersionCache(version);
+    ensureExists(path.dirname(path.join(satisfactoryPath, SMLRelativePath)));
+    fs.copyFileSync(path.join(smlVersionCache, SMLFileName), path.join(satisfactoryPath, SMLRelativePath));
   }
 }
 

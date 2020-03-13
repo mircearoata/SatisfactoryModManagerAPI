@@ -2,16 +2,20 @@ import path from 'path';
 import fs from 'fs';
 import bindings from 'bindings';
 import {
-  downloadFile,
+  downloadFile, bootstrapperCacheDir, ensureExists,
 } from './utils';
 import { ModNotFoundError } from './errors';
+import { debug } from './logging';
 
 const bootstrapperVersionNative = bindings('bootstrapperVersion');
 
 export const bootstrapperModID = 'bootstrapper';
 
-export const bootstrapperRelativePath = path.join('FactoryGame', 'Binaries', 'Win64', 'xinput1_3.dll'); // TODO: support other platforms
-export const bootstrapperDIARelativePath = path.join('FactoryGame', 'Binaries', 'Win64', 'msdia140.dll'); // TODO: support other platforms
+const bootstrapperFileName = 'xinput1_3.dll';
+const bootstrapperDIAFileName = 'msdia140.dll';
+
+export const bootstrapperRelativePath = path.join('FactoryGame', 'Binaries', 'Win64', bootstrapperFileName); // TODO: support other platforms
+export const bootstrapperDIARelativePath = path.join('FactoryGame', 'Binaries', 'Win64', bootstrapperDIAFileName); // TODO: support other platforms
 
 export function getBootstrapperDownloadLink(version: string): string {
   return `https://github.com/satisfactorymodding/SatisfactoryModBootstrapper/releases/download/${version}/xinput1_3.dll`;
@@ -25,25 +29,38 @@ export function getBootstrapperVersion(satisfactoryPath: string): string | undef
   return bootstrapperVersionNative.getBootstrapperVersion(satisfactoryPath);
 }
 
-export async function installBootstrapper(version: string, satisfactoryPath: string): Promise<void> {
-  if (!getBootstrapperVersion(satisfactoryPath)) {
+async function getBootstrapperVersionCache(version: string): Promise<string> {
+  const bootstrapperVersionCacheDir = path.join(bootstrapperCacheDir, version);
+  if (!fs.existsSync(bootstrapperVersionCacheDir)) {
     const bootstrapperDownloadLink = getBootstrapperDownloadLink(version);
     const bootstrapperDIADownloadLink = getBootstrapperDIADownloadLink(version);
     try {
       await downloadFile(bootstrapperDownloadLink,
-        path.join(satisfactoryPath, bootstrapperRelativePath));
+        path.join(bootstrapperVersionCacheDir, bootstrapperFileName));
       await downloadFile(bootstrapperDIADownloadLink,
-        path.join(satisfactoryPath, bootstrapperDIARelativePath));
+        path.join(bootstrapperVersionCacheDir, bootstrapperDIAFileName));
+      debug(`Bootstrapper ${version} is not cached. Downloading`);
     } catch (e) {
       if (e.statusCode === 404) {
         if (version.startsWith('v')) {
           throw new ModNotFoundError(`Bootstrapper version ${version.substr(1)} not found`);
         }
-        await installBootstrapper(`v${version}`, satisfactoryPath);
-      } else {
-        throw e;
+        return getBootstrapperVersionCache(`v${version}`);
       }
+      throw e;
     }
+  }
+  return bootstrapperVersionCacheDir;
+}
+
+
+export async function installBootstrapper(version: string, satisfactoryPath: string): Promise<void> {
+  if (!getBootstrapperVersion(satisfactoryPath)) {
+    const bootstrapperVersionCache = await getBootstrapperVersionCache(version);
+    ensureExists(path.dirname(path.join(satisfactoryPath, bootstrapperRelativePath)));
+    ensureExists(path.dirname(path.join(satisfactoryPath, bootstrapperDIARelativePath)));
+    fs.copyFileSync(path.join(bootstrapperVersionCache, bootstrapperFileName), path.join(satisfactoryPath, bootstrapperRelativePath));
+    fs.copyFileSync(path.join(bootstrapperVersionCache, bootstrapperDIAFileName), path.join(satisfactoryPath, bootstrapperDIARelativePath));
   }
 }
 

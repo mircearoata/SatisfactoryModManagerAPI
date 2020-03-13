@@ -22,6 +22,10 @@ export const cacheDir = path.join(getCacheFolder(), appName);
 ensureExists(cacheDir);
 export const modCacheDir = path.join(cacheDir, 'mods');
 ensureExists(modCacheDir);
+export const smlCacheDir = path.join(cacheDir, 'smlVersions');
+ensureExists(smlCacheDir);
+export const bootstrapperCacheDir = path.join(cacheDir, 'bootstrapperVersions');
+ensureExists(bootstrapperCacheDir);
 
 export const logsDir = path.join(cacheDir, 'logs');
 ensureExists(logsDir);
