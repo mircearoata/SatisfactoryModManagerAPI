@@ -1,6 +1,7 @@
 export {
   SatisfactoryInstall,
   getInstalls,
+  getConfigs,
 } from './satisfactoryInstall';
 export { Mod, ModObject } from './modHandler';
 export {

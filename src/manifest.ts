@@ -11,7 +11,7 @@ import {
 } from './lockfile';
 import { debug } from './logging';
 
-interface Manifest {
+export interface Manifest {
   satisfactoryVersion: string;
   items: ItemVersionList;
 }

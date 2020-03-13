@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const assert = require('assert');
 const semver = require('semver');
-const { SatisfactoryInstall, getManifestFolderPath, UnsolvableDependencyError, DependencyManifestMismatchError } = require('../');
+const { SatisfactoryInstall, getManifestFolderPath, UnsolvableDependencyError, DependencyManifestMismatchError, InvalidConfigError } = require('../');
 const { modCacheDir, forEachAsync } = require('../lib/utils');
 const JSZip = require('jszip');
 
@@ -166,6 +166,26 @@ async function main() {
       assert.fail(`Unexpected error: ${e}`);
     }
 
+    const testConfigInstalledMods = await sfInstall._getInstalledMods();
+
+    try {
+
+      await sfInstall.saveConfig('testConfig');
+    } catch (e) {
+      assert.fail(`Unexpected error: ${e}`);
+    }
+    try {
+      await sfInstall.saveConfig('Vanilla');
+      assert.fail('Saved vanilla config');
+    } catch (e) {
+      if (e instanceof assert.AssertionError) {
+        throw e;
+      }
+      if (!(e instanceof InvalidConfigError)) {
+        assert.fail(`Unexpected error: ${e}`);
+      }
+    }
+
     /*try {
       await sfInstall.uninstallMod('dummyMod2');
       installedMods = await sfInstall._getInstalledMods();
@@ -222,6 +242,33 @@ async function main() {
       if (e instanceof assert.AssertionError) {
         throw e;
       }
+      assert.fail(`Unexpected error: ${e}`);
+    }
+
+    try {
+      await sfInstall.loadConfig('testConfig');
+    } catch (e) {
+      assert.fail(`Unexpected error: ${e}`);
+    }
+
+    try {
+      await sfInstall.loadConfig('Vanilla');
+      installedMods = await sfInstall._getInstalledMods();
+      assert.strictEqual(installedMods.length, 0, 'Vanilla is not clean');
+      assert.strictEqual(sfInstall.smlVersion, undefined, 'Vanilla is not clean');
+      assert.strictEqual(sfInstall.bootstrapperVersion, undefined, 'Vanilla is not clean');
+    } catch (e) {
+      if (e instanceof assert.AssertionError) {
+        throw e;
+      }
+      assert.fail(`Unexpected error: ${e}`);
+    }
+
+    try {
+      await sfInstall.loadConfig('testConfig');
+      installedMods = await sfInstall._getInstalledMods();
+      assert.deepStrictEqual(testConfigInstalledMods, installedMods, 'Config not loaded correctly');
+    } catch (e) {
       assert.fail(`Unexpected error: ${e}`);
     }
   } catch (e) {

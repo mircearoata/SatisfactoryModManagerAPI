@@ -8,14 +8,23 @@ import * as BH from './bootstrapperHandler';
 import {
   FicsitAppVersion, getModLatestVersion, FicsitAppMod, getLatestSMLVersion, getLatestBootstrapperVersion,
 } from './ficsitApp';
-import { ManifestHandler } from './manifest';
-import { ItemVersionList } from './lockfile';
+import { ManifestHandler, Manifest } from './manifest';
+import { ItemVersionList, Lockfile } from './lockfile';
 import {
-  filterObject, mergeArrays, isRunning,
+  filterObject, mergeArrays, isRunning, ensureExists, configFolder, dirs,
 } from './utils';
 import { debug, info, error } from './logging';
-import { GameRunningError } from './errors';
+import { GameRunningError, InvalidConfigError } from './errors';
 
+
+export function getConfigFolderPath(configName: string): string {
+  const configPath = path.join(configFolder, configName);
+  ensureExists(configPath);
+  return configPath;
+}
+
+const VANILLA_CONFIG_NAME = 'vanilla';
+const DEFAULT_MODDED_CONFIG_NAME = 'modded';
 
 export class SatisfactoryInstall {
   private _manifestHandler: ManifestHandler;
@@ -142,6 +151,42 @@ export class SatisfactoryInstall {
     }
   }
 
+  async loadConfig(configName: string): Promise<void> {
+    const currentManifest = this._manifestHandler.readManifest();
+    const currentLockfile = this._manifestHandler.readLockfile();
+    let manifest: Manifest;
+    let lockfile: Lockfile;
+    try {
+      manifest = JSON.parse(fs.readFileSync(path.join(getConfigFolderPath(configName), 'manifest.json'), 'utf8'));
+    } catch (e) {
+      throw new InvalidConfigError(`Config ${configName} is invalid`);
+    }
+    try {
+      lockfile = JSON.parse(fs.readFileSync(path.join(getConfigFolderPath(configName), 'lock.json'), 'utf8'));
+    } catch (e) {
+      throw new InvalidConfigError(`Config ${configName} is invalid`);
+    }
+    this._manifestHandler.writeManifest(manifest);
+    this._manifestHandler.writeLockfile(lockfile);
+    try {
+      await this.validateInstall();
+    } catch (e) {
+      // Something invalid was found. Revert and pass the error forward
+      this._manifestHandler.writeManifest(currentManifest);
+      this._manifestHandler.writeLockfile(currentLockfile);
+      await this.validateInstall();
+      throw new InvalidConfigError(`Error while loading config: ${e}`);
+    }
+  }
+
+  async saveConfig(configName: string): Promise<void> {
+    if (configName.toLowerCase() === VANILLA_CONFIG_NAME) {
+      throw new InvalidConfigError('Cannot modify vanilla config. Use Modded config or create a new config');
+    }
+    fs.writeFileSync(path.join(getConfigFolderPath(configName), 'manifest.json'), JSON.stringify(this._manifestHandler.readManifest()));
+    fs.writeFileSync(path.join(getConfigFolderPath(configName), 'lock.json'), JSON.stringify(this._manifestHandler.readLockfile()));
+  }
+
   async installMod(modID: string, version: string): Promise<void> {
     if ((await this._getInstalledMods()).some((mod) => mod.mod_id === modID)) {
       info(`Updating ${modID}@${version}`);
@@ -253,6 +298,24 @@ export class SatisfactoryInstall {
   get modsDir(): string {
     return SH.getModsDir(this.installLocation);
   }
+}
+
+export function getConfigs(): Array<string> {
+  return dirs(configFolder);
+}
+
+if (!fs.existsSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'manifest.json'))) {
+  fs.writeFileSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'manifest.json'), JSON.stringify({}));
+}
+if (!fs.existsSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'lock.json'))) {
+  fs.writeFileSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'lock.json'), JSON.stringify({}));
+}
+
+if (!fs.existsSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'manifest.json'))) {
+  fs.writeFileSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'manifest.json'), JSON.stringify({}));
+}
+if (!fs.existsSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'lock.json'))) {
+  fs.writeFileSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'lock.json'), JSON.stringify({}));
 }
 
 const EpicManifestsFolder = path.join(getDataFolders()[0], 'Epic', 'EpicGamesLauncher', 'Data', 'Manifests'); // TODO: other platforms

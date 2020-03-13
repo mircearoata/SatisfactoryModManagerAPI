@@ -12,6 +12,10 @@ export function ensureExists(folder: string): void {
   fs.mkdirSync(folder, { recursive: true });
 }
 
+export function dirs(p: string): Array<string> {
+  return fs.readdirSync(p).filter((f) => fs.statSync(path.join(p, f)).isDirectory());
+}
+
 export const appDataDir = path.join(getDataHome(), appName);
 ensureExists(appDataDir);
 export const cacheDir = path.join(getCacheFolder(), appName);
@@ -21,6 +25,8 @@ ensureExists(modCacheDir);
 
 export const logsDir = path.join(cacheDir, 'logs');
 ensureExists(logsDir);
+
+export const configFolder = path.join(appDataDir, 'configs');
 
 export function copyFile(file: string, toDir: string): void {
   ensureExists(toDir);
