@@ -26,6 +26,8 @@ export function getConfigFolderPath(configName: string): string {
 const VANILLA_CONFIG_NAME = 'vanilla';
 const DEFAULT_MODDED_CONFIG_NAME = 'modded';
 
+const CacheRelativePath = '.cache';
+
 export class SatisfactoryInstall {
   private _manifestHandler: ManifestHandler;
   name: string;
@@ -136,7 +138,7 @@ export class SatisfactoryInstall {
   }
 
   async manifestMutate(changes: ItemVersionList): Promise<void> {
-    if (!isRunning('FactoryGame-Win64')) { // tasklist trims the name // TODO: cross platform
+    if (!SatisfactoryInstall.isGameRunning()) {
       try {
         await this._manifestHandler.setSatisfactoryVersion(this.version);
         await this._manifestHandler.mutate(changes);
@@ -273,6 +275,18 @@ export class SatisfactoryInstall {
         [BH.bootstrapperModID]: '',
       });
     }
+  }
+
+  clearCache(): void {
+    if (!SatisfactoryInstall.isGameRunning()) {
+      fs.rmdirSync(path.join(this.installLocation, CacheRelativePath));
+    } else {
+      throw new GameRunningError('Satisfactory is running. Please close it and wait until it fully shuts down.');
+    }
+  }
+
+  static isGameRunning(): boolean {
+    return isRunning('FactoryGame-Win64'); // tasklist trims the name // TODO: cross platform
   }
 
   get bootstrapperVersion(): string | undefined {

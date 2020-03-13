@@ -20,17 +20,26 @@ export const appDataDir = path.join(getDataHome(), appName);
 ensureExists(appDataDir);
 export const cacheDir = path.join(getCacheFolder(), appName);
 ensureExists(cacheDir);
-export const modCacheDir = path.join(cacheDir, 'mods');
+export const downloadCacheDir = path.join(cacheDir, 'downloadCache');
+ensureExists(downloadCacheDir);
+export const modCacheDir = path.join(downloadCacheDir, 'mods');
 ensureExists(modCacheDir);
-export const smlCacheDir = path.join(cacheDir, 'smlVersions');
+export const smlCacheDir = path.join(downloadCacheDir, 'smlVersions');
 ensureExists(smlCacheDir);
-export const bootstrapperCacheDir = path.join(cacheDir, 'bootstrapperVersions');
+export const bootstrapperCacheDir = path.join(downloadCacheDir, 'bootstrapperVersions');
 ensureExists(bootstrapperCacheDir);
 
 export const logsDir = path.join(cacheDir, 'logs');
 ensureExists(logsDir);
 
 export const configFolder = path.join(appDataDir, 'configs');
+
+export function clearCache(): void {
+  fs.rmdirSync(downloadCacheDir, { recursive: true });
+  ensureExists(modCacheDir);
+  ensureExists(smlCacheDir);
+  ensureExists(bootstrapperCacheDir);
+}
 
 export function copyFile(file: string, toDir: string): void {
   ensureExists(toDir);

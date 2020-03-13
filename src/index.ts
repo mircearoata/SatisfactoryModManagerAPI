@@ -12,3 +12,4 @@ export {
 export { getManifestFolderPath } from './manifest';
 export * from './errors';
 export { getLogFilePath } from './logging';
+export { clearCache } from './utils';
