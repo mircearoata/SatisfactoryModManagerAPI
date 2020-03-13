@@ -21,15 +21,15 @@ export class SatisfactoryInstall {
   name: string;
   version: string;
   installLocation: string;
-  launchExecutable?: string;
+  mainGameAppName: string;
 
-  constructor(name: string, version: string, installLocation: string, launchExecutable?: string) {
+  constructor(name: string, version: string, installLocation: string, mainGameAppName: string) {
     this.installLocation = installLocation;
     this._manifestHandler = new ManifestHandler(installLocation);
 
     this.name = name;
     this.version = version;
-    this.launchExecutable = launchExecutable;
+    this.mainGameAppName = mainGameAppName;
   }
 
   private async _getInstalledMismatches(items: ItemVersionList):
@@ -234,10 +234,7 @@ export class SatisfactoryInstall {
   }
 
   get launchPath(): string | undefined {
-    if (!this.launchExecutable) {
-      return undefined;
-    }
-    return path.join(this.installLocation, this.launchExecutable);
+    return `com.epicgames.launcher://apps/${this.mainGameAppName}?action=launch&silent=true`;
   }
 
   get binariesDir(): string {
@@ -267,7 +264,7 @@ export async function getInstalls(): Promise<Array<SatisfactoryInstall>> {
           manifest.DisplayName,
           manifest.AppVersionString,
           manifest.InstallLocation,
-          manifest.LaunchExecutable,
+          manifest.MainGameAppName,
         ));
       }
     }
