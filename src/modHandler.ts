@@ -56,7 +56,10 @@ export async function downloadMod(modID: string, version: string): Promise<strin
   const downloadURL = await getModDownloadLink(modID, version);
   const filePath = path.join(modCacheDir, `${modID}_${version}.smod`);
   await downloadFile(downloadURL, filePath);
-  return filePath;
+  const modInfo = await getModFromFile(filePath);
+  const modReferenceFilePath = path.join(modCacheDir, `${modInfo.mod_reference}_${version}.smod`);
+  fs.renameSync(filePath, modReferenceFilePath);
+  return modReferenceFilePath;
 }
 
 export async function getCachedMods(): Promise<Array<Mod>> {
