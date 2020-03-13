@@ -11,9 +11,10 @@ import {
 import { ManifestHandler } from './manifest';
 import { ItemVersionList } from './lockfile';
 import {
-  filterObject, mergeArrays,
+  filterObject, mergeArrays, isRunning,
 } from './utils';
 import { debug, info, error } from './logging';
+import { GameRunningError } from './errors';
 
 
 export class SatisfactoryInstall {
@@ -126,14 +127,18 @@ export class SatisfactoryInstall {
   }
 
   async manifestMutate(changes: ItemVersionList): Promise<void> {
-    try {
-      await this._manifestHandler.setSatisfactoryVersion(this.version);
-      await this._manifestHandler.mutate(changes);
-      await this.validateInstall();
-    } catch (e) {
-      e.message = `${e.message}. All changes were discarded.`;
-      error(e.message);
-      throw e;
+    if (!isRunning('FactoryGame-Win64')) { // tasklist trims the name // TODO: cross platform
+      try {
+        await this._manifestHandler.setSatisfactoryVersion(this.version);
+        await this._manifestHandler.mutate(changes);
+        await this.validateInstall();
+      } catch (e) {
+        e.message = `${e.message}. All changes were discarded.`;
+        error(e.message);
+        throw e;
+      }
+    } else {
+      throw new GameRunningError('Satisfactory is running. Please close it and wait until it fully shuts down.');
     }
   }
 
@@ -258,14 +263,18 @@ export async function getInstalls(): Promise<Array<SatisfactoryInstall>> {
     if (fileName.endsWith('.item')) {
       const filePath = path.join(EpicManifestsFolder, fileName);
       const jsonString = fs.readFileSync(filePath, 'utf8');
-      const manifest = JSON.parse(jsonString);
-      if (manifest.CatalogNamespace === 'crab') {
-        foundInstalls.push(new SatisfactoryInstall(
-          manifest.DisplayName,
-          manifest.AppVersionString,
-          manifest.InstallLocation,
-          manifest.MainGameAppName,
-        ));
+      try {
+        const manifest = JSON.parse(jsonString);
+        if (manifest.CatalogNamespace === 'crab') {
+          foundInstalls.push(new SatisfactoryInstall(
+            manifest.DisplayName,
+            manifest.AppVersionString,
+            manifest.InstallLocation,
+            manifest.MainGameAppName,
+          ));
+        }
+      } catch (e) {
+        info(`Found invalid manifest: ${fileName}`);
       }
     }
   });

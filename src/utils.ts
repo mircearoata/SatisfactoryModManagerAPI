@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import request from 'request-promise-native';
 import { satisfies } from 'semver';
+import { execSync } from 'child_process';
 import { setLogsDir, setLogFileNameFormat } from './logging';
 
 export const appName = 'SatisfactoryModLauncher';
@@ -115,4 +116,16 @@ export function deleteFolderRecursive(deletePath: string): void {
     });
     fs.rmdirSync(deletePath);
   }
+}
+
+export function isRunning(query: string): boolean {
+  const { platform } = process;
+  let cmd = '';
+  switch (platform) {
+    case 'win32': cmd = 'tasklist'; break;
+    case 'darwin': cmd = `ps -ax | grep ${query}`; break;
+    case 'linux': cmd = 'ps -A'; break;
+    default: break;
+  }
+  return execSync(cmd, { encoding: 'utf8' }).toLowerCase().indexOf(query.toLowerCase()) > -1;
 }
