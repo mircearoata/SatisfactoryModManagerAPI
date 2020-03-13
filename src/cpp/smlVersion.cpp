@@ -59,7 +59,6 @@ void GetSMLVersion(const v8::FunctionCallbackInfo<v8::Value>& args) {
         smlVersion = std::string(smlDllVersion);
         smlFound = true;
       }
-      FreeLibrary(dll);
 
       // check against known versions hashes
       std::string smlHash = hashFile(fullSML_1_x_path);
@@ -70,7 +69,10 @@ void GetSMLVersion(const v8::FunctionCallbackInfo<v8::Value>& args) {
           break;
         }
       }
-    } 
+    }
+    if (dll) {
+      FreeLibrary(dll);
+    }
   }
   if (!smlFound) {
     std::filesystem::path fullSML_2_x_path = satisfactoryPath / SML_2_X_RELATIVE_PATH;
@@ -88,6 +90,8 @@ void GetSMLVersion(const v8::FunctionCallbackInfo<v8::Value>& args) {
         smlVersion = std::string(smlDllVersionMB);
         smlFound = true;
       }
+    }
+    if (dll) {
       FreeLibrary(dll);
     }
   }

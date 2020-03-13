@@ -58,7 +58,6 @@ void GetBootstrapperVersion(const v8::FunctionCallbackInfo<v8::Value>& args) {
       bootstrapperVersion = std::string(bootstrapperDllVersionMB);
       bootstrapperFound = true;
     }
-    FreeLibrary(dll);
 
     // check against known versions hashes
     std::string bootstrapper = hashFile(fullBootstrapperPath);
@@ -69,6 +68,9 @@ void GetBootstrapperVersion(const v8::FunctionCallbackInfo<v8::Value>& args) {
         break;
       }
     }
+  }
+  if (dll) {
+    FreeLibrary(dll);
   }
 #elif __linux__
   // TODO: ???
