@@ -99,7 +99,14 @@ export class ManifestHandler {
   }
 
   readManifest(): Manifest {
-    return JSON.parse(fs.readFileSync(this.getManifestFilePath(), 'utf8'));
+    try {
+      return JSON.parse(fs.readFileSync(this.getManifestFilePath(), 'utf8'));
+    } catch (e) {
+      return {
+        satisfactoryVersion: '0',
+        items: {} as ItemVersionList,
+      };
+    }
   }
 
   writeManifest(manifest: Manifest): void {
@@ -107,7 +114,11 @@ export class ManifestHandler {
   }
 
   readLockfile(): Lockfile {
-    return JSON.parse(fs.readFileSync(this.getLockfilePath(), 'utf8'));
+    try {
+      return JSON.parse(fs.readFileSync(this.getLockfilePath(), 'utf8'));
+    } catch (e) {
+      return {};
+    }
   }
 
   writeLockfile(lockfile: Lockfile): void {
