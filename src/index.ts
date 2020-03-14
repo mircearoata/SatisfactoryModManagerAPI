@@ -11,5 +11,5 @@ export {
 } from './ficsitApp';
 export { getManifestFolderPath } from './manifest';
 export * from './errors';
-export { getLogFilePath } from './logging';
+export { getLogFilePath, setDebug, toggleDebug } from './logging';
 export { clearCache } from './utils';

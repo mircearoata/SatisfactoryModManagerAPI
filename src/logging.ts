@@ -11,7 +11,7 @@ export enum LogLevel {
   ERROR
 }
 
-const minLogLevel = process.env.NODE_DEBUG?.includes('SMLauncherAPI') ? LogLevel.DEBUG : LogLevel.INFO;
+let minLogLevel = process.env.NODE_DEBUG?.includes('SMLauncherAPI') ? LogLevel.DEBUG : LogLevel.INFO;
 
 let logsDir = '.';
 let logFileNameFormat = 'logging.log';
@@ -78,7 +78,7 @@ function write(level: LogLevel, message: string | object): void {
     const formattedMessage = formatMessage(level, typeof message === 'string' ? message : JSON.stringify(message));
     switch (level) {
       case LogLevel.DEBUG:
-        console.debug(formattedMessage);
+        console.log(formattedMessage);
         break;
       case LogLevel.WARN:
         console.warn(formattedMessage);
@@ -113,4 +113,17 @@ export function warn(message: string | object): void {
 
 export function error(message: string | object): void {
   return write(LogLevel.ERROR, message);
+}
+
+export function setDebug(d: boolean): void {
+  minLogLevel = d ? LogLevel.DEBUG : LogLevel.INFO;
+  info(`Set debug mode to ${d}`);
+}
+
+export function toggleDebug(): void {
+  if (minLogLevel === LogLevel.DEBUG) {
+    setDebug(false);
+  } else {
+    setDebug(true);
+  }
 }

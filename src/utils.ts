@@ -4,7 +4,7 @@ import fs from 'fs';
 import request from 'request-promise-native';
 import { satisfies } from 'semver';
 import { execSync } from 'child_process';
-import { setLogsDir, setLogFileNameFormat } from './logging';
+import { setLogsDir, setLogFileNameFormat, debug } from './logging';
 
 export const appName = 'SatisfactoryModLauncher';
 
@@ -34,11 +34,46 @@ ensureExists(logsDir);
 
 export const configFolder = path.join(appDataDir, 'configs');
 
+
+export function deleteFolderRecursive(deletePath: string): void {
+  if (fs.existsSync(deletePath)) {
+    fs.readdirSync(deletePath).forEach((file) => {
+      const curPath = path.join(deletePath, file);
+      if (fs.lstatSync(curPath).isDirectory()) { // recurse
+        deleteFolderRecursive(curPath);
+      } else { // delete file
+        fs.unlinkSync(curPath);
+      }
+    });
+    fs.rmdirSync(deletePath);
+  }
+}
+
 export function clearCache(): void {
-  fs.rmdirSync(downloadCacheDir, { recursive: true });
-  ensureExists(modCacheDir);
-  ensureExists(smlCacheDir);
-  ensureExists(bootstrapperCacheDir);
+  fs.readdirSync(modCacheDir).forEach((file) => {
+    const curPath = path.join(modCacheDir, file);
+    if (fs.statSync(curPath).isDirectory()) {
+      deleteFolderRecursive(curPath);
+    } else {
+      fs.unlinkSync(curPath);
+    }
+  });
+  fs.readdirSync(smlCacheDir).forEach((file) => {
+    const curPath = path.join(smlCacheDir, file);
+    if (fs.statSync(curPath).isDirectory()) {
+      deleteFolderRecursive(curPath);
+    } else {
+      fs.unlinkSync(curPath);
+    }
+  });
+  fs.readdirSync(bootstrapperCacheDir).forEach((file) => {
+    const curPath = path.join(bootstrapperCacheDir, file);
+    if (fs.statSync(curPath).isDirectory()) {
+      deleteFolderRecursive(curPath);
+    } else {
+      fs.unlinkSync(curPath);
+    }
+  });
 }
 
 export function copyFile(file: string, toDir: string): void {
@@ -120,21 +155,6 @@ export function mergeArrays<T>(...arrays: Array<Array<T>>): Array<T> {
   });
   const uniqueArray = jointArray.filter((item, index) => jointArray.indexOf(item) === index);
   return uniqueArray;
-}
-
-
-export function deleteFolderRecursive(deletePath: string): void {
-  if (fs.existsSync(deletePath)) {
-    fs.readdirSync(deletePath).forEach((file) => {
-      const curPath = `${deletePath}/${file}`;
-      if (fs.lstatSync(curPath).isDirectory()) { // recurse
-        deleteFolderRecursive(curPath);
-      } else { // delete file
-        fs.unlinkSync(curPath);
-      }
-    });
-    fs.rmdirSync(deletePath);
-  }
 }
 
 export function isRunning(query: string): boolean {

@@ -11,9 +11,11 @@ import {
 import { ManifestHandler, Manifest } from './manifest';
 import { ItemVersionList, Lockfile } from './lockfile';
 import {
-  filterObject, mergeArrays, isRunning, ensureExists, configFolder, dirs,
+  filterObject, mergeArrays, isRunning, ensureExists, configFolder, dirs, deleteFolderRecursive,
 } from './utils';
-import { debug, info, error } from './logging';
+import {
+  debug, info, error, warn,
+} from './logging';
 import { GameRunningError, InvalidConfigError } from './errors';
 
 
@@ -283,7 +285,7 @@ export class SatisfactoryInstall {
 
   clearCache(): void {
     if (!SatisfactoryInstall.isGameRunning()) {
-      fs.rmdirSync(path.join(this.installLocation, CacheRelativePath));
+      deleteFolderRecursive(path.join(this.installLocation, CacheRelativePath));
     } else {
       throw new GameRunningError('Satisfactory is running. Please close it and wait until it fully shuts down.');
     }
@@ -343,16 +345,22 @@ export async function getInstalls(): Promise<Array<SatisfactoryInstall>> {
   fs.readdirSync(EpicManifestsFolder).forEach((fileName) => {
     if (fileName.endsWith('.item')) {
       const filePath = path.join(EpicManifestsFolder, fileName);
-      const jsonString = fs.readFileSync(filePath, 'utf8');
       try {
+        const jsonString = fs.readFileSync(filePath, 'utf8');
         const manifest = JSON.parse(jsonString);
         if (manifest.CatalogNamespace === 'crab') {
-          foundInstalls.push(new SatisfactoryInstall(
-            manifest.DisplayName,
-            manifest.AppVersionString,
-            manifest.InstallLocation,
-            manifest.MainGameAppName,
-          ));
+          const gameManifestString = fs.readFileSync(path.join(manifest.ManifestLocation, `${manifest.InstallationGuid}.mancpn`), 'utf8');
+          const gameManifest = JSON.parse(gameManifestString);
+          if (gameManifest.AppName === manifest.MainGameAppName
+            && gameManifest.CatalogItemId === manifest.CatalogItemId
+            && gameManifest.CatalogNamespace === manifest.CatalogNamespace) {
+            foundInstalls.push(new SatisfactoryInstall(
+              manifest.DisplayName,
+              manifest.AppVersionString,
+              manifest.InstallLocation,
+              manifest.MainGameAppName,
+            ));
+          }
         }
       } catch (e) {
         info(`Found invalid manifest: ${fileName}`);
@@ -366,5 +374,8 @@ export async function getInstalls(): Promise<Array<SatisfactoryInstall>> {
     }
     return semverCmp;
   });
+  if (foundInstalls.length === 0) {
+    warn('No Satisfactory installs found');
+  }
   return foundInstalls;
 }
