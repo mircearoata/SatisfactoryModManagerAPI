@@ -3,7 +3,7 @@ import { compare, satisfies } from 'semver';
 import { versionSatisfiesAll } from './utils';
 import { ModNotFoundError } from './errors';
 import { minSMLVersion, SMLModID } from './smlHandler';
-import { bootstrapperModID } from './bootstrapperHandler';
+import { BootstrapperModID } from './bootstrapperHandler';
 
 const API_URL = 'https://api.ficsit.app';
 const GRAPHQL_API_URL = `${API_URL}/v2/query`;
@@ -404,7 +404,7 @@ export async function findAllVersionsMatchingAll(modID: string, versionConstrain
       .filter((smlVersion) => versionSatisfiesAll(smlVersion.version, versionConstraints))
       .map((smlVersion) => smlVersion.version);
   }
-  if (modID === bootstrapperModID) {
+  if (modID === BootstrapperModID) {
     const bootstrapperVersions = await getAvailableBootstrapperVersions();
     return bootstrapperVersions
       .filter((bootstrapperVersion) => versionSatisfiesAll(bootstrapperVersion.version, versionConstraints))

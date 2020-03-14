@@ -11,8 +11,8 @@ import {
   InvalidLockfileOperation,
   ModNotFoundError,
 } from './errors';
-import { SMLModID } from './smlHandler';
-import { bootstrapperModID } from './bootstrapperHandler';
+import { SMLModID, KeepSMLInstalledModID } from './smlHandler';
+import { BootstrapperModID } from './bootstrapperHandler';
 import { debug } from './logging';
 
 export interface ItemVersionList {
@@ -41,14 +41,17 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
     if (smlVersionInfo === undefined) {
       throw new ModNotFoundError(`SML@${version} not found`);
     }
-    return { id, version, dependencies: { SatisfactoryGame: `>=${valid(coerce(smlVersionInfo.satisfactory_version.toString()))}`, [bootstrapperModID]: `>=${smlVersionInfo.bootstrap_version}` } };
+    return { id, version, dependencies: { SatisfactoryGame: `>=${valid(coerce(smlVersionInfo.satisfactory_version.toString()))}`, [BootstrapperModID]: `>=${smlVersionInfo.bootstrap_version}` } };
   }
-  if (id === bootstrapperModID) {
+  if (id === BootstrapperModID) {
     const bootstrapperVersionInfo = await getBootstrapperVersionInfo(version);
     if (bootstrapperVersionInfo === undefined) {
       throw new ModNotFoundError(`bootstrapper@${version} not found`);
     }
     return { id, version, dependencies: { SatisfactoryGame: `>=${valid(coerce(bootstrapperVersionInfo.satisfactory_version.toString()))}` } };
+  }
+  if (id === KeepSMLInstalledModID) {
+    return { id, version, dependencies: { [SMLModID]: '>=0.0.0' } };
   }
   if (id === 'SatisfactoryGame') {
     throw new InvalidLockfileOperation('SMLauncher cannot modify Satisfactory Game version. This should never happen, unless Satisfactory was not temporarily added to the lockfile as a manifest entry');

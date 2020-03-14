@@ -9,7 +9,7 @@ import { debug } from './logging';
 
 const bootstrapperVersionNative = bindings('bootstrapperVersion');
 
-export const bootstrapperModID = 'bootstrapper';
+export const BootstrapperModID = 'bootstrapper';
 
 const bootstrapperFileName = 'xinput1_3.dll';
 const bootstrapperDIAFileName = 'msdia140.dll';

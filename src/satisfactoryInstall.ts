@@ -67,17 +67,17 @@ export class SatisfactoryInstall {
       }
     }
 
-    if (installedBootstrapper !== items[BH.bootstrapperModID]) {
-      if (!items[BH.bootstrapperModID] || (installedBootstrapper && items[BH.bootstrapperModID])) {
-        mismatches.uninstall.push(BH.bootstrapperModID);
+    if (installedBootstrapper !== items[BH.BootstrapperModID]) {
+      if (!items[BH.BootstrapperModID] || (installedBootstrapper && items[BH.BootstrapperModID])) {
+        mismatches.uninstall.push(BH.BootstrapperModID);
       }
-      if (items[BH.bootstrapperModID]) {
-        mismatches.install[BH.bootstrapperModID] = items[BH.bootstrapperModID];
+      if (items[BH.BootstrapperModID]) {
+        mismatches.install[BH.BootstrapperModID] = items[BH.BootstrapperModID];
       }
     }
 
     const allMods = mergeArrays(Object.keys(items)
-      .filter((item) => item !== SH.SMLModID && item !== BH.bootstrapperModID),
+      .filter((item) => item !== SH.SMLModID && item !== BH.BootstrapperModID),
     installedMods.map((mod) => mod.mod_id));
     allMods.forEach((mod) => {
       const installedModVersion = installedMods
@@ -102,7 +102,7 @@ export class SatisfactoryInstall {
     debug(mismatches);
     const modsDir = SH.getModsDir(this.installLocation);
     await Promise.all(mismatches.uninstall.map((id) => {
-      if (id !== SH.SMLModID) {
+      if (id !== SH.SMLModID && id !== BH.BootstrapperModID && id !== SH.KeepSMLInstalledModID) {
         if (modsDir) {
           debug(`Removing ${id} from Satisfactory install`);
           return MH.uninstallMod(id, modsDir);
@@ -114,7 +114,7 @@ export class SatisfactoryInstall {
       debug('Removing SML from Satisfactory install');
       await SH.uninstallSML(this.installLocation);
     }
-    if (mismatches.uninstall.includes(BH.bootstrapperModID)) {
+    if (mismatches.uninstall.includes(BH.BootstrapperModID)) {
       debug('Removing Bootstrapper from Satisfactory install');
       await BH.uninstallBootstrapper(this.installLocation);
     }
@@ -122,14 +122,14 @@ export class SatisfactoryInstall {
       debug('Copying SML to Satisfactory install');
       await SH.installSML(mismatches.install[SH.SMLModID], this.installLocation);
     }
-    if (mismatches.install[BH.bootstrapperModID]) {
+    if (mismatches.install[BH.BootstrapperModID]) {
       debug('Copying Bootstrapper to Satisfactory install');
-      await BH.installBootstrapper(mismatches.install[BH.bootstrapperModID], this.installLocation);
+      await BH.installBootstrapper(mismatches.install[BH.BootstrapperModID], this.installLocation);
     }
     await Promise.all(Object.entries(mismatches.install).map((modInstall) => {
       const modInstallID = modInstall[0];
       const modInstallVersion = modInstall[1];
-      if (modInstallID !== SH.SMLModID && modInstallID !== BH.bootstrapperModID) {
+      if (modInstallID !== SH.SMLModID && modInstallID !== BH.BootstrapperModID && modInstallID !== SH.KeepSMLInstalledModID) {
         if (modsDir) {
           debug(`Copying ${modInstallID}@${modInstallVersion} to Satisfactory install`);
           return MH.installMod(modInstallID, modInstallVersion, modsDir);
@@ -141,6 +141,7 @@ export class SatisfactoryInstall {
 
   async manifestMutate(changes: ItemVersionList): Promise<void> {
     if (!SatisfactoryInstall.isGameRunning()) {
+      debug(changes);
       const currentManifest = this._manifestHandler.readManifest();
       const currentLockfile = this._manifestHandler.readLockfile();
       try {
@@ -240,15 +241,15 @@ export class SatisfactoryInstall {
   }
 
   get mods(): ItemVersionList {
-    return filterObject(this._manifestHandler.getItemsList(), (id) => id !== SH.SMLModID && id !== BH.bootstrapperModID);
+    return filterObject(this._manifestHandler.getItemsList(), (id) => id !== SH.SMLModID && id !== BH.BootstrapperModID);
   }
 
-  async installSML(version: string): Promise<void> {
-    return this.manifestMutate({ [SH.SMLModID]: version });
+  async installSML(): Promise<void> {
+    return this.manifestMutate({ [SH.KeepSMLInstalledModID]: '0.0.0' });
   }
 
   async uninstallSML(): Promise<void> {
-    return this.manifestMutate({ [SH.SMLModID]: '' });
+    return this.manifestMutate({ [SH.KeepSMLInstalledModID]: '' });
   }
 
   async updateSML(): Promise<void> {
@@ -275,10 +276,10 @@ export class SatisfactoryInstall {
     const latestVersion = (await getLatestBootstrapperVersion()).version;
     info(`Updating bootstrapper@${latestVersion} (latest version)`);
     const wasBootstrapperInManifest = this.bootstrapperVersion !== undefined;
-    this.manifestMutate({ [BH.bootstrapperModID]: latestVersion });
+    this.manifestMutate({ [BH.BootstrapperModID]: latestVersion });
     if (!wasBootstrapperInManifest) {
       this.manifestMutate({
-        [BH.bootstrapperModID]: '',
+        [BH.BootstrapperModID]: '',
       });
     }
   }
@@ -296,7 +297,7 @@ export class SatisfactoryInstall {
   }
 
   get bootstrapperVersion(): string | undefined {
-    return this._manifestHandler.getItemsList()[BH.bootstrapperModID];
+    return this._manifestHandler.getItemsList()[BH.BootstrapperModID];
   }
 
   private async _getInstalledBootstrapperVersion(): Promise<string | undefined> {

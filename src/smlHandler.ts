@@ -15,6 +15,7 @@ const oldSMLFiles = ['FactoryGame/Binaries/Win64/mods', 'FactoryGame/Binaries/Wi
 
 export const minSMLVersion = '2.0.0';
 export const SMLModID = 'SML';
+export const KeepSMLInstalledModID = 'UserInstalledSML';
 
 const SMLFileName = 'UE4-SML-Win64-Shipping.dll';
 
