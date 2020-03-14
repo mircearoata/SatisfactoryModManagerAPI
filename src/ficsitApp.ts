@@ -133,6 +133,10 @@ export async function getAvailableMods(): Promise<Array<FicsitAppMod>> {
           full_description,
           id,
           logo,
+          views,
+          downloads,
+          hotness,
+          popularity,
           last_version_date,
           authors
           {
@@ -161,7 +165,11 @@ export async function getAvailableMods(): Promise<Array<FicsitAppMod>> {
     if (res.errors) {
       throw res.errors;
     } else {
-      setCache(requestID, res.getMods.mods);
+      const resGetMods = res.getMods.mods;
+      for (let i = 0; i < resGetMods.length; i += 1) {
+        resGetMods[i].last_version_date = resGetMods[i].last_version_date ? new Date(resGetMods[i].last_version_date) : null;
+      }
+      setCache(requestID, resGetMods);
     }
   }
   return getCache(requestID);
@@ -179,6 +187,9 @@ export async function getMod(modID: string): Promise<FicsitAppMod> {
           full_description,
           id,
           logo,
+          downloads,
+          hotness,
+          popularity,
           last_version_date,
           authors
           {
@@ -208,7 +219,9 @@ export async function getMod(modID: string): Promise<FicsitAppMod> {
     if (res.errors) {
       throw res.errors;
     } else {
-      setCache(requestID, res.getMod);
+      const { getMod: resGetMod } = res;
+      resGetMod.last_version_date = resGetMod.last_version_date ? new Date(resGetMod.last_version_date) : null;
+      setCache(requestID, resGetMod);
     }
   }
   return getCache(requestID);
@@ -279,7 +292,7 @@ export interface FicsitAppSMLVersion {
   stability: 'alpha' | 'beta' | 'release';
   link: string;
   changelog: string;
-  date: string;
+  date: Date;
   bootstrap_version: string;
 }
 
@@ -309,13 +322,15 @@ export async function getAvailableSMLVersions(): Promise<Array<FicsitAppSMLVersi
     } else {
       // filter SML versions supported by SMLauncher
       const smlVersionsCompatible = res.getSMLVersions.sml_versions.filter((version: FicsitAppSMLVersion) => satisfies(version.version, '>=2.0.0'));
+      for (let i = 0; i < smlVersionsCompatible.length; i += 1) {
+        smlVersionsCompatible[i].date = smlVersionsCompatible[i].date ? new Date(smlVersionsCompatible[i].date) : null;
+      }
       setCache(requestID, smlVersionsCompatible);
     }
   }
   return getCache(requestID);
 }
 
-// TODO: 99% chance to be wrong
 export interface FicsitAppBootstrapperVersion {
   id: string;
   version: string;
@@ -323,7 +338,7 @@ export interface FicsitAppBootstrapperVersion {
   stability: 'alpha' | 'beta' | 'release';
   link: string;
   changelog: string;
-  date: string;
+  date: Date;
 }
 
 export async function getAvailableBootstrapperVersions(): Promise<Array<FicsitAppBootstrapperVersion>> {
@@ -349,7 +364,11 @@ export async function getAvailableBootstrapperVersions(): Promise<Array<FicsitAp
     if (res.errors) {
       throw res.errors;
     } else {
-      setCache(requestID, res.getBootstrapVersions.bootstrap_versions);
+      const resGetBootstrapVersions = res.getBootstrapVersions.bootstrap_versions;
+      for (let i = 0; i < resGetBootstrapVersions.length; i += 1) {
+        resGetBootstrapVersions[i].date = resGetBootstrapVersions[i].date ? new Date(resGetBootstrapVersions[i].date) : null;
+      }
+      setCache(requestID, resGetBootstrapVersions);
     }
   }
   return getCache(requestID);

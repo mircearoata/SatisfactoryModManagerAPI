@@ -4,7 +4,7 @@ import fs from 'fs';
 import request from 'request-promise-native';
 import { satisfies } from 'semver';
 import { execSync } from 'child_process';
-import { setLogsDir, setLogFileNameFormat, debug } from './logging';
+import { setLogsDir, setLogFileNameFormat } from './logging';
 
 export const appName = 'SatisfactoryModLauncher';
 
