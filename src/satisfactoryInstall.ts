@@ -139,6 +139,8 @@ export class SatisfactoryInstall {
 
   async manifestMutate(changes: ItemVersionList): Promise<void> {
     if (!SatisfactoryInstall.isGameRunning()) {
+      const currentManifest = this._manifestHandler.readManifest();
+      const currentLockfile = this._manifestHandler.readLockfile();
       try {
         await this._manifestHandler.setSatisfactoryVersion(this.version);
         await this._manifestHandler.mutate(changes);
@@ -146,6 +148,8 @@ export class SatisfactoryInstall {
       } catch (e) {
         e.message = `${e.message}. All changes were discarded.`;
         error(e.message);
+        await this._manifestHandler.writeManifest(currentManifest);
+        await this._manifestHandler.writeLockfile(currentLockfile);
         throw e;
       }
     } else {
