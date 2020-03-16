@@ -277,6 +277,7 @@ export class SatisfactoryInstall {
 
   clearCache(): void {
     if (!SatisfactoryInstall.isGameRunning()) {
+      MH.clearCache();
       deleteFolderRecursive(path.join(this.installLocation, CacheRelativePath));
     } else {
       throw new GameRunningError('Satisfactory is running. Please close it and wait until it fully shuts down.');
@@ -313,12 +314,24 @@ export class SatisfactoryInstall {
 }
 
 export function getConfigs(): Array<string> {
-  return dirs(configFolder);
+  return dirs(configFolder).sort();
 }
 
 export function deleteConfig(name: string): void {
+  if (name.toLowerCase() === VANILLA_CONFIG_NAME) {
+    throw new InvalidConfigError('Cannot delete vanilla config');
+  }
   if (fs.existsSync(getConfigFolderPath(name))) {
     deleteFolderRecursive(getConfigFolderPath(name));
+  }
+}
+
+if (!fs.existsSync(getConfigFolderPath(VANILLA_CONFIG_NAME))) { // If vanilla already exists, then the config was deleted by the user
+  if (!fs.existsSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'manifest.json'))) {
+    fs.writeFileSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'manifest.json'), JSON.stringify({ items: new Array<string>() } as Manifest));
+  }
+  if (!fs.existsSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'lock.json'))) {
+    fs.writeFileSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'lock.json'), JSON.stringify({} as Lockfile));
   }
 }
 
@@ -327,13 +340,6 @@ if (!fs.existsSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'manifest
 }
 if (!fs.existsSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'lock.json'))) {
   fs.writeFileSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'lock.json'), JSON.stringify({} as Lockfile));
-}
-
-if (!fs.existsSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'manifest.json'))) {
-  fs.writeFileSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'manifest.json'), JSON.stringify({ items: new Array<string>() } as Manifest));
-}
-if (!fs.existsSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'lock.json'))) {
-  fs.writeFileSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'lock.json'), JSON.stringify({} as Lockfile));
 }
 
 const EpicManifestsFolder = path.join(getDataFolders()[0], 'Epic', 'EpicGamesLauncher', 'Data', 'Manifests'); // TODO: other platforms
