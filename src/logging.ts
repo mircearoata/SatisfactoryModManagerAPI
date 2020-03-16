@@ -11,7 +11,7 @@ export enum LogLevel {
   ERROR
 }
 
-let minLogLevel = process.env.NODE_DEBUG?.includes('SMLauncherAPI') ? LogLevel.DEBUG : LogLevel.INFO;
+let minLogLevel = process.env.NODE_DEBUG?.includes('SMManagerAPI') ? LogLevel.DEBUG : LogLevel.INFO;
 
 let logsDir = '.';
 let logFileNameFormat = 'logging.log';

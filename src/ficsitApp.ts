@@ -323,7 +323,7 @@ export async function getAvailableSMLVersions(): Promise<Array<FicsitAppSMLVersi
     if (res.errors) {
       throw res.errors;
     } else {
-      // filter SML versions supported by SMLauncher
+      // filter SML versions supported by SMManager
       const smlVersionsCompatible = res.getSMLVersions.sml_versions.filter((version: FicsitAppSMLVersion) => satisfies(version.version, '>=2.0.0'));
       for (let i = 0; i < smlVersionsCompatible.length; i += 1) {
         smlVersionsCompatible[i].date = smlVersionsCompatible[i].date ? new Date(smlVersionsCompatible[i].date) : null;

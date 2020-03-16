@@ -6,7 +6,7 @@ import { satisfies } from 'semver';
 import { execSync } from 'child_process';
 import { setLogsDir, setLogFileNameFormat } from './logging';
 
-export const appName = 'SatisfactoryModLauncher';
+export const appName = 'SatisfactoryModManager';
 
 export function ensureExists(folder: string): void {
   fs.mkdirSync(folder, { recursive: true });

@@ -1,5 +1,5 @@
 {
-  "name": "satisfactory-mod-launcher-api",
+  "name": "satisfactory-mod-manager-api",
   "version": "1.0.0",
   "description": "API to manage installed Satisfactory mods",
   "main": "lib/index.js",
@@ -11,7 +11,7 @@
     "build": "yarn lint:fix && node-gyp build && yarn build:ts",
     "debug": "nodemon --watch src/ -e ts --exec yarn test:debug || exit 1",
     "test": "yarn build && node test/test.js",
-    "test:debug": "yarn build && cross-env NODE_DEBUG=SMLauncherAPI node test/test.js",
+    "test:debug": "yarn build && cross-env NODE_DEBUG=SMManagerAPI node test/test.js",
     "prepublishOnly": "yarn test",
     "install": "node-gyp rebuild --silent"
   },
@@ -26,9 +26,9 @@
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mircearoata/SatisfactoryModLauncherAPI.git"
+    "url": "https://github.com/mircearoata/SatisfactoryModManagerAPI.git"
   },
-  "homepage": "https://github.com/mircearoata/SatisfactoryModLauncherAPI",
+  "homepage": "https://github.com/mircearoata/SatisfactoryModManagerAPI",
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^2.21.0",
     "@typescript-eslint/parser": "^2.21.0",

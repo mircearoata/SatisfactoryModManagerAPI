@@ -51,7 +51,7 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
     return { id, version, dependencies: { SatisfactoryGame: `>=${valid(coerce(bootstrapperVersionInfo.satisfactory_version.toString()))}` } };
   }
   if (id === 'SatisfactoryGame') {
-    throw new InvalidLockfileOperation('SMLauncher cannot modify Satisfactory Game version. This should never happen, unless Satisfactory was not temporarily added to the lockfile as a manifest entry');
+    throw new InvalidLockfileOperation('SMManager cannot modify Satisfactory Game version. This should never happen, unless Satisfactory was not temporarily added to the lockfile as a manifest entry');
   }
   // TODO: Get mod data from ficsit.app so the mod doesn't have to be downloaded
   const modData = await getCachedMod(id, version);

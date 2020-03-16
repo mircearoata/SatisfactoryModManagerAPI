@@ -6,7 +6,7 @@
 #elif __linux__
 #include <dlfcn.h>
 #else
-#error Satisfactory only supports Windows, so other OSs are not yet supported by SatisfactoryModLauncher
+#error Satisfactory only supports Windows, so other OSs are not yet supported by SatisfactoryModManager
 #endif
 
 #include <map>
