@@ -139,20 +139,21 @@ export class SatisfactoryInstall {
     }));
   }
 
-  async manifestMutate(install: Array<string>, uninstall: Array<string>): Promise<void> {
+  async manifestMutate(install: Array<string>, uninstall: Array<string>, update: Array<string>): Promise<void> {
     if (!SatisfactoryInstall.isGameRunning()) {
       debug(`install: ${install}, uninstall: ${uninstall}`);
       const currentManifest = this._manifestHandler.readManifest();
       const currentLockfile = this._manifestHandler.readLockfile();
       try {
         await this._manifestHandler.setSatisfactoryVersion(this.version);
-        await this._manifestHandler.mutate(install, uninstall);
+        await this._manifestHandler.mutate(install, uninstall, update);
         await this.validateInstall();
       } catch (e) {
         e.message = `${e.message}. All changes were discarded.`;
         error(e.message);
         await this._manifestHandler.writeManifest(currentManifest);
         await this._manifestHandler.writeLockfile(currentLockfile);
+        await this.validateInstall();
         throw e;
       }
     } else {
@@ -200,11 +201,15 @@ export class SatisfactoryInstall {
   }
 
   async _installItem(item: string): Promise<void> {
-    return this.manifestMutate([item], []);
+    return this.manifestMutate([item], [], []);
   }
 
   async _uninstallItem(item: string): Promise<void> {
-    return this.manifestMutate([], [item]);
+    return this.manifestMutate([], [item], []);
+  }
+
+  async _updateItem(item: string): Promise<void> {
+    return this.manifestMutate([], [], [item]);
   }
 
   async installMod(modID: string): Promise<void> {
@@ -229,11 +234,7 @@ export class SatisfactoryInstall {
 
   async updateMod(modID: string): Promise<void> {
     info(`Updating ${modID}`);
-    const wasModInManifest = modID in this.mods;
-    await this._installItem(modID);
-    if (!wasModInManifest) {
-      await this._uninstallItem(modID);
-    }
+    await this._updateItem(modID);
   }
 
   async updateFicsitAppMod(mod: FicsitAppMod): Promise<void> {
@@ -258,11 +259,7 @@ export class SatisfactoryInstall {
 
   async updateSML(): Promise<void> {
     info('Updating SML to latest version');
-    const wasSMLInManifest = this.smlVersion !== undefined;
-    await this._installItem(BH.BootstrapperModID);
-    if (!wasSMLInManifest) {
-      await this._uninstallItem(BH.BootstrapperModID);
-    }
+    await this._updateItem(SH.SMLModID);
   }
 
   private async _getInstalledSMLVersion(): Promise<string | undefined> {
@@ -275,11 +272,7 @@ export class SatisfactoryInstall {
 
   async updateBootstrapper(): Promise<void> {
     info('Updating bootstrapper to latest version');
-    const wasBootstrapperInManifest = this.bootstrapperVersion !== undefined;
-    await this._installItem(BH.BootstrapperModID);
-    if (!wasBootstrapperInManifest) {
-      await this._uninstallItem(BH.BootstrapperModID);
-    }
+    await this._updateItem(BH.BootstrapperModID);
   }
 
   clearCache(): void {

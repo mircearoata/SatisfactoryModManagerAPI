@@ -40,7 +40,7 @@ export class ManifestHandler {
     this.writeManifest(manifest);
   }
 
-  async mutate(install: Array<string>, uninstall: Array<string>): Promise<void> {
+  async mutate(install: Array<string>, uninstall: Array<string>, update: Array<string>): Promise<void> {
     const manifest = this.readManifest();
     uninstall.forEach((item) => {
       removeArrayElement(manifest.items, item);
@@ -57,6 +57,11 @@ export class ManifestHandler {
     graph.roots().forEach((root) => {
       if (!manifest.items.includes(root.id)) {
         graph.remove(root);
+      }
+    });
+    graph.nodes.forEach((node) => {
+      if (update.includes(node.id)) {
+        graph.remove(node);
       }
     });
     const satisfactoryNode = {

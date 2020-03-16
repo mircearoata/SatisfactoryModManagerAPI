@@ -64,6 +64,7 @@ export async function downloadMod(modID: string, version: string): Promise<strin
 
 export async function getCachedMods(): Promise<Array<Mod>> {
   if (!cacheLoaded) {
+    debug('Loading mod cache');
     await loadCache();
   }
   return cachedMods;
@@ -137,4 +138,9 @@ export async function getInstalledMods(modsDir: string | undefined): Promise<Arr
     });
   }
   return Promise.all(installedModsPromises);
+}
+
+export function clearCache(): void {
+  cacheLoaded = false;
+  cachedMods = new Array<Mod>();
 }
