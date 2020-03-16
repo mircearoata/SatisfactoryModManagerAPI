@@ -85,6 +85,7 @@ function write(level: LogLevel, message: string | object): void {
         break;
       case LogLevel.ERROR:
         console.error(formattedMessage);
+        console.trace();
         break;
       case LogLevel.INFO:
       default:

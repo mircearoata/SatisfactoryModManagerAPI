@@ -167,6 +167,7 @@ export class SatisfactoryInstall {
     let lockfile: Lockfile;
     try {
       manifest = JSON.parse(fs.readFileSync(path.join(getConfigFolderPath(configName), 'manifest.json'), 'utf8'));
+      manifest.satisfactoryVersion = this.version;
     } catch (e) {
       throw new InvalidConfigError(`Config ${configName} is invalid`);
     }
@@ -192,7 +193,9 @@ export class SatisfactoryInstall {
     if (configName.toLowerCase() === VANILLA_CONFIG_NAME) {
       throw new InvalidConfigError('Cannot modify vanilla config. Use Modded config or create a new config');
     }
-    fs.writeFileSync(path.join(getConfigFolderPath(configName), 'manifest.json'), JSON.stringify(this._manifestHandler.readManifest()));
+    const manifest = this._manifestHandler.readManifest();
+    delete manifest.satisfactoryVersion;
+    fs.writeFileSync(path.join(getConfigFolderPath(configName), 'manifest.json'), JSON.stringify(manifest));
     fs.writeFileSync(path.join(getConfigFolderPath(configName), 'lock.json'), JSON.stringify(this._manifestHandler.readLockfile()));
   }
 
@@ -325,18 +328,24 @@ export function getConfigs(): Array<string> {
   return dirs(configFolder);
 }
 
+export function deleteConfig(name: string): void {
+  if (fs.existsSync(getConfigFolderPath(name))) {
+    deleteFolderRecursive(getConfigFolderPath(name));
+  }
+}
+
 if (!fs.existsSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'manifest.json'))) {
-  fs.writeFileSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'manifest.json'), JSON.stringify({}));
+  fs.writeFileSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'manifest.json'), JSON.stringify({ items: {} } as Manifest));
 }
 if (!fs.existsSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'lock.json'))) {
-  fs.writeFileSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'lock.json'), JSON.stringify({}));
+  fs.writeFileSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'lock.json'), JSON.stringify({} as Lockfile));
 }
 
 if (!fs.existsSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'manifest.json'))) {
-  fs.writeFileSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'manifest.json'), JSON.stringify({}));
+  fs.writeFileSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'manifest.json'), JSON.stringify({ items: {} } as Manifest));
 }
 if (!fs.existsSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'lock.json'))) {
-  fs.writeFileSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'lock.json'), JSON.stringify({}));
+  fs.writeFileSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'lock.json'), JSON.stringify({} as Lockfile));
 }
 
 const EpicManifestsFolder = path.join(getDataFolders()[0], 'Epic', 'EpicGamesLauncher', 'Data', 'Manifests'); // TODO: other platforms
