@@ -220,6 +220,9 @@ export async function getMod(modID: string): Promise<FicsitAppMod> {
       throw res.errors;
     } else {
       const { getMod: resGetMod } = res;
+      if (resGetMod === null) {
+        throw new ModNotFoundError(`Mod ${modID} not found`);
+      }
       resGetMod.last_version_date = resGetMod.last_version_date ? new Date(resGetMod.last_version_date) : null;
       setCache(requestID, resGetMod);
     }

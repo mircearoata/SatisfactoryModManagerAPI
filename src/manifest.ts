@@ -3,17 +3,16 @@ import path from 'path';
 import fs from 'fs';
 import { valid, coerce } from 'semver';
 import {
-  appDataDir, ensureExists, forEachAsync, mapObject,
+  appDataDir, ensureExists, mapObject, forEachAsync, removeArrayElement,
 } from './utils';
 import {
   LockfileGraph, Lockfile, LockfileGraphNode, ItemVersionList,
-  getItemData,
 } from './lockfile';
 import { debug } from './logging';
 
 export interface Manifest {
   satisfactoryVersion: string;
-  items: ItemVersionList;
+  items: Array<string>;
 }
 
 export function getManifestFolderPath(satisfactoryPath: string): string {
@@ -29,7 +28,7 @@ export class ManifestHandler {
       ensureExists(this._manifestPath);
       this.writeManifest({
         satisfactoryVersion: '0',
-        items: {} as ItemVersionList,
+        items: [],
       } as Manifest);
       this.writeLockfile({} as Lockfile);
     }
@@ -41,23 +40,22 @@ export class ManifestHandler {
     this.writeManifest(manifest);
   }
 
-  async mutate(changes: ItemVersionList): Promise<void> {
+  async mutate(install: Array<string>, uninstall: Array<string>): Promise<void> {
     const manifest = this.readManifest();
-    Object.entries(changes).filter((change) => change[1].length === 0).forEach((itemVersion) => {
-      const id = itemVersion[0];
-      delete manifest.items[id];
+    uninstall.forEach((item) => {
+      removeArrayElement(manifest.items, item);
     });
-    Object.entries(changes).filter((change) => change[1].length !== 0).forEach((itemVersion) => {
-      const id = itemVersion[0];
-      const version = itemVersion[1];
-      manifest.items[id] = version;
+    install.forEach((item) => {
+      if (!manifest.items.includes(item)) {
+        manifest.items.push(item);
+      }
     });
 
     const initialLockfile = this.readLockfile();
     const graph = new LockfileGraph();
     await graph.fromLockfile(initialLockfile);
     graph.roots().forEach((root) => {
-      if (!(manifest.items[root.id]) || root.version !== manifest.items[root.id]) {
+      if (!manifest.items.includes(root.id)) {
         graph.remove(root);
       }
     });
@@ -76,18 +74,20 @@ export class ManifestHandler {
         lockfileNode.isInManifest = true;
       }
     });
-    await forEachAsync(Object.entries(manifest.items), async (itemVersion) => {
-      const id = itemVersion[0];
-      const version = itemVersion[1];
-      const itemData = await getItemData(id, version);
+    await forEachAsync(manifest.items, async (item) => {
+      const itemData = {
+        id: `manifest_${item}`,
+        version: '0.0.0',
+        dependencies: {
+          [item]: '>= 0.0.0',
+        },
+      } as LockfileGraphNode;
       itemData.isInManifest = true;
-      if (!graph.nodes.some((node) => node.id === id && node.version === version)) {
-        try {
-          await graph.add(itemData);
-        } catch (e) {
-          debug(`Failed to install ${id}@${version}. Changes will be discarded. ${e}`);
-          throw e;
-        }
+      try {
+        await graph.add(itemData);
+      } catch (e) {
+        debug(`Failed to install ${item}. Changes will be discarded. ${e}`);
+        throw e;
       }
     });
     await graph.validateAll();
@@ -104,7 +104,7 @@ export class ManifestHandler {
     } catch (e) {
       return {
         satisfactoryVersion: '0',
-        items: {} as ItemVersionList,
+        items: [],
       };
     }
   }

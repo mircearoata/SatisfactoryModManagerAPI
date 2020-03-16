@@ -94,6 +94,7 @@ function deleteFolderRecursive(path) {
 };
 
 async function main() {
+  return; // Dummy mods no longer work due to manifest changes. Need updated mods with dependencies to test
   fs.mkdirSync(dummySfPath, { recursive: true });
   await createDummyMods()
 

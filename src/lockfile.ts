@@ -11,7 +11,7 @@ import {
   InvalidLockfileOperation,
   ModNotFoundError,
 } from './errors';
-import { SMLModID, KeepSMLInstalledModID } from './smlHandler';
+import { SMLModID } from './smlHandler';
 import { BootstrapperModID } from './bootstrapperHandler';
 import { debug } from './logging';
 
@@ -49,9 +49,6 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
       throw new ModNotFoundError(`bootstrapper@${version} not found`);
     }
     return { id, version, dependencies: { SatisfactoryGame: `>=${valid(coerce(bootstrapperVersionInfo.satisfactory_version.toString()))}` } };
-  }
-  if (id === KeepSMLInstalledModID) {
-    return { id, version, dependencies: { [SMLModID]: '>=0.0.0' } };
   }
   if (id === 'SatisfactoryGame') {
     throw new InvalidLockfileOperation('SMLauncher cannot modify Satisfactory Game version. This should never happen, unless Satisfactory was not temporarily added to the lockfile as a manifest entry');
@@ -201,7 +198,8 @@ export class LockfileGraph {
     }
     this.nodes.forEach((node) => {
       debug(`${node.id}@${node.version} is still needed by [${this.getDependants(node)
-        .map((current) => `${current.id}@${current.version}`).join(', ')}]${node.isInManifest ? ' and is in manifest' : ''}`);
+        .map((current) => `${current.id}@${current.version}`).join(', ')}]`);
     });
+    removeArrayElementWhere(this.nodes, (node) => node.isInManifest || false);
   }
 }

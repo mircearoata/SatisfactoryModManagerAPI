@@ -6,7 +6,7 @@ import * as MH from './modHandler';
 import * as SH from './smlHandler';
 import * as BH from './bootstrapperHandler';
 import {
-  FicsitAppVersion, getModLatestVersion, FicsitAppMod, getLatestSMLVersion, getLatestBootstrapperVersion,
+  FicsitAppVersion, FicsitAppMod,
 } from './ficsitApp';
 import { ManifestHandler, Manifest } from './manifest';
 import { ItemVersionList, Lockfile } from './lockfile';
@@ -102,7 +102,7 @@ export class SatisfactoryInstall {
     debug(mismatches);
     const modsDir = SH.getModsDir(this.installLocation);
     await Promise.all(mismatches.uninstall.map((id) => {
-      if (id !== SH.SMLModID && id !== BH.BootstrapperModID && id !== SH.KeepSMLInstalledModID) {
+      if (id !== SH.SMLModID && id !== BH.BootstrapperModID) {
         if (modsDir) {
           debug(`Removing ${id} from Satisfactory install`);
           return MH.uninstallMod(id, modsDir);
@@ -129,7 +129,7 @@ export class SatisfactoryInstall {
     await Promise.all(Object.entries(mismatches.install).map((modInstall) => {
       const modInstallID = modInstall[0];
       const modInstallVersion = modInstall[1];
-      if (modInstallID !== SH.SMLModID && modInstallID !== BH.BootstrapperModID && modInstallID !== SH.KeepSMLInstalledModID) {
+      if (modInstallID !== SH.SMLModID && modInstallID !== BH.BootstrapperModID) {
         if (modsDir) {
           debug(`Copying ${modInstallID}@${modInstallVersion} to Satisfactory install`);
           return MH.installMod(modInstallID, modInstallVersion, modsDir);
@@ -139,14 +139,14 @@ export class SatisfactoryInstall {
     }));
   }
 
-  async manifestMutate(changes: ItemVersionList): Promise<void> {
+  async manifestMutate(install: Array<string>, uninstall: Array<string>): Promise<void> {
     if (!SatisfactoryInstall.isGameRunning()) {
-      debug(changes);
+      debug(`install: ${install}, uninstall: ${uninstall}`);
       const currentManifest = this._manifestHandler.readManifest();
       const currentLockfile = this._manifestHandler.readLockfile();
       try {
         await this._manifestHandler.setSatisfactoryVersion(this.version);
-        await this._manifestHandler.mutate(changes);
+        await this._manifestHandler.mutate(install, uninstall);
         await this.validateInstall();
       } catch (e) {
         e.message = `${e.message}. All changes were discarded.`;
@@ -199,22 +199,28 @@ export class SatisfactoryInstall {
     fs.writeFileSync(path.join(getConfigFolderPath(configName), 'lock.json'), JSON.stringify(this._manifestHandler.readLockfile()));
   }
 
-  async installMod(modID: string, version: string): Promise<void> {
-    if ((await this._getInstalledMods()).some((mod) => mod.mod_id === modID)) {
-      info(`Updating ${modID}@${version}`);
-    } else {
-      info(`Installing ${modID}@${version}`);
+  async _installItem(item: string): Promise<void> {
+    return this.manifestMutate([item], []);
+  }
+
+  async _uninstallItem(item: string): Promise<void> {
+    return this.manifestMutate([], [item]);
+  }
+
+  async installMod(modID: string): Promise<void> {
+    if (!(await this._getInstalledMods()).some((mod) => mod.mod_id === modID)) {
+      info(`Installing ${modID}`);
+      await this._installItem(modID);
     }
-    return this.manifestMutate({ [modID]: version });
   }
 
   async installFicsitAppMod(modVersion: FicsitAppVersion): Promise<void> {
-    return this.installMod(modVersion.mod_id, modVersion.version);
+    return this.installMod(modVersion.mod_id);
   }
 
   async uninstallMod(modID: string): Promise<void> {
     info(`Uninstalling ${modID}`);
-    return this.manifestMutate({ [modID]: '' });
+    return this._uninstallItem(modID);
   }
 
   async uninstallFicsitAppMod(mod: FicsitAppMod): Promise<void> {
@@ -222,16 +228,11 @@ export class SatisfactoryInstall {
   }
 
   async updateMod(modID: string): Promise<void> {
-    const latestVersion = (await getModLatestVersion(modID)).version;
-    info(`Updating ${modID}@${latestVersion} (latest version)`);
+    info(`Updating ${modID}`);
     const wasModInManifest = modID in this.mods;
-    this.manifestMutate({
-      [modID]: latestVersion,
-    });
+    await this._installItem(modID);
     if (!wasModInManifest) {
-      this.manifestMutate({
-        [modID]: '',
-      });
+      await this._uninstallItem(modID);
     }
   }
 
@@ -248,22 +249,19 @@ export class SatisfactoryInstall {
   }
 
   async installSML(): Promise<void> {
-    return this.manifestMutate({ [SH.KeepSMLInstalledModID]: '0.0.0' });
+    return this._installItem(SH.SMLModID);
   }
 
   async uninstallSML(): Promise<void> {
-    return this.manifestMutate({ [SH.KeepSMLInstalledModID]: '' });
+    return this._uninstallItem(SH.SMLModID);
   }
 
   async updateSML(): Promise<void> {
-    const latestVersion = (await getLatestSMLVersion()).version;
-    info(`Updating SML@${latestVersion} (latest version)`);
+    info('Updating SML to latest version');
     const wasSMLInManifest = this.smlVersion !== undefined;
-    this.manifestMutate({ [SH.SMLModID]: latestVersion });
+    await this._installItem(BH.BootstrapperModID);
     if (!wasSMLInManifest) {
-      this.manifestMutate({
-        [SH.SMLModID]: '',
-      });
+      await this._uninstallItem(BH.BootstrapperModID);
     }
   }
 
@@ -276,14 +274,11 @@ export class SatisfactoryInstall {
   }
 
   async updateBootstrapper(): Promise<void> {
-    const latestVersion = (await getLatestBootstrapperVersion()).version;
-    info(`Updating bootstrapper@${latestVersion} (latest version)`);
+    info('Updating bootstrapper to latest version');
     const wasBootstrapperInManifest = this.bootstrapperVersion !== undefined;
-    this.manifestMutate({ [BH.BootstrapperModID]: latestVersion });
+    await this._installItem(BH.BootstrapperModID);
     if (!wasBootstrapperInManifest) {
-      this.manifestMutate({
-        [BH.BootstrapperModID]: '',
-      });
+      await this._uninstallItem(BH.BootstrapperModID);
     }
   }
 
@@ -335,14 +330,14 @@ export function deleteConfig(name: string): void {
 }
 
 if (!fs.existsSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'manifest.json'))) {
-  fs.writeFileSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'manifest.json'), JSON.stringify({ items: {} } as Manifest));
+  fs.writeFileSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'manifest.json'), JSON.stringify({ items: new Array<string>() } as Manifest));
 }
 if (!fs.existsSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'lock.json'))) {
   fs.writeFileSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'lock.json'), JSON.stringify({} as Lockfile));
 }
 
 if (!fs.existsSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'manifest.json'))) {
-  fs.writeFileSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'manifest.json'), JSON.stringify({ items: {} } as Manifest));
+  fs.writeFileSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'manifest.json'), JSON.stringify({ items: new Array<string>() } as Manifest));
 }
 if (!fs.existsSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'lock.json'))) {
   fs.writeFileSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'lock.json'), JSON.stringify({} as Lockfile));

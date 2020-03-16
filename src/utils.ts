@@ -94,7 +94,7 @@ export async function downloadFile(url: string, file: string): Promise<void> {
 }
 
 export async function forEachAsync<T>(array: Array<T>,
-  callback: {(value: T, index: number, array: T[]): void}): Promise<void> {
+  callback: {(value: T, index: number, array: Array<T>): void}): Promise<void> {
   for (let i = 0; i < array.length; i += 1) {
     // eslint-disable-next-line no-await-in-loop
     await callback(array[i], i, array);
