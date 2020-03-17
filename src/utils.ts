@@ -6,6 +6,7 @@ import { satisfies } from 'semver';
 import { execSync } from 'child_process';
 import { setLogsDir, setLogFileNameFormat } from './logging';
 
+const oldAppName = 'SatisfactoryModLauncher';
 export const appName = 'SatisfactoryModManager';
 
 export function ensureExists(folder: string): void {
@@ -13,8 +14,13 @@ export function ensureExists(folder: string): void {
 }
 
 export function dirs(p: string): Array<string> {
-  return fs.readdirSync(p).filter((f) => fs.statSync(path.join(p, f)).isDirectory());
+  if (fs.existsSync(p)) {
+    return fs.readdirSync(p).filter((f) => fs.statSync(path.join(p, f)).isDirectory());
+  }
+  return [];
 }
+
+export const oldAppDataDir = path.join(getDataHome(), oldAppName);
 
 export const appDataDir = path.join(getDataHome(), appName);
 ensureExists(appDataDir);

@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { valid, coerce } from 'semver';
 import {
-  appDataDir, ensureExists, mapObject, forEachAsync, removeArrayElement,
+  appDataDir, ensureExists, mapObject, forEachAsync, removeArrayElement, dirs, oldAppDataDir, deleteFolderRecursive,
 } from './utils';
 import {
   LockfileGraph, Lockfile, LockfileGraphNode, ItemVersionList,
@@ -15,8 +15,10 @@ export interface Manifest {
   items: Array<string>;
 }
 
+const manifestsDir = path.join(appDataDir, 'manifests');
+
 export function getManifestFolderPath(satisfactoryPath: string): string {
-  return path.join(appDataDir, createHash('sha256').update(satisfactoryPath, 'utf8').digest('hex'));
+  return path.join(manifestsDir, createHash('sha256').update(satisfactoryPath, 'utf8').digest('hex'));
 }
 
 export class ManifestHandler {
@@ -142,3 +144,28 @@ export class ManifestHandler {
     return mapObject(this.readLockfile(), (id, data) => [id, data.version]);
   }
 }
+
+// Convert old manifests to new format and location
+dirs(oldAppDataDir).forEach((manifestID) => {
+  const fullOldManifestDirPath = path.join(oldAppDataDir, manifestID);
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(path.join(fullOldManifestDirPath, 'manifest.json'), 'utf8'));
+  } catch (e) {
+    manifest = { satisfactoryVersion: '0', items: {} };
+  }
+  let lockfile;
+  try {
+    lockfile = JSON.parse(fs.readFileSync(path.join(fullOldManifestDirPath, 'lock.json'), 'utf8'));
+  } catch (e) {
+    lockfile = {};
+  }
+
+  manifest.items = Object.keys(manifest.items);
+
+  ensureExists(path.join(manifestsDir, manifestID));
+  fs.writeFileSync(path.join(manifestsDir, manifestID, 'manifest.json'), JSON.stringify(manifest));
+  fs.writeFileSync(path.join(manifestsDir, manifestID, 'lock.json'), JSON.stringify(lockfile));
+
+  deleteFolderRecursive(fullOldManifestDirPath);
+});
