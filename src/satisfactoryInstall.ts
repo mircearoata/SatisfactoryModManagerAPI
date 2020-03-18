@@ -8,7 +8,7 @@ import * as BH from './bootstrapperHandler';
 import {
   FicsitAppVersion, FicsitAppMod,
 } from './ficsitApp';
-import { ManifestHandler, Manifest } from './manifest';
+import { ManifestHandler, Manifest, ManifestItem } from './manifest';
 import { ItemVersionList, Lockfile } from './lockfile';
 import {
   filterObject, mergeArrays, isRunning, ensureExists, configFolder, dirs, deleteFolderRecursive,
@@ -139,9 +139,9 @@ export class SatisfactoryInstall {
     }));
   }
 
-  async manifestMutate(install: Array<string>, uninstall: Array<string>, update: Array<string>): Promise<void> {
+  async manifestMutate(install: Array<ManifestItem>, uninstall: Array<string>, update: Array<string>): Promise<void> {
     if (!SatisfactoryInstall.isGameRunning()) {
-      debug(`install: ${install}, uninstall: ${uninstall}`);
+      debug(`install: ${install}, uninstall: ${uninstall}, update: ${update}`);
       const currentManifest = this._manifestHandler.readManifest();
       const currentLockfile = this._manifestHandler.readLockfile();
       try {
@@ -200,8 +200,8 @@ export class SatisfactoryInstall {
     fs.writeFileSync(path.join(getConfigFolderPath(configName), 'lock.json'), JSON.stringify(this._manifestHandler.readLockfile()));
   }
 
-  async _installItem(item: string): Promise<void> {
-    return this.manifestMutate([item], [], []);
+  async _installItem(id: string, version?: string): Promise<void> {
+    return this.manifestMutate([{ id, version }], [], []);
   }
 
   async _uninstallItem(item: string): Promise<void> {
@@ -212,10 +212,10 @@ export class SatisfactoryInstall {
     return this.manifestMutate([], [], [item]);
   }
 
-  async installMod(modID: string): Promise<void> {
+  async installMod(modID: string, version?: string): Promise<void> {
     if (!(await this._getInstalledMods()).some((mod) => mod.mod_id === modID)) {
-      info(`Installing ${modID}`);
-      await this._installItem(modID);
+      info(`Installing ${modID}${version ? `@${version}` : ''}`);
+      await this._installItem(modID, version);
     }
   }
 
@@ -249,8 +249,8 @@ export class SatisfactoryInstall {
     return filterObject(this._manifestHandler.getItemsList(), (id) => id !== SH.SMLModID && id !== BH.BootstrapperModID);
   }
 
-  async installSML(): Promise<void> {
-    return this._installItem(SH.SMLModID);
+  async installSML(version?: string): Promise<void> {
+    return this._installItem(SH.SMLModID, version);
   }
 
   async uninstallSML(): Promise<void> {
@@ -328,7 +328,7 @@ export function deleteConfig(name: string): void {
 
 if (!fs.existsSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'manifest.json'))) { // If vanilla already exists, then the config was deleted by the user
   if (!fs.existsSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'manifest.json'))) {
-    fs.writeFileSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'manifest.json'), JSON.stringify({ items: new Array<string>() } as Manifest));
+    fs.writeFileSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'manifest.json'), JSON.stringify({ items: new Array<ManifestItem>() } as Manifest));
   }
   if (!fs.existsSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'lock.json'))) {
     fs.writeFileSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'lock.json'), JSON.stringify({} as Lockfile));
@@ -336,7 +336,7 @@ if (!fs.existsSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'manifest
 }
 
 if (!fs.existsSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'manifest.json'))) {
-  fs.writeFileSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'manifest.json'), JSON.stringify({ items: new Array<string>() } as Manifest));
+  fs.writeFileSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'manifest.json'), JSON.stringify({ items: new Array<ManifestItem>() } as Manifest));
 }
 if (!fs.existsSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'lock.json'))) {
   fs.writeFileSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'lock.json'), JSON.stringify({} as Lockfile));

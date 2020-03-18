@@ -3,16 +3,21 @@ import path from 'path';
 import fs from 'fs';
 import { valid, coerce } from 'semver';
 import {
-  appDataDir, ensureExists, mapObject, forEachAsync, removeArrayElement, dirs, oldAppDataDir, deleteFolderRecursive,
+  appDataDir, ensureExists, mapObject, forEachAsync, dirs, oldAppDataDir, deleteFolderRecursive, removeArrayElementWhere,
 } from './utils';
 import {
   LockfileGraph, Lockfile, LockfileGraphNode, ItemVersionList,
 } from './lockfile';
 import { debug } from './logging';
 
+export interface ManifestItem {
+  id: string;
+  version?: string;
+}
+
 export interface Manifest {
   satisfactoryVersion: string;
-  items: Array<string>;
+  items: Array<ManifestItem>;
 }
 
 const manifestsDir = path.join(appDataDir, 'manifests');
@@ -42,14 +47,23 @@ export class ManifestHandler {
     this.writeManifest(manifest);
   }
 
-  async mutate(install: Array<string>, uninstall: Array<string>, update: Array<string>): Promise<void> {
+  async mutate(install: Array<ManifestItem>, uninstall: Array<string>, update: Array<string>): Promise<void> {
     const manifest = this.readManifest();
     uninstall.forEach((item) => {
-      removeArrayElement(manifest.items, item);
+      removeArrayElementWhere(manifest.items, (manifestItem) => manifestItem.id === item);
     });
     install.forEach((item) => {
-      if (!manifest.items.includes(item)) {
+      const existingItem = manifest.items.find((manifestItem) => manifestItem.id === item.id);
+      if (!existingItem) {
         manifest.items.push(item);
+      } else {
+        existingItem.version = item.version;
+      }
+    });
+    update.forEach((item) => {
+      const existingItem = manifest.items.find((manifestItem) => manifestItem.id === item);
+      if (existingItem) {
+        delete existingItem.version;
       }
     });
 
@@ -57,7 +71,7 @@ export class ManifestHandler {
     const graph = new LockfileGraph();
     await graph.fromLockfile(initialLockfile);
     graph.roots().forEach((root) => {
-      if (!manifest.items.includes(root.id)) {
+      if (!manifest.items.some((manifestItem) => manifestItem.id === root.id)) {
         graph.remove(root);
       }
     });
@@ -73,20 +87,12 @@ export class ManifestHandler {
       isInManifest: true,
     } as LockfileGraphNode;
     graph.add(satisfactoryNode);
-    Object.entries(manifest.items).forEach((itemVersion) => {
-      const id = itemVersion[0];
-      const version = itemVersion[1];
-      const lockfileNode = graph.nodes.find((node) => node.id === id && node.version === version);
-      if (lockfileNode) {
-        lockfileNode.isInManifest = true;
-      }
-    });
     await forEachAsync(manifest.items, async (item) => {
       const itemData = {
-        id: `manifest_${item}`,
+        id: `manifest_${item.id}`,
         version: '0.0.0',
         dependencies: {
-          [item]: '>= 0.0.0',
+          [item.id]: item.version || '>=0.0.0',
         },
       } as LockfileGraphNode;
       itemData.isInManifest = true;
@@ -148,7 +154,7 @@ export class ManifestHandler {
 // Convert old manifests to new format and location
 dirs(oldAppDataDir).forEach((manifestID) => {
   const fullOldManifestDirPath = path.join(oldAppDataDir, manifestID);
-  let manifest;
+  let manifest: { satisfactoryVersion: string; items: ItemVersionList };
   try {
     manifest = JSON.parse(fs.readFileSync(path.join(fullOldManifestDirPath, 'manifest.json'), 'utf8'));
   } catch (e) {
@@ -161,10 +167,14 @@ dirs(oldAppDataDir).forEach((manifestID) => {
     lockfile = {};
   }
 
-  manifest.items = Object.keys(manifest.items);
+
+  const newManifest = {
+    satisfactoryVersion: manifest.satisfactoryVersion,
+    item: Object.keys(manifest.items).map((item) => ({ id: item, version: manifest.items[item] } as ManifestItem)),
+  };
 
   ensureExists(path.join(manifestsDir, manifestID));
-  fs.writeFileSync(path.join(manifestsDir, manifestID, 'manifest.json'), JSON.stringify(manifest));
+  fs.writeFileSync(path.join(manifestsDir, manifestID, 'manifest.json'), JSON.stringify(newManifest));
   fs.writeFileSync(path.join(manifestsDir, manifestID, 'lock.json'), JSON.stringify(lockfile));
 
   deleteFolderRecursive(fullOldManifestDirPath);
