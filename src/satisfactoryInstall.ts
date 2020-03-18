@@ -326,7 +326,7 @@ export function deleteConfig(name: string): void {
   }
 }
 
-if (!fs.existsSync(getConfigFolderPath(VANILLA_CONFIG_NAME))) { // If vanilla already exists, then the config was deleted by the user
+if (!fs.existsSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'manifest.json'))) { // If vanilla already exists, then the config was deleted by the user
   if (!fs.existsSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'manifest.json'))) {
     fs.writeFileSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'manifest.json'), JSON.stringify({ items: new Array<string>() } as Manifest));
   }
