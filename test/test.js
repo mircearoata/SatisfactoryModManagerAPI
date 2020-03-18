@@ -4,6 +4,7 @@ const assert = require('assert');
 const semver = require('semver');
 const { SatisfactoryInstall, getManifestFolderPath, UnsolvableDependencyError, DependencyManifestMismatchError, InvalidConfigError } = require('../');
 const { modCacheDir, forEachAsync } = require('../lib/utils');
+const { addTempMod, addTempModVersion, setUseTempMods } = require('../lib/ficsitApp');
 const JSZip = require('jszip');
 
 const dummySfName = 'DummySF';
@@ -70,6 +71,27 @@ async function createDummyMods() {
         resolve();
       });
   }));
+  const dummyFicsitAppMods = [];
+  dummyMods.forEach((mod) => {
+    let existingMod = dummyFicsitAppMods.find((faMod) => faMod.id === mod.mod_id);
+    if(!existingMod) {
+      existingMod = {
+        id: mod.mod_id,
+        versions: [],
+      };
+      dummyFicsitAppMods.push(existingMod);
+    }
+    existingMod.versions.push({
+      mod_id: mod.mod_id,
+      version: mod.version,
+    });
+  });
+  dummyFicsitAppMods.forEach((mod) => {
+    addTempMod(mod);
+    mod.versions.forEach((version) => {
+      addTempModVersion(version);
+    })
+  });
 }
 
 async function removeDummyMods() {
@@ -94,7 +116,8 @@ function deleteFolderRecursive(path) {
 };
 
 async function main() {
-  return; // Dummy mods no longer work due to manifest changes. Need updated mods with dependencies to test
+  setUseTempMods(true);
+  
   fs.mkdirSync(dummySfPath, { recursive: true });
   await createDummyMods()
 
@@ -237,7 +260,7 @@ async function main() {
     }
 
     try {
-      await sfInstall.manifestMutate({});
+      await sfInstall.manifestMutate([], [], []);
       assert.deepStrictEqual(installedMods, await sfInstall._getInstalledMods(), 'Empty mutation changed something');
     } catch (e) {
       if (e instanceof assert.AssertionError) {

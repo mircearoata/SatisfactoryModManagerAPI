@@ -4,9 +4,48 @@ import { versionSatisfiesAll } from './utils';
 import { ModNotFoundError } from './errors';
 import { minSMLVersion, SMLModID } from './smlHandler';
 import { BootstrapperModID } from './bootstrapperHandler';
+import { warn } from './logging';
 
 const API_URL = 'https://api.ficsit.app';
 const GRAPHQL_API_URL = `${API_URL}/v2/query`;
+
+let useTempMods = false; // TODO: remove once more mods are updated so live data can be used for tests instead
+
+/**
+ * This function should be used for debugging purposes only!
+ * @param enable if true enables temporary mods usage
+ */
+export function setUseTempMods(enable: boolean): void {
+  useTempMods = enable;
+  if (useTempMods) {
+    warn('Enabling temporary mods. This feature should be used for debugging purposes only!');
+  }
+}
+
+export function getUseTempMods(use: boolean): void {
+  useTempMods = use;
+}
+
+const tempMods: Array<FicsitAppMod> = [];
+
+export function addTempMod(mod: FicsitAppMod): void {
+  if (useTempMods) {
+    tempMods.push(mod);
+  } else {
+    warn('Temporary mods are only available in debug mode');
+  }
+}
+
+export function addTempModVersion(version: FicsitAppVersion): void {
+  if (useTempMods) {
+    const tempMod = tempMods.find((mod) => mod.id === version.mod_id);
+    if (tempMod) {
+      tempMod.versions.push(version);
+    }
+  } else {
+    warn('Temporary mods are only available in debug mode');
+  }
+}
 
 export async function fiscitApiQuery(query: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -110,6 +149,8 @@ export async function getModDownloadLink(modID: string, version: string): Promis
       throw res.errors;
     } else if (res.getMod && res.getMod.version) {
       setCache(requestID, API_URL + res.getMod.version.link);
+    } else if (tempMods.some((mod) => mod.id === modID)) {
+      throw new ModNotFoundError(`${modID}@${version} is a temporary mod. No download link available`);
     } else {
       throw new ModNotFoundError(`${modID}@${version} not found`);
     }
@@ -169,6 +210,9 @@ export async function getAvailableMods(): Promise<Array<FicsitAppMod>> {
       for (let i = 0; i < resGetMods.length; i += 1) {
         resGetMods[i].last_version_date = resGetMods[i].last_version_date ? new Date(resGetMods[i].last_version_date) : null;
       }
+      if (useTempMods) {
+        resGetMods.push(...tempMods);
+      }
       setCache(requestID, resGetMods);
     }
   }
@@ -221,6 +265,12 @@ export async function getMod(modID: string): Promise<FicsitAppMod> {
     } else {
       const { getMod: resGetMod } = res;
       if (resGetMod === null) {
+        if (useTempMods) {
+          const tempMod = tempMods.find((mod) => mod.id === modID);
+          if (tempMod) {
+            return tempMod;
+          }
+        }
         throw new ModNotFoundError(`Mod ${modID} not found`);
       }
       resGetMod.last_version_date = resGetMod.last_version_date ? new Date(resGetMod.last_version_date) : null;
@@ -261,6 +311,12 @@ export async function getModVersions(modID: string): Promise<Array<FicsitAppVers
     } else if (res.getMod) {
       setCache(requestID, res.getMod.versions);
     } else {
+      if (useTempMods) {
+        const tempMod = tempMods.find((mod) => mod.id === modID);
+        if (tempMod) {
+          return tempMod.versions;
+        }
+      }
       throw new ModNotFoundError(`Mod ${modID} not found`);
     }
   }
