@@ -11,7 +11,7 @@ export enum LogLevel {
   ERROR
 }
 
-let minLogLevel = process.env.NODE_DEBUG?.includes('SMManagerAPI') ? LogLevel.DEBUG : LogLevel.INFO;
+let minLogLevel = LogLevel.INFO;
 
 let logsDir = '.';
 let logFileNameFormat = 'logging.log';
@@ -116,15 +116,15 @@ export function error(message: string | object): void {
   return write(LogLevel.ERROR, message);
 }
 
-export function setDebug(d: boolean): void {
+export function setLogDebug(d: boolean): void {
   minLogLevel = d ? LogLevel.DEBUG : LogLevel.INFO;
   info(`Set debug mode to ${d}`);
 }
 
-export function toggleDebug(): void {
+export function toggleLogDebug(): void {
   if (minLogLevel === LogLevel.DEBUG) {
-    setDebug(false);
+    setLogDebug(false);
   } else {
-    setDebug(true);
+    setLogDebug(true);
   }
 }

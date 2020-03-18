@@ -4,10 +4,27 @@ import fs from 'fs';
 import request from 'request-promise-native';
 import { satisfies } from 'semver';
 import { execSync } from 'child_process';
-import { setLogsDir, setLogFileNameFormat } from './logging';
+import { setLogsDir, setLogFileNameFormat, setLogDebug } from './logging';
 
 const oldAppName = 'SatisfactoryModLauncher';
 export const appName = 'SatisfactoryModManager';
+
+let isDebugMode = process.env.NODE_DEBUG?.includes('SMManagerAPI') || false;
+
+setLogDebug(isDebugMode);
+
+export function isDebug(): boolean {
+  return isDebugMode;
+}
+
+export function setDebug(shouldDebug: boolean): void {
+  isDebugMode = shouldDebug;
+  setLogDebug(shouldDebug);
+}
+
+export function toggleDebug(): void {
+  setDebug(!isDebugMode);
+}
 
 export function ensureExists(folder: string): void {
   fs.mkdirSync(folder, { recursive: true });
