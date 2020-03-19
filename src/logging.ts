@@ -85,7 +85,6 @@ function write(level: LogLevel, message: string | object): void {
         break;
       case LogLevel.ERROR:
         console.error(formattedMessage);
-        console.trace();
         break;
       case LogLevel.INFO:
       default:
@@ -112,7 +111,10 @@ export function warn(message: string | object): void {
   return write(LogLevel.WARN, message);
 }
 
-export function error(message: string | object): void {
+export function error(message: string | Error | object): void {
+  if (message instanceof Error) {
+    return write(LogLevel.ERROR, `${message.message}\nTrace\n${message.stack}`);
+  }
   return write(LogLevel.ERROR, message);
 }
 

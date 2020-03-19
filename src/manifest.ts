@@ -1,9 +1,8 @@
-import { createHash } from 'crypto';
 import path from 'path';
 import fs from 'fs';
 import { valid, coerce } from 'semver';
 import {
-  appDataDir, ensureExists, mapObject, forEachAsync, dirs, oldAppDataDir, deleteFolderRecursive, removeArrayElementWhere,
+  ensureExists, mapObject, forEachAsync, dirs, oldAppDataDir, deleteFolderRecursive, removeArrayElementWhere, manifestsDir,
 } from './utils';
 import {
   LockfileGraph, Lockfile, LockfileGraphNode, ItemVersionList,
@@ -20,17 +19,11 @@ export interface Manifest {
   items: Array<ManifestItem>;
 }
 
-const manifestsDir = path.join(appDataDir, 'manifests');
-
-export function getManifestFolderPath(satisfactoryPath: string): string {
-  return path.join(manifestsDir, createHash('sha256').update(satisfactoryPath, 'utf8').digest('hex'));
-}
-
 export class ManifestHandler {
   private _manifestPath: string;
 
-  constructor(manifestForPath: string) {
-    this._manifestPath = getManifestFolderPath(manifestForPath);
+  constructor(manifestPath: string) {
+    this._manifestPath = manifestPath;
     if (!fs.existsSync(this._manifestPath)) {
       ensureExists(this._manifestPath);
       this.writeManifest({

@@ -2,6 +2,7 @@ import path from 'path';
 import { getDataFolders } from 'platform-folders';
 import fs from 'fs';
 import { compare, valid, coerce } from 'semver';
+import { createHash } from 'crypto';
 import * as MH from './modHandler';
 import * as SH from './smlHandler';
 import * as BH from './bootstrapperHandler';
@@ -11,13 +12,12 @@ import {
 import { ManifestHandler, Manifest, ManifestItem } from './manifest';
 import { ItemVersionList, Lockfile } from './lockfile';
 import {
-  filterObject, mergeArrays, isRunning, ensureExists, configFolder, dirs, deleteFolderRecursive,
+  filterObject, mergeArrays, isRunning, ensureExists, configFolder, dirs, deleteFolderRecursive, manifestsDir,
 } from './utils';
 import {
   debug, info, error, warn,
 } from './logging';
 import { GameRunningError, InvalidConfigError } from './errors';
-
 
 export function getConfigFolderPath(configName: string): string {
   const configPath = path.join(configFolder, configName);
@@ -30,6 +30,10 @@ const DEFAULT_MODDED_CONFIG_NAME = 'modded';
 
 const CacheRelativePath = '.cache';
 
+export function getManifestFolderPath(satisfactoryPath: string): string {
+  return path.join(manifestsDir, createHash('sha256').update(satisfactoryPath, 'utf8').digest('hex'));
+}
+
 export class SatisfactoryInstall {
   private _manifestHandler: ManifestHandler;
   name: string;
@@ -39,7 +43,7 @@ export class SatisfactoryInstall {
 
   constructor(name: string, version: string, installLocation: string, mainGameAppName: string) {
     this.installLocation = installLocation;
-    this._manifestHandler = new ManifestHandler(installLocation);
+    this._manifestHandler = new ManifestHandler(getManifestFolderPath(installLocation));
 
     this.name = name;
     this.version = version;
@@ -150,7 +154,7 @@ export class SatisfactoryInstall {
         await this.validateInstall();
       } catch (e) {
         e.message = `${e.message}. All changes were discarded.`;
-        error(e.message);
+        error(e);
         await this._manifestHandler.writeManifest(currentManifest);
         await this._manifestHandler.writeLockfile(currentLockfile);
         await this.validateInstall();

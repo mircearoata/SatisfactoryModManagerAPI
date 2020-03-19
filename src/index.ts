@@ -3,6 +3,7 @@ export {
   getInstalls,
   getConfigs,
   deleteConfig,
+  getManifestFolderPath,
 } from './satisfactoryInstall';
 export { Mod, ModObject } from './modHandler';
 export {
@@ -10,7 +11,7 @@ export {
   getAvailableSMLVersions, getLatestSMLVersion,
   FicsitAppMod, FicsitAppVersion, FicsitAppAuthor, FicsitAppUser, FicsitAppSMLVersion,
 } from './ficsitApp';
-export { getManifestFolderPath } from './manifest';
+export { } from './manifest';
 export * from './errors';
 export { getLogFilePath } from './logging';
 export { clearCache, setDebug, toggleDebug } from './utils';

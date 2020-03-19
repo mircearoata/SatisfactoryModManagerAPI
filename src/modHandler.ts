@@ -25,7 +25,7 @@ export async function getModFromFile(modPath: string): Promise<Mod> {
         return mod;
       })
       .catch((e) => {
-        error(e.message);
+        error(e);
         const mod = {
           name: 'Error reading mod file',
           description: e.message,
