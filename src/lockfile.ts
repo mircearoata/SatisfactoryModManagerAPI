@@ -89,7 +89,7 @@ export class LockfileGraph {
         if (dependencyNode) {
           if (dependencyNode.isInManifest || this.nodes.some((n) => n.id === `manifest_${dependencyNode.id}`)) {
             if (dependencyID === 'SatisfactoryGame') {
-              throw new DependencyManifestMismatchError(`Satisfactory version ${coerce(dependencyNode.version)?.major} is too old. ${node.id}@${node.version} requires ${versionConstraint}`);
+              throw new DependencyManifestMismatchError(`Satisfactory version ${coerce(dependencyNode.version)?.major} is too old. ${node.id}@${node.version} requires ${versionConstraint}. Update the game then restart.`);
             }
             throw new DependencyManifestMismatchError(`Dependency ${dependencyID}@${dependencyNode.version} is too old for ${node.id}@${node.version} (requires ${versionConstraint}), and it is installed by you. Uninstall or update it then try again.`);
           } else {

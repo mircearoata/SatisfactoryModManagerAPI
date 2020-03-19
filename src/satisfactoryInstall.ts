@@ -347,9 +347,20 @@ if (!fs.existsSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'lock.jso
 }
 
 const EpicManifestsFolder = path.join(getDataFolders()[0], 'Epic', 'EpicGamesLauncher', 'Data', 'Manifests'); // TODO: other platforms
+const UEInstalledManifest = path.join(getDataFolders()[0], 'Epic', 'UnrealEngineLauncher', 'LauncherInstalled.dat'); // TODO: other platforms
+
+interface UEInstalledManifestEntry {
+  InstallLocation: string;
+  AppName: string;
+  AppVersion: string;
+}
+
+interface UEInstalledManifest {
+  InstallationList: Array<UEInstalledManifestEntry>;
+}
 
 export async function getInstalls(): Promise<Array<SatisfactoryInstall>> {
-  const foundInstalls = new Array<SatisfactoryInstall>();
+  let foundInstalls = new Array<SatisfactoryInstall>();
   if (fs.existsSync(EpicManifestsFolder)) {
     fs.readdirSync(EpicManifestsFolder).forEach((fileName) => {
       if (fileName.endsWith('.item')) {
@@ -377,6 +388,17 @@ export async function getInstalls(): Promise<Array<SatisfactoryInstall>> {
       }
     });
   }
+  let installedManifest: UEInstalledManifest = { InstallationList: [] };
+  if (fs.existsSync(UEInstalledManifest)) {
+    try {
+      installedManifest = JSON.parse(fs.readFileSync(UEInstalledManifest, 'utf8'));
+    } catch (e) {
+      info('Invalid UE manifest. The game might appear multiple times.');
+    }
+  }
+  foundInstalls = foundInstalls.filter((install) => installedManifest.InstallationList.some(
+    (manifestInstall) => manifestInstall.InstallLocation === install.installLocation && manifestInstall.AppVersion === install.version,
+  ));
   foundInstalls.sort((a, b) => {
     const semverCmp = compare(valid(coerce(a.version)) || '0.0.0', valid(coerce(b.version)) || '0.0.0');
     if (semverCmp === 0) {
