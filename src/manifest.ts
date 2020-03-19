@@ -15,8 +15,30 @@ export interface ManifestItem {
 }
 
 export interface Manifest {
+  manifestVersion: ManifestVersion;
   satisfactoryVersion: string;
   items: Array<ManifestItem>;
+}
+
+export enum ManifestVersion {
+  // pre 1.1.3, unversioned
+  AddedManifestVersions, // Fixed typo in upgraded manifests
+  LatestPlusOne,
+  Latest = LatestPlusOne - 1
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function checkUpgradeManifest(manifest: any): Manifest {
+  const upgradedManifest = { manifestVersion: ManifestVersion.Latest, items: [], satisfactoryVersion: '0' } as Manifest;
+  upgradedManifest.satisfactoryVersion = manifest.satisfactoryVersion;
+  if (manifest.manifestVersion) {
+    // Nothing here yet
+  } else if (manifest.item) {
+    upgradedManifest.items = manifest.item;
+  } else if (manifest.items) {
+    upgradedManifest.items = manifest.items;
+  }
+  return upgradedManifest;
 }
 
 export class ManifestHandler {
@@ -27,6 +49,7 @@ export class ManifestHandler {
     if (!fs.existsSync(this._manifestPath)) {
       ensureExists(this._manifestPath);
       this.writeManifest({
+        manifestVersion: ManifestVersion.Latest,
         satisfactoryVersion: '0',
         items: [],
       } as Manifest);
@@ -106,9 +129,10 @@ export class ManifestHandler {
 
   readManifest(): Manifest {
     try {
-      return JSON.parse(fs.readFileSync(this.getManifestFilePath(), 'utf8'));
+      return checkUpgradeManifest(JSON.parse(fs.readFileSync(this.getManifestFilePath(), 'utf8')));
     } catch (e) {
       return {
+        manifestVersion: ManifestVersion.Latest,
         satisfactoryVersion: '0',
         items: [],
       };
@@ -163,7 +187,7 @@ dirs(oldAppDataDir).forEach((manifestID) => {
 
   const newManifest = {
     satisfactoryVersion: manifest.satisfactoryVersion,
-    item: Object.keys(manifest.items).map((item) => ({ id: item, version: manifest.items[item] } as ManifestItem)),
+    items: Object.keys(manifest.items).map((item) => ({ id: item, version: manifest.items[item] } as ManifestItem)),
   };
 
   ensureExists(path.join(manifestsDir, manifestID));
