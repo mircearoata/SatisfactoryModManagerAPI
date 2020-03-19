@@ -350,31 +350,33 @@ const EpicManifestsFolder = path.join(getDataFolders()[0], 'Epic', 'EpicGamesLau
 
 export async function getInstalls(): Promise<Array<SatisfactoryInstall>> {
   const foundInstalls = new Array<SatisfactoryInstall>();
-  fs.readdirSync(EpicManifestsFolder).forEach((fileName) => {
-    if (fileName.endsWith('.item')) {
-      const filePath = path.join(EpicManifestsFolder, fileName);
-      try {
-        const jsonString = fs.readFileSync(filePath, 'utf8');
-        const manifest = JSON.parse(jsonString);
-        if (manifest.CatalogNamespace === 'crab') {
-          const gameManifestString = fs.readFileSync(path.join(manifest.ManifestLocation, `${manifest.InstallationGuid}.mancpn`), 'utf8');
-          const gameManifest = JSON.parse(gameManifestString);
-          if (gameManifest.AppName === manifest.MainGameAppName
-            && gameManifest.CatalogItemId === manifest.CatalogItemId
-            && gameManifest.CatalogNamespace === manifest.CatalogNamespace) {
-            foundInstalls.push(new SatisfactoryInstall(
-              manifest.DisplayName,
-              manifest.AppVersionString,
-              manifest.InstallLocation,
-              manifest.MainGameAppName,
-            ));
+  if (fs.existsSync(EpicManifestsFolder)) {
+    fs.readdirSync(EpicManifestsFolder).forEach((fileName) => {
+      if (fileName.endsWith('.item')) {
+        const filePath = path.join(EpicManifestsFolder, fileName);
+        try {
+          const jsonString = fs.readFileSync(filePath, 'utf8');
+          const manifest = JSON.parse(jsonString);
+          if (manifest.CatalogNamespace === 'crab') {
+            const gameManifestString = fs.readFileSync(path.join(manifest.ManifestLocation, `${manifest.InstallationGuid}.mancpn`), 'utf8');
+            const gameManifest = JSON.parse(gameManifestString);
+            if (gameManifest.AppName === manifest.MainGameAppName
+              && gameManifest.CatalogItemId === manifest.CatalogItemId
+              && gameManifest.CatalogNamespace === manifest.CatalogNamespace) {
+              foundInstalls.push(new SatisfactoryInstall(
+                manifest.DisplayName,
+                manifest.AppVersionString,
+                manifest.InstallLocation,
+                manifest.MainGameAppName,
+              ));
+            }
           }
+        } catch (e) {
+          info(`Found invalid manifest: ${fileName}`);
         }
-      } catch (e) {
-        info(`Found invalid manifest: ${fileName}`);
       }
-    }
-  });
+    });
+  }
   foundInstalls.sort((a, b) => {
     const semverCmp = compare(valid(coerce(a.version)) || '0.0.0', valid(coerce(b.version)) || '0.0.0');
     if (semverCmp === 0) {

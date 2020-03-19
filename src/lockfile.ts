@@ -100,7 +100,7 @@ export class LockfileGraph {
         const versionConstraints = this.nodes
           .filter((graphNode) => graphNode.dependencies[dependencyID])
           .map((graphNode) => graphNode.dependencies[dependencyID]);
-        debug(`Dependency ${dependencyID} must match ${versionConstraints}`);
+        debug(`Dependency ${dependencyID} of ${node.id} must match ${versionConstraints}`);
         const matchingDependencyVersions = await findAllVersionsMatchingAll(dependencyID,
           versionConstraints);
         matchingDependencyVersions.sort((a, b) => compare(a, b));
