@@ -141,7 +141,7 @@ export class SatisfactoryInstall {
 
   async manifestMutate(install: Array<ManifestItem>, uninstall: Array<string>, update: Array<string>): Promise<void> {
     if (!SatisfactoryInstall.isGameRunning()) {
-      debug(`install: ${install}, uninstall: ${uninstall}, update: ${update}`);
+      debug(`install: [${install.map((item) => (item.version ? `${item.id}@${item.version}` : item.id)).join(', ')}], uninstall: [${uninstall.join(', ')}], update: [${update.join(', ')}]`);
       const currentManifest = this._manifestHandler.readManifest();
       const currentLockfile = this._manifestHandler.readLockfile();
       try {

@@ -88,9 +88,6 @@ async function createDummyMods() {
   });
   dummyFicsitAppMods.forEach((mod) => {
     addTempMod(mod);
-    mod.versions.forEach((version) => {
-      addTempModVersion(version);
-    })
   });
 }
 
@@ -210,32 +207,11 @@ async function main() {
       }
     }
 
-    /*try {
-      await sfInstall.uninstallMod('dummyMod2');
-      installedMods = await sfInstall._getInstalledMods();
-      assert.strictEqual(installedMods.length, 1, 'Uninstall failed');
-    } catch (e) {
-      if (e instanceof assert.AssertionError) {
-        throw e;
-      }
-      assert.fail(`Unexpected error: ${e}`);
-    }
-
     try {
-      await sfInstall.uninstallMod('dummyMod1');
+      await sfInstall.updateMod('dummyMod1');
+      await sfInstall.updateMod('dummyMod2');
       installedMods = await sfInstall._getInstalledMods();
-      assert.strictEqual(installedMods.length, 0, 'Uninstall 2 failed');
-    } catch (e) {
-      if (e instanceof assert.AssertionError) {
-        throw e;
-      }
-      assert.fail(`Unexpected error: ${e}`);
-    }
-
-    try {
-      await sfInstall.installMod('dummyMod2', '1.0.2');
-      installedMods = await sfInstall._getInstalledMods();
-      if (!installedMods.some((mod) => mod.mod_id === 'dummyMod2' && mod.version === '1.0.1') || !installedMods.some((mod) => mod.mod_id === 'dummyMod1' && mod.version === '1.0.2')) {
+      if (!installedMods.some((mod) => mod.mod_id === 'dummyMod2' && mod.version === '1.0.2') || !installedMods.some((mod) => mod.mod_id === 'dummyMod1' && mod.version === '1.0.2')) {
         assert.fail('Update mod with existing dependency failed');
       }
       assert.strictEqual(installedMods.length, 2, 'Update removed/added a mod');
@@ -244,14 +220,13 @@ async function main() {
         throw e;
       }
       assert.fail(`Unexpected error: ${e}`);
-    }*/
-    // The mods are not on ficsit.app and that's where lockfile looks 
+    }
 
     try {
       await sfInstall.uninstallMod('dummyMod1');
       installedMods = await sfInstall._getInstalledMods();
       assert.strictEqual(installedMods.length, 2, 'Uninstall dependency succeeded');
-      assert.strictEqual(installedMods.some((mod) => mod.mod_id === 'dummyMod1' && mod.version === '1.0.0'), true, 'Uninstall dependency changed version');
+      assert.strictEqual(installedMods.some((mod) => mod.mod_id === 'dummyMod1' && mod.version === '1.0.2'), true, 'Uninstall dependency changed version');
     } catch (e) {
       if (e instanceof assert.AssertionError) {
         throw e;

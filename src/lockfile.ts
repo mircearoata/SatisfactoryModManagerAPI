@@ -87,11 +87,11 @@ export class LockfileGraph {
       const dependencyNode = this.nodes.find((graphNode) => graphNode.id === dependencyID);
       if (!dependencyNode || !satisfies(dependencyNode.version, versionConstraint)) {
         if (dependencyNode) {
-          if (dependencyNode.isInManifest) {
+          if (dependencyNode.isInManifest || this.nodes.some((n) => n.id === `manifest_${dependencyNode.id}`)) {
             if (dependencyID === 'SatisfactoryGame') {
               throw new DependencyManifestMismatchError(`Satisfactory version ${coerce(dependencyNode.version)?.major} is too old. ${node.id}@${node.version} requires ${versionConstraint}`);
             }
-            throw new DependencyManifestMismatchError(`Dependency ${dependencyID}@${dependencyNode.version} is too old for ${node.id}@${node.version} (requires ${versionConstraint}), and it is installed by you. Uninstall it then try again.`);
+            throw new DependencyManifestMismatchError(`Dependency ${dependencyID}@${dependencyNode.version} is too old for ${node.id}@${node.version} (requires ${versionConstraint}), and it is installed by you. Uninstall or update it then try again.`);
           } else {
             debug(`Dependency ${dependencyID}@${dependencyNode.version} is NOT GOOD for ${node.id}@${node.version} (requires ${versionConstraint})`);
             this.remove(dependencyNode);
@@ -125,7 +125,10 @@ export class LockfileGraph {
           if (dependencyNode) {
             await this.add(dependencyNode);
           }
-          throw new UnsolvableDependencyError(`No version found for dependency ${dependencyID} of ${node.id}`);
+          throw new UnsolvableDependencyError(`Dependency ${dependencyID} of ${node.id} could not be installed. Conflicting version requriements: ${this.nodes
+            .filter((graphNode) => graphNode.dependencies[dependencyID])
+            .map((graphNode) => `${graphNode.id} requires ${graphNode.dependencies[dependencyID]}`).join(', ')
+          }`);
         }
       } else {
         debug(`Dependency ${dependencyID}@${dependencyNode.version} is GOOD for ${node.id}@${node.version} (requires ${versionConstraint})`);
