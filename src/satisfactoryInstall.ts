@@ -374,12 +374,19 @@ export async function getInstalls(): Promise<Array<SatisfactoryInstall>> {
             if (gameManifest.AppName === manifest.MainGameAppName
               && gameManifest.CatalogItemId === manifest.CatalogItemId
               && gameManifest.CatalogNamespace === manifest.CatalogNamespace) {
-              foundInstalls.push(new SatisfactoryInstall(
-                manifest.DisplayName,
-                manifest.AppVersionString,
-                manifest.InstallLocation,
-                manifest.MainGameAppName,
-              ));
+              const installWithSamePath = foundInstalls.find((install) => install.installLocation === manifest.InstallLocation);
+              if (installWithSamePath) {
+                if (parseInt(manifest.AppVersionString, 10) > parseInt(installWithSamePath.version, 10)) {
+                  installWithSamePath.version = manifest.AppVersionString;
+                }
+              } else {
+                foundInstalls.push(new SatisfactoryInstall(
+                  manifest.DisplayName,
+                  manifest.AppVersionString,
+                  manifest.InstallLocation,
+                  manifest.MainGameAppName,
+                ));
+              }
             }
           }
         } catch (e) {
@@ -388,17 +395,25 @@ export async function getInstalls(): Promise<Array<SatisfactoryInstall>> {
       }
     });
   }
+  if (foundInstalls.length === 0) {
+    warn('No Satisfactory installs found');
+  }
   let installedManifest: UEInstalledManifest = { InstallationList: [] };
   if (fs.existsSync(UEInstalledManifest)) {
     try {
       installedManifest = JSON.parse(fs.readFileSync(UEInstalledManifest, 'utf8'));
+      foundInstalls = foundInstalls.filter((install) => installedManifest.InstallationList.some(
+        (manifestInstall) => manifestInstall.InstallLocation === install.installLocation,
+      )); // Filter out old .items left over by Epic
+      if (foundInstalls.length === 0) {
+        warn('UE manifest filtered all installs.');
+      }
     } catch (e) {
       info('Invalid UE manifest. The game might appear multiple times.');
     }
+  } else {
+    info('Invalid UE manifest. The game might appear multiple times.');
   }
-  foundInstalls = foundInstalls.filter((install) => installedManifest.InstallationList.some(
-    (manifestInstall) => manifestInstall.InstallLocation === install.installLocation && manifestInstall.AppVersion === install.version,
-  ));
   foundInstalls.sort((a, b) => {
     const semverCmp = compare(valid(coerce(a.version)) || '0.0.0', valid(coerce(b.version)) || '0.0.0');
     if (semverCmp === 0) {
@@ -406,8 +421,5 @@ export async function getInstalls(): Promise<Array<SatisfactoryInstall>> {
     }
     return semverCmp;
   });
-  if (foundInstalls.length === 0) {
-    warn('No Satisfactory installs found');
-  }
   return foundInstalls;
 }
