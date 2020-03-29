@@ -1,6 +1,6 @@
 import request from 'request-promise-native';
 import { compare, satisfies } from 'semver';
-import { versionSatisfiesAll } from './utils';
+import { versionSatisfiesAll, removeArrayElementWhere } from './utils';
 import { ModNotFoundError } from './errors';
 import { minSMLVersion, SMLModID } from './smlHandler';
 import { BootstrapperModID } from './bootstrapperHandler';
@@ -41,6 +41,25 @@ export function addTempModVersion(version: FicsitAppVersion): void {
     const tempMod = tempMods.find((mod) => mod.id === version.mod_id);
     if (tempMod) {
       tempMod.versions.push(version);
+    }
+  } else {
+    warn('Temporary mods are only available in debug mode');
+  }
+}
+
+export function removeTempMod(modID: string): void {
+  if (useTempMods) {
+    removeArrayElementWhere(tempMods, (mod) => mod.id === modID);
+  } else {
+    warn('Temporary mods are only available in debug mode');
+  }
+}
+
+export function removeTempModVersion(modID: string, version: string): void {
+  if (useTempMods) {
+    const mod = tempMods.find((tempMod) => tempMod.id === modID);
+    if (mod) {
+      removeArrayElementWhere(mod.versions, (modVersion) => modVersion.version === version);
     }
   } else {
     warn('Temporary mods are only available in debug mode');

@@ -13,7 +13,7 @@ import {
 } from './errors';
 import { SMLModID } from './smlHandler';
 import { BootstrapperModID } from './bootstrapperHandler';
-import { debug } from './logging';
+import { debug, info } from './logging';
 
 export interface ItemVersionList {
   [id: string]: string;
@@ -101,34 +101,42 @@ export class LockfileGraph {
           .filter((graphNode) => graphNode.dependencies[dependencyID])
           .map((graphNode) => graphNode.dependencies[dependencyID]);
         debug(`Dependency ${dependencyID} of ${node.id} must match ${versionConstraints}`);
-        const matchingDependencyVersions = await findAllVersionsMatchingAll(dependencyID,
-          versionConstraints);
-        matchingDependencyVersions.sort((a, b) => compare(a, b));
-        debug(`Found versions ${matchingDependencyVersions}`);
-        let found = false;
-        while (!found && matchingDependencyVersions.length > 0) {
-          const version = matchingDependencyVersions.pop();
-          if (!version) { break; }
-          // eslint-disable-next-line no-await-in-loop
-          const itemData = await getItemData(dependencyID, version);
-          debug(`Trying ${version}`);
-          try {
+        try {
+          const matchingDependencyVersions = await findAllVersionsMatchingAll(dependencyID,
+            versionConstraints);
+          matchingDependencyVersions.sort((a, b) => compare(a, b));
+          debug(`Found versions ${matchingDependencyVersions}`);
+          let found = false;
+          while (!found && matchingDependencyVersions.length > 0) {
+            const version = matchingDependencyVersions.pop();
+            if (!version) { break; }
             // eslint-disable-next-line no-await-in-loop
-            await this.add(itemData);
-            found = true;
-            break;
-          } catch (e) {
-            this.remove(itemData);
+            const itemData = await getItemData(dependencyID, version);
+            debug(`Trying ${version}`);
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              await this.add(itemData);
+              found = true;
+              break;
+            } catch (e) {
+              this.remove(itemData);
+            }
           }
-        }
-        if (!found) {
-          if (dependencyNode) {
-            await this.add(dependencyNode);
+          if (!found) {
+            if (dependencyNode) {
+              await this.add(dependencyNode);
+            }
+            throw new UnsolvableDependencyError(`Dependency ${dependencyID} of ${node.id} could not be installed. Conflicting version requriements: ${this.nodes
+              .filter((graphNode) => graphNode.dependencies[dependencyID])
+              .map((graphNode) => `${graphNode.id} requires ${graphNode.dependencies[dependencyID]}`).join(', ')
+            }`);
           }
-          throw new UnsolvableDependencyError(`Dependency ${dependencyID} of ${node.id} could not be installed. Conflicting version requriements: ${this.nodes
-            .filter((graphNode) => graphNode.dependencies[dependencyID])
-            .map((graphNode) => `${graphNode.id} requires ${graphNode.dependencies[dependencyID]}`).join(', ')
-          }`);
+        } catch (e) {
+          if (e instanceof ModNotFoundError) {
+            info(`Mod dependency ${dependencyID} could not be downloaded. Please install it separately.`);
+          } else {
+            throw e;
+          }
         }
       } else {
         debug(`Dependency ${dependencyID}@${dependencyNode.version} is GOOD for ${node.id}@${node.version} (requires ${versionConstraint})`);

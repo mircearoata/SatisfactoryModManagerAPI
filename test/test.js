@@ -4,7 +4,7 @@ const assert = require('assert');
 const semver = require('semver');
 const { SatisfactoryInstall, getManifestFolderPath, UnsolvableDependencyError, DependencyManifestMismatchError, InvalidConfigError } = require('../');
 const { modCacheDir, forEachAsync } = require('../lib/utils');
-const { addTempMod, addTempModVersion, setUseTempMods } = require('../lib/ficsitApp');
+const { addTempMod, addTempModVersion, removeTempModVersion, setUseTempMods } = require('../lib/ficsitApp');
 const JSZip = require('jszip');
 
 const dummySfName = 'DummySF';
@@ -55,6 +55,14 @@ const dummyMods = [
     dependencies: {
       'SML': '>1.0.0',
       'dummyMod1': '^1.0.1'
+    }
+  },
+  {
+    mod_id: 'dummyMod3',
+    version: '1.0.0',
+    dependencies: {
+      'SML': '>1.0.0',
+      'nonExistentMod': '^1.0.1'
     }
   }
 ];
@@ -137,6 +145,20 @@ async function main() {
     fs.writeFileSync(path.join(dummySfPath, 'FactoryGame', 'Content', 'Paks', 'FactoryGame-WindowsNoEditor.pak'), '');
     fs.writeFileSync(path.join(dummySfPath, 'FactoryGame', 'Content', 'Paks', 'FactoryGame-WindowsNoEditor.sig'), '');*/
     // TODO: This cannot be tested yet
+
+
+    // TEMPORARY (until ficsit.app can be searched by mod_reference)
+    try {
+      await sfInstall.installMod('dummyMod3', '1.0.0');
+      installedMods = await sfInstall._getInstalledMods();
+      assert.strictEqual(installedMods.length, 1, 'Install with mod_reference dependency failed');
+      await sfInstall.uninstallMod('dummyMod3');
+    } catch (e) {
+      if (e instanceof assert.AssertionError) {
+        throw e;
+      }
+      assert.fail(`Unexpected error: ${e}`);
+    }
 
     try {
       await sfInstall.installMod('dummyMod1', '1.0.0');
