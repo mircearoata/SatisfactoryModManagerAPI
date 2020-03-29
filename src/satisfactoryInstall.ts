@@ -54,9 +54,7 @@ export class SatisfactoryInstall {
   Promise<{ install: ItemVersionList; uninstall: Array<string>}> {
     const installedSML = SH.getSMLVersion(this.installLocation);
     const installedBootstrapper = BH.getBootstrapperVersion(this.installLocation);
-    const installedMods = await MH.getInstalledMods(
-      SH.getModsDir(this.installLocation),
-    );
+    const installedMods = await MH.getInstalledMods(SH.getModsDir(this.installLocation));
     const mismatches: { install: ItemVersionList; uninstall: Array<string>} = {
       install: {},
       uninstall: [],

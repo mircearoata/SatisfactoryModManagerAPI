@@ -3,7 +3,7 @@ import path from 'path';
 import util from 'util';
 import JSZip from 'jszip';
 import {
-  modCacheDir, copyFile, downloadFile, forEachAsync,
+  modCacheDir, copyFile, downloadFile, forEachAsync, removeArrayElement,
 } from './utils';
 import { getModDownloadLink } from './ficsitApp';
 import { InvalidModFileError } from './errors';
@@ -14,31 +14,34 @@ let cacheLoaded = false;
 
 const modExtensions = ['.zip', '.smod'];
 
-export async function getModFromFile(modPath: string): Promise<Mod> {
+export async function getModFromFile(modPath: string): Promise<Mod | undefined> {
   if (modExtensions.includes(path.extname(modPath))) {
     return util.promisify(fs.readFile)(modPath)
       .then((data) => JSZip.loadAsync(data))
       .then((zip) => zip.file('data.json').async('text'))
       .then((data) => {
         const mod = JSON.parse(data) as Mod;
+        if (!mod.mod_id) {
+          return undefined;
+        }
         mod.path = modPath;
+        debug(mod);
         return mod;
       })
       .catch((e) => {
         error(e);
-        const mod = {
-          name: 'Error reading mod file',
-          description: e.message,
-          path: modPath,
-        } as Mod;
-        return mod;
+        return undefined;
       });
   }
   throw new InvalidModFileError(`Invalid mod file ${modPath}. Extension is ${path.extname(modPath)}, required ${modExtensions.join(', ')}`);
 }
 
-export async function addModToCache(modFile: string): Promise<void> {
-  cachedMods.push(await getModFromFile(modFile));
+export async function addModToCache(modFile: string): Promise<Mod | undefined> {
+  const mod = await getModFromFile(modFile);
+  if (mod) {
+    cachedMods.push(mod);
+  }
+  return mod;
 }
 
 export async function loadCache(): Promise<void> {
@@ -47,7 +50,11 @@ export async function loadCache(): Promise<void> {
   const cacheAddPromises = Array<Promise<void>>();
   fs.readdirSync(modCacheDir).forEach((file) => {
     const fullPath = path.join(modCacheDir, file);
-    cacheAddPromises.push(addModToCache(fullPath));
+    cacheAddPromises.push(new Promise((resolve) => {
+      addModToCache(fullPath).then(() => {
+        resolve();
+      });
+    }));
   });
   await Promise.all(cacheAddPromises);
 }
@@ -57,9 +64,12 @@ export async function downloadMod(modID: string, version: string): Promise<strin
   const filePath = path.join(modCacheDir, `${modID}_${version}.smod`);
   await downloadFile(downloadURL, filePath);
   const modInfo = await getModFromFile(filePath);
-  const modReferenceFilePath = path.join(modCacheDir, `${modInfo.mod_reference}_${version}.smod`);
-  fs.renameSync(filePath, modReferenceFilePath);
-  return modReferenceFilePath;
+  if (modInfo) {
+    const modReferenceFilePath = path.join(modCacheDir, `${modInfo.mod_reference}_${version}.smod`);
+    fs.renameSync(filePath, modReferenceFilePath);
+    return modReferenceFilePath;
+  }
+  return '';
 }
 
 export async function getCachedMods(): Promise<Array<Mod>> {
@@ -70,19 +80,25 @@ export async function getCachedMods(): Promise<Array<Mod>> {
   return cachedMods;
 }
 
-export async function getCachedModFile(modID: string, version: string): Promise<string> {
-  let modPath = (await getCachedMods())
-    .find((mod) => mod.mod_id === modID && mod.version === version)?.path;
-  if (!modPath) {
+export async function getCachedMod(modID: string, version: string): Promise<Mod | undefined> {
+  const mod = (await getCachedMods())
+    .find((cachedMod) => cachedMod.mod_id === modID && cachedMod.version === version);
+  if (!mod) {
     debug(`${modID}@${version} is not downloaded. Downloading now.`);
-    modPath = await downloadMod(modID, version);
-    await addModToCache(modPath);
+    const modPath = await downloadMod(modID, version);
+    return addModToCache(modPath);
   }
-  return modPath;
+  return mod;
 }
 
-export async function getCachedMod(modID: string, version: string): Promise<Mod> {
-  return getModFromFile(await getCachedModFile(modID, version));
+export async function removeModFromCache(modID: string, version: string): Promise<void> {
+  const mod = await getCachedMod(modID, version);
+  if (mod) {
+    removeArrayElement(cachedMods, mod);
+    if (mod.path) {
+      fs.unlinkSync(mod.path);
+    }
+  }
 }
 
 export interface Mod {
@@ -106,8 +122,10 @@ export interface ModObject {
 }
 
 export async function installMod(modID: string, version: string, modsDir: string): Promise<void> {
-  const modPath = await getCachedModFile(modID, version);
-  copyFile(modPath, modsDir);
+  const modPath = (await getCachedMod(modID, version))?.path;
+  if (modPath) {
+    copyFile(modPath, modsDir);
+  }
 }
 
 export async function uninstallMod(modID: string, modsDir: string): Promise<void> {
@@ -116,7 +134,7 @@ export async function uninstallMod(modID: string, modsDir: string): Promise<void
       const fullPath = path.join(modsDir, file);
       if (modExtensions.includes(path.extname(fullPath))) {
         const mod = await getModFromFile(fullPath);
-        if (mod.mod_id === modID) {
+        if (mod && mod.mod_id === modID) {
           fs.unlinkSync(fullPath);
         }
       }
@@ -128,7 +146,7 @@ export async function getInstalledMods(modsDir: string | undefined): Promise<Arr
   if (!modsDir) {
     return [];
   }
-  const installedModsPromises = Array<Promise<Mod>>();
+  const installedModsPromises = new Array<Promise<Mod | undefined>>();
   if (fs.existsSync(modsDir)) {
     fs.readdirSync(modsDir).forEach((file) => {
       const fullPath = path.join(modsDir, file);
@@ -137,7 +155,13 @@ export async function getInstalledMods(modsDir: string | undefined): Promise<Arr
       }
     });
   }
-  return Promise.all(installedModsPromises);
+  const mods = new Array<Mod>();
+  (await Promise.all(installedModsPromises)).forEach((mod) => {
+    if (mod) {
+      mods.push(mod);
+    }
+  });
+  return mods;
 }
 
 export function clearCache(): void {

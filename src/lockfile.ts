@@ -55,6 +55,9 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
   }
   // TODO: Get mod data from ficsit.app so the mod doesn't have to be downloaded
   const modData = await getCachedMod(id, version);
+  if (!modData) {
+    throw new ModNotFoundError(`${id}@${version} not found`);
+  }
   if (!modData.dependencies) { modData.dependencies = {}; }
   if (modData.sml_version) {
     modData.dependencies[SMLModID] = `^${valid(coerce(modData.sml_version))}`;
