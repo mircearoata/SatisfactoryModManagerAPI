@@ -92,6 +92,7 @@ async function createDummyMods() {
     existingMod.versions.push({
       mod_id: mod.mod_id,
       version: mod.version,
+      link: path.join(modCacheDir, `${mod.mod_id}_${mod.version}.smod`)
     });
   });
   dummyFicsitAppMods.forEach((mod) => {

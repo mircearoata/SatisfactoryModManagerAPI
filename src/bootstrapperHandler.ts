@@ -31,7 +31,8 @@ export function getBootstrapperVersion(satisfactoryPath: string): string | undef
 
 async function getBootstrapperVersionCache(version: string): Promise<string> {
   const bootstrapperVersionCacheDir = path.join(bootstrapperCacheDir, version);
-  if (!fs.existsSync(bootstrapperVersionCacheDir)) {
+  const bootstrapperVersionCacheDirWithV = path.join(bootstrapperCacheDir, `v${version}`);
+  if (!fs.existsSync(bootstrapperVersionCacheDir) && !fs.existsSync(bootstrapperVersionCacheDirWithV)) {
     const bootstrapperDownloadLink = getBootstrapperDownloadLink(version);
     const bootstrapperDIADownloadLink = getBootstrapperDIADownloadLink(version);
     try {
@@ -50,7 +51,10 @@ async function getBootstrapperVersionCache(version: string): Promise<string> {
       throw e;
     }
   }
-  return bootstrapperVersionCacheDir;
+  if (fs.existsSync(bootstrapperVersionCacheDir)) {
+    return bootstrapperVersionCacheDir;
+  }
+  return bootstrapperVersionCacheDirWithV;
 }
 
 

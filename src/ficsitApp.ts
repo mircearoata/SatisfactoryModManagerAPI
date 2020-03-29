@@ -22,8 +22,8 @@ export function setUseTempMods(enable: boolean): void {
   }
 }
 
-export function getUseTempMods(use: boolean): void {
-  useTempMods = use;
+export function getUseTempMods(): boolean {
+  return useTempMods;
 }
 
 const tempMods: Array<FicsitAppMod> = [];
@@ -170,7 +170,17 @@ export async function getModDownloadLink(modID: string, version: string): Promis
     } else if (res.getMod && res.getMod.version) {
       setCache(requestID, API_URL + res.getMod.version.link);
     } else if (tempMods.some((mod) => mod.id === modID)) {
-      throw new ModNotFoundError(`${modID}@${version} is a temporary mod. No download link available`);
+      const tempMod = tempMods.find((mod) => mod.id === modID);
+      if (tempMod) {
+        const tempModVersion = tempMod.versions.find((ver) => ver.version === version);
+        if (tempModVersion) {
+          setCache(requestID, tempModVersion.link);
+        } else {
+          throw new ModNotFoundError(`Temporary mod ${modID}@${version} not found`);
+        }
+      } else {
+        throw new ModNotFoundError(`Temporary mod ${modID}@${version} not found`);
+      }
     } else {
       throw new ModNotFoundError(`${modID}@${version} not found`);
     }

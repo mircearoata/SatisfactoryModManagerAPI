@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import request from 'request-promise-native';
 import { satisfies } from 'semver';
-import { execSync } from 'child_process';
+import processExists from 'process-exists';
 import {
   setLogsDir, setLogFileNameFormat, setLogDebug, debug,
 } from './logging';
@@ -128,6 +128,11 @@ export async function downloadFile(url: string, file: string): Promise<void> {
       fs.writeFileSync(file, buffer);
       return;
     } catch (e) {
+      if (e.name === 'StatusCodeError') {
+        e.message = `${e.statusCode} - ${e.options.uri}`;
+        delete e.error;
+        delete e.response.body;
+      }
       debug(e);
       statusCode = e.statusCode;
     }
@@ -200,14 +205,6 @@ export function mergeArrays<T>(...arrays: Array<Array<T>>): Array<T> {
   return uniqueArray;
 }
 
-export function isRunning(query: string): boolean {
-  const { platform } = process;
-  let cmd = '';
-  switch (platform) {
-    case 'win32': cmd = 'tasklist'; break;
-    case 'darwin': cmd = `ps -ax | grep ${query}`; break;
-    case 'linux': cmd = 'ps -A'; break;
-    default: break;
-  }
-  return execSync(cmd, { encoding: 'utf8' }).toLowerCase().indexOf(query.toLowerCase()) > -1;
+export async function isRunning(command: string): Promise<boolean> {
+  return processExists(command);
 }

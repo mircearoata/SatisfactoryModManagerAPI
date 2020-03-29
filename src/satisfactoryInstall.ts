@@ -142,7 +142,7 @@ export class SatisfactoryInstall {
   }
 
   async manifestMutate(install: Array<ManifestItem>, uninstall: Array<string>, update: Array<string>): Promise<void> {
-    if (!SatisfactoryInstall.isGameRunning()) {
+    if (!await SatisfactoryInstall.isGameRunning()) {
       debug(`install: [${install.map((item) => (item.version ? `${item.id}@${item.version}` : item.id)).join(', ')}], uninstall: [${uninstall.join(', ')}], update: [${update.join(', ')}]`);
       const currentManifest = this._manifestHandler.readManifest();
       const currentLockfile = this._manifestHandler.readLockfile();
@@ -288,8 +288,8 @@ export class SatisfactoryInstall {
     await this._updateItem(BH.BootstrapperModID);
   }
 
-  clearCache(): void {
-    if (!SatisfactoryInstall.isGameRunning()) {
+  async clearCache(): Promise<void> {
+    if (!await SatisfactoryInstall.isGameRunning()) {
       MH.clearCache();
       deleteFolderRecursive(path.join(this.installLocation, CacheRelativePath));
     } else {
@@ -297,8 +297,8 @@ export class SatisfactoryInstall {
     }
   }
 
-  static isGameRunning(): boolean {
-    return isRunning('FactoryGame-Win64'); // tasklist trims the name // TODO: cross platform
+  static isGameRunning(): Promise<boolean> {
+    return isRunning('FactoryGame-Win64-Shipping.exe'); // TODO: cross platform
   }
 
   get bootstrapperVersion(): string | undefined {

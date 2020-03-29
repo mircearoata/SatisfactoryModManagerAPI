@@ -34,7 +34,8 @@ export function getModsDir(satisfactoryPath: string): string {
 
 async function getSMLVersionCache(version: string): Promise<string> {
   const smlVersionCacheDir = path.join(smlCacheDir, version);
-  if (!fs.existsSync(smlVersionCacheDir)) {
+  const smlVersionCacheDirWithV = path.join(smlCacheDir, `v${version}`);
+  if (!fs.existsSync(smlVersionCacheDir) && !fs.existsSync(smlVersionCacheDirWithV)) {
     const smlDownloadLink = getSMLDownloadLink(version);
     try {
       await downloadFile(smlDownloadLink,
@@ -50,7 +51,10 @@ async function getSMLVersionCache(version: string): Promise<string> {
       throw e;
     }
   }
-  return smlVersionCacheDir;
+  if (fs.existsSync(smlVersionCacheDir)) {
+    return smlVersionCacheDir;
+  }
+  return smlVersionCacheDirWithV;
 }
 
 export async function installSML(version: string, satisfactoryPath: string): Promise<void> {
