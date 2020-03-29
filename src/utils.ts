@@ -4,7 +4,10 @@ import fs from 'fs';
 import request from 'request-promise-native';
 import { satisfies } from 'semver';
 import { execSync } from 'child_process';
-import { setLogsDir, setLogFileNameFormat, setLogDebug } from './logging';
+import {
+  setLogsDir, setLogFileNameFormat, setLogDebug, debug,
+} from './logging';
+import { NetworkError } from './errors';
 
 const oldAppName = 'SatisfactoryModLauncher';
 export const appName = 'SatisfactoryModManager';
@@ -110,13 +113,27 @@ export function copyFile(file: string, toDir: string): void {
 setLogsDir(logsDir);
 setLogFileNameFormat(`${appName}-%DATE%.log`);
 
+const DOWNLOAD_ATTEMPTS = 3;
+
 export async function downloadFile(url: string, file: string): Promise<void> {
-  const buffer: Buffer = await request(url, {
-    method: 'GET',
-    encoding: null,
-  });
-  ensureExists(path.dirname(file));
-  fs.writeFileSync(file, buffer);
+  let statusCode = 0;
+  for (let i = 0; i < DOWNLOAD_ATTEMPTS; i += 1) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const buffer: Buffer = await request(url, {
+        method: 'GET',
+        encoding: null,
+      });
+      ensureExists(path.dirname(file));
+      fs.writeFileSync(file, buffer);
+      return;
+    } catch (e) {
+      debug(e);
+      statusCode = e.statusCode;
+    }
+    debug(`Attempt ${i}/${DOWNLOAD_ATTEMPTS} to download ${url} failed`);
+  }
+  throw new NetworkError('Could not download file. Please try again later.', statusCode);
 }
 
 export async function forEachAsync<T>(array: Array<T>,

@@ -151,7 +151,7 @@ export class SatisfactoryInstall {
         await this._manifestHandler.mutate(install, uninstall, update);
         await this.validateInstall();
       } catch (e) {
-        e.message = `${e.message}. All changes were discarded.`;
+        e.message = `${e.message}\nAll changes were discarded.`;
         error(e);
         await this._manifestHandler.writeManifest(currentManifest);
         await this._manifestHandler.writeLockfile(currentLockfile);

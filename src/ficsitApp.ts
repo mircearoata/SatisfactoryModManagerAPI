@@ -4,7 +4,7 @@ import { versionSatisfiesAll, removeArrayElementWhere } from './utils';
 import { ModNotFoundError } from './errors';
 import { minSMLVersion, SMLModID } from './smlHandler';
 import { BootstrapperModID } from './bootstrapperHandler';
-import { warn } from './logging';
+import { warn, debug } from './logging';
 
 const API_URL = 'https://api.ficsit.app';
 const GRAPHQL_API_URL = `${API_URL}/v2/query`;
@@ -82,7 +82,8 @@ export async function fiscitApiQuery(query: string,
     }));
     return response.data;
   } catch (e) {
-    return JSON.parse(e.error);
+    debug(e);
+    return { errors: new Error('Network error. Please try again later.') };
   }
 }
 
