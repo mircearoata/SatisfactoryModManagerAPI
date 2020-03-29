@@ -4,12 +4,15 @@ import {
 import {
   removeArrayElement, removeArrayElementWhere, forEachAsync,
 } from './utils';
-import { findAllVersionsMatchingAll, getSMLVersionInfo, getBootstrapperVersionInfo } from './ficsitApp';
+import {
+  findAllVersionsMatchingAll, getSMLVersionInfo, getBootstrapperVersionInfo, getModDownloadLink,
+} from './ficsitApp';
 import { getCachedMod } from './modHandler';
 import {
   UnsolvableDependencyError, DependencyManifestMismatchError,
   InvalidLockfileOperation,
   ModNotFoundError,
+  ModRemovedByAuthor,
 } from './errors';
 import { SMLModID } from './smlHandler';
 import { BootstrapperModID } from './bootstrapperHandler';
@@ -69,6 +72,27 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
   };
 }
 
+async function versionExistsOnFicsitApp(id: string, version: string): Promise<boolean> {
+  if (id === SMLModID) {
+    return !!(await getSMLVersionInfo(version));
+  }
+  if (id === BootstrapperModID) {
+    return !!(await getBootstrapperVersionInfo(version));
+  }
+  if (id === 'SatisfactoryGame') {
+    return true;
+  }
+  try {
+    await getModDownloadLink(id, version);
+    return true;
+  } catch (e) {
+    if (e instanceof ModNotFoundError) {
+      return false;
+    }
+    throw e;
+  }
+}
+
 export class LockfileGraph {
   nodes = new Array<LockfileGraphNode>();
 
@@ -88,16 +112,30 @@ export class LockfileGraph {
       const dependencyID = dependency[0];
       const versionConstraint = dependency[1];
       const dependencyNode = this.nodes.find((graphNode) => graphNode.id === dependencyID);
-      if (!dependencyNode || !satisfies(dependencyNode.version, versionConstraint)) {
+      const isOnFicsitApp = dependencyNode && await versionExistsOnFicsitApp(dependencyID, dependencyNode.version);
+      if (!dependencyNode || !satisfies(dependencyNode.version, versionConstraint) || !isOnFicsitApp) {
         if (dependencyNode) {
-          if (dependencyNode.isInManifest || this.nodes.some((n) => n.id === `manifest_${dependencyNode.id}`)) {
-            if (dependencyID === 'SatisfactoryGame') {
-              throw new DependencyManifestMismatchError(`Satisfactory version ${coerce(dependencyNode.version)?.major} is too old. ${node.id}@${node.version} requires ${versionConstraint}. Update the game then restart.`);
+          if (!isOnFicsitApp) {
+            const dependants = this.getDependants(dependencyNode);
+            if (dependants.length === 1 && dependants[0].id === `manifest_${dependencyNode.id}`) {
+              if (dependants[0].dependencies[dependencyID] !== '>=0.0.0') {
+                throw new ModRemovedByAuthor(`Mod version ${dependencyID}@${dependencyNode?.version} was removed by the author. Please uninstall it.`, dependencyID, dependencyNode.version);
+              }
+              info(`Version ${dependencyNode?.version} of ${dependencyID} was removed from ficsit.app. Removing and attempting to use the latest version available.`);
             }
-            throw new DependencyManifestMismatchError(`Dependency ${dependencyID}@${dependencyNode.version} is too old for ${node.id}@${node.version} (requires ${versionConstraint}), and it is installed by you. Uninstall or update it then try again.`);
           } else {
-            debug(`Dependency ${dependencyID}@${dependencyNode.version} is NOT GOOD for ${node.id}@${node.version} (requires ${versionConstraint})`);
-            this.remove(dependencyNode);
+            const manifestNode = this.nodes.find((n) => n.id === `manifest_${dependencyNode.id}`);
+            if (dependencyNode.isInManifest || manifestNode) {
+              if (dependencyID === 'SatisfactoryGame') {
+                throw new DependencyManifestMismatchError(`Satisfactory version ${coerce(dependencyNode.version)?.major} is too old. ${node.id}@${node.version} requires ${versionConstraint}. Update the game then restart.`);
+              }
+              if (manifestNode && manifestNode.dependencies[dependencyID] !== '>=0.0.0') {
+                throw new DependencyManifestMismatchError(`Dependency ${dependencyID}@${dependencyNode.version} is not good for ${node.id}@${node.version} (requires ${versionConstraint}), and it is installed by you. Uninstall or update it then try again.`);
+              }
+            } else {
+              debug(`Dependency ${dependencyID}@${dependencyNode.version} is NOT GOOD for ${node.id}@${node.version} (requires ${versionConstraint})`);
+              this.remove(dependencyNode);
+            }
           }
         }
         const versionConstraints = this.nodes

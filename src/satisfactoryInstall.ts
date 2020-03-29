@@ -17,7 +17,7 @@ import {
 import {
   debug, info, error, warn,
 } from './logging';
-import { GameRunningError, InvalidConfigError } from './errors';
+import { GameRunningError, InvalidConfigError, ModRemovedByAuthor } from './errors';
 
 export function getConfigFolderPath(configName: string): string {
   const configPath = path.join(configFolder, configName);
@@ -151,10 +151,17 @@ export class SatisfactoryInstall {
         await this._manifestHandler.mutate(install, uninstall, update);
         await this.validateInstall();
       } catch (e) {
-        e.message = `${e.message}\nAll changes were discarded.`;
-        error(e);
         await this._manifestHandler.writeManifest(currentManifest);
         await this._manifestHandler.writeLockfile(currentLockfile);
+        if (e instanceof ModRemovedByAuthor) {
+          update.push(e.modID);
+          MH.removeModFromCache(e.modID, e.version);
+          info(`Mod ${e.modID}@${e.version} was removed by the author. Replacing it with the latest available version.`);
+          await this.manifestMutate(install, uninstall, update);
+          return;
+        }
+        e.message = `${e.message}\nAll changes were discarded.`;
+        error(e);
         await this.validateInstall();
         throw e;
       }
@@ -270,6 +277,10 @@ export class SatisfactoryInstall {
 
   get smlVersion(): string | undefined {
     return this._manifestHandler.getItemsList()[SH.SMLModID];
+  }
+
+  get isSMLInstalledDev(): boolean {
+    return this._manifestHandler.readManifest().items.some((item) => item.id === SH.SMLModID);
   }
 
   async updateBootstrapper(): Promise<void> {

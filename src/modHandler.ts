@@ -25,7 +25,6 @@ export async function getModFromFile(modPath: string): Promise<Mod | undefined> 
           return undefined;
         }
         mod.path = modPath;
-        debug(mod);
         return mod;
       })
       .catch((e) => {
@@ -135,7 +134,9 @@ export async function uninstallMod(modID: string, modsDir: string): Promise<void
       if (modExtensions.includes(path.extname(fullPath))) {
         const mod = await getModFromFile(fullPath);
         if (mod && mod.mod_id === modID) {
-          fs.unlinkSync(fullPath);
+          if (fs.existsSync(fullPath)) {
+            fs.unlinkSync(fullPath);
+          }
         }
       }
     });
