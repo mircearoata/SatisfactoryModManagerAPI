@@ -15,8 +15,8 @@ export class NetworkError extends Error {
 }
 export class ModRemovedByAuthor extends Error {
   modID: string;
-  version: string;
-  constructor(message: string, modID: string, version: string) {
+  version?: string;
+  constructor(message: string, modID: string, version?: string) {
     super(message);
     this.modID = modID;
     this.version = version;

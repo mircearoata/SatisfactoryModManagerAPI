@@ -174,6 +174,18 @@ export class LockfileGraph {
           }
         } catch (e) {
           if (e instanceof ModNotFoundError) {
+            if (!isOnFicsitApp) {
+              if (!dependencyNode) {
+                if (node.id === `manifest_${dependencyID}`) {
+                  throw new ModRemovedByAuthor(`Mod ${dependencyID} was removed by the author. Please uninstall it.`, dependencyID);
+                }
+              } else {
+                const dependants = this.getDependants(dependencyNode);
+                if (dependants.length === 1 && dependants[0].id === `manifest_${dependencyNode.id}`) {
+                  throw new ModRemovedByAuthor(`Mod ${dependencyID} was removed by the author. Please uninstall it.`, dependencyID);
+                }
+              }
+            }
             info(`Mod dependency ${dependencyID} could not be downloaded. Please install it separately.`);
           } else {
             throw e;

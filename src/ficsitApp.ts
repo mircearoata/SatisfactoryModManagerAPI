@@ -27,10 +27,12 @@ export function getUseTempMods(): boolean {
 }
 
 const tempMods: Array<FicsitAppMod> = [];
+const allTempModIDs: Array<string> = [];
 
 export function addTempMod(mod: FicsitAppMod): void {
   if (useTempMods) {
     tempMods.push(mod);
+    allTempModIDs.push(mod.id);
   } else {
     warn('Temporary mods are only available in debug mode');
   }
@@ -153,6 +155,16 @@ export interface FicsitAppUser {
 
 export async function getModDownloadLink(modID: string, version: string): Promise<string> {
   const requestID = `getModDownloadLink_${modID}_${version}`;
+  if (allTempModIDs.includes(modID)) {
+    const tempMod = tempMods.find((mod) => mod.id === modID);
+    if (tempMod) {
+      const tempModVersion = tempMod.versions.find((ver) => ver.version === version);
+      if (tempModVersion) {
+        return tempModVersion.link;
+      }
+    }
+    throw new ModNotFoundError(`Temporary mod ${modID}@${version} not found`);
+  }
   if (cooldownPassed(requestID)) {
     const res = await fiscitApiQuery(`
     query($modID: ModID!, $version: String!){
@@ -169,18 +181,6 @@ export async function getModDownloadLink(modID: string, version: string): Promis
       throw res.errors;
     } else if (res.getMod && res.getMod.version) {
       setCache(requestID, API_URL + res.getMod.version.link);
-    } else if (tempMods.some((mod) => mod.id === modID)) {
-      const tempMod = tempMods.find((mod) => mod.id === modID);
-      if (tempMod) {
-        const tempModVersion = tempMod.versions.find((ver) => ver.version === version);
-        if (tempModVersion) {
-          setCache(requestID, tempModVersion.link);
-        } else {
-          throw new ModNotFoundError(`Temporary mod ${modID}@${version} not found`);
-        }
-      } else {
-        throw new ModNotFoundError(`Temporary mod ${modID}@${version} not found`);
-      }
     } else {
       throw new ModNotFoundError(`${modID}@${version} not found`);
     }

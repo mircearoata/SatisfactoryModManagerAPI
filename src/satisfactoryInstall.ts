@@ -12,7 +12,7 @@ import {
 import { ManifestHandler, Manifest, ManifestItem } from './manifest';
 import { ItemVersionList, Lockfile } from './lockfile';
 import {
-  filterObject, mergeArrays, isRunning, ensureExists, configFolder, dirs, deleteFolderRecursive, manifestsDir,
+  filterObject, mergeArrays, isRunning, ensureExists, configFolder, dirs, deleteFolderRecursive, manifestsDir, removeArrayElement,
 } from './utils';
 import {
   debug, info, error, warn,
@@ -154,9 +154,18 @@ export class SatisfactoryInstall {
         await this._manifestHandler.writeManifest(currentManifest);
         await this._manifestHandler.writeLockfile(currentLockfile);
         if (e instanceof ModRemovedByAuthor) {
+          if (update.includes(e.modID)) {
+            removeArrayElement(update, e.modID);
+            uninstall.push(e.modID);
+            info(`Uninstalling mod ${e.modID}, it was removed from ficsit.app`);
+            await this.manifestMutate(install, uninstall, update);
+            return;
+          }
           update.push(e.modID);
-          MH.removeModFromCache(e.modID, e.version);
-          info(`Mod ${e.modID}@${e.version} was removed by the author. Replacing it with the latest available version.`);
+          info(`Trying to update mod ${e.modID}, the installed version was removed from ficsit.app`);
+          if (e.version) {
+            MH.removeModFromCache(e.modID, e.version);
+          }
           await this.manifestMutate(install, uninstall, update);
           return;
         }
