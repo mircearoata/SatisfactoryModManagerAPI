@@ -21,7 +21,7 @@ export async function getModFromFile(modPath: string): Promise<Mod | undefined> 
       .then((zip) => zip.file('data.json').async('text'))
       .then((data) => {
         const mod = JSON.parse(data) as Mod;
-        if (!mod.mod_id) {
+        if (!mod.mod_id || !mod.mod_reference) {
           return undefined;
         }
         mod.path = modPath;
@@ -85,6 +85,9 @@ export async function getCachedMod(modID: string, version: string): Promise<Mod 
   if (!mod) {
     debug(`${modID}@${version} is not downloaded. Downloading now.`);
     const modPath = await downloadMod(modID, version);
+    if (!modPath) {
+      return undefined;
+    }
     return addModToCache(modPath);
   }
   return mod;

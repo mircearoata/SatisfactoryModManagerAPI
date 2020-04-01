@@ -122,6 +122,7 @@ export class LockfileGraph {
                 throw new ModRemovedByAuthor(`Mod version ${dependencyID}@${dependencyNode?.version} was removed by the author. Please uninstall it.`, dependencyID, dependencyNode.version);
               }
               info(`Version ${dependencyNode?.version} of ${dependencyID} was removed from ficsit.app. Removing and attempting to use the latest version available.`);
+              this.remove(dependencyNode);
             }
           } else {
             const manifestNode = this.nodes.find((n) => n.id === `manifest_${dependencyNode.id}`);
@@ -153,14 +154,18 @@ export class LockfileGraph {
             if (!version) { break; }
             // eslint-disable-next-line no-await-in-loop
             const itemData = await getItemData(dependencyID, version);
-            debug(`Trying ${version}`);
-            try {
+            if (itemData) {
+              debug(`Trying ${version}`);
+              try {
               // eslint-disable-next-line no-await-in-loop
-              await this.add(itemData);
-              found = true;
-              break;
-            } catch (e) {
-              this.remove(itemData);
+                await this.add(itemData);
+                found = true;
+                break;
+              } catch (e) {
+                this.remove(itemData);
+              }
+            } else {
+              debug(`${dependencyID}@${version} is invalid`);
             }
           }
           if (!found) {
