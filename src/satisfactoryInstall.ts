@@ -387,24 +387,30 @@ export async function getInstalls(): Promise<Array<SatisfactoryInstall>> {
           const jsonString = fs.readFileSync(filePath, 'utf8');
           const manifest = JSON.parse(jsonString);
           if (manifest.CatalogNamespace === 'crab') {
-            const gameManifestString = fs.readFileSync(path.join(manifest.ManifestLocation, `${manifest.InstallationGuid}.mancpn`), 'utf8');
-            const gameManifest = JSON.parse(gameManifestString);
-            if (gameManifest.AppName === manifest.MainGameAppName
+            try {
+              const gameManifestString = fs.readFileSync(path.join(manifest.ManifestLocation, `${manifest.InstallationGuid}.mancpn`), 'utf8');
+              const gameManifest = JSON.parse(gameManifestString);
+              if (gameManifest.AppName === manifest.MainGameAppName
               && gameManifest.CatalogItemId === manifest.CatalogItemId
               && gameManifest.CatalogNamespace === manifest.CatalogNamespace) {
-              const installWithSamePath = foundInstalls.find((install) => install.installLocation === manifest.InstallLocation);
-              if (installWithSamePath) {
-                if (parseInt(manifest.AppVersionString, 10) > parseInt(installWithSamePath.version, 10)) {
-                  installWithSamePath.version = manifest.AppVersionString;
+                const installWithSamePath = foundInstalls.find((install) => install.installLocation === manifest.InstallLocation);
+                if (installWithSamePath) {
+                  if (parseInt(manifest.AppVersionString, 10) > parseInt(installWithSamePath.version, 10)) {
+                    installWithSamePath.version = manifest.AppVersionString;
+                  }
+                } else {
+                  foundInstalls.push(new SatisfactoryInstall(
+                    manifest.DisplayName,
+                    manifest.AppVersionString,
+                    manifest.InstallLocation,
+                    manifest.MainGameAppName,
+                  ));
                 }
               } else {
-                foundInstalls.push(new SatisfactoryInstall(
-                  manifest.DisplayName,
-                  manifest.AppVersionString,
-                  manifest.InstallLocation,
-                  manifest.MainGameAppName,
-                ));
+                warn(`Epic install info points to invalid folder ${manifest.InstallLocation}. If you moved your install to an external drive, try verifying the game in Epic and restarting your PC.`);
               }
+            } catch (e) {
+              warn(`Epic install info points to invalid folder ${manifest.InstallLocation}. If you moved your install to an external drive, try verifying the game in Epic and restarting your PC.`);
             }
           }
         } catch (e) {
