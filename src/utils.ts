@@ -222,3 +222,14 @@ export async function isRunning(command: string): Promise<boolean> {
     return execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).toLowerCase().indexOf(command.toLowerCase()) > -1;
   }
 }
+
+const dateFormat = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(.\d*)?Z$/;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function JSONDateParser(key: string, value: any): any {
+  if (typeof value === 'string' && dateFormat.test(value)) {
+    return new Date(value);
+  }
+
+  return value;
+}

@@ -5,7 +5,7 @@ import JSZip from 'jszip';
 import {
   modCacheDir, copyFile, downloadFile, forEachAsync, removeArrayElement,
 } from './utils';
-import { getModDownloadLink } from './ficsitApp';
+import { getModDownloadLink, getModVersion } from './ficsitApp';
 import { InvalidModFileError } from './errors';
 import { error, debug } from './logging';
 
@@ -82,8 +82,15 @@ export async function getCachedMods(): Promise<Array<Mod>> {
 export async function getCachedMod(modID: string, version: string): Promise<Mod | undefined> {
   const mod = (await getCachedMods())
     .find((cachedMod) => cachedMod.mod_id === modID && cachedMod.version === version);
-  if (!mod) {
-    debug(`${modID}@${version} is not downloaded. Downloading now.`);
+  const ficsitAppModVersionDate = (await getModVersion(modID, version)).created_at;
+  const isModFileLatest = mod && (!mod.path || fs.statSync(mod.path).mtime >= ficsitAppModVersionDate);
+  if (!mod || !isModFileLatest) {
+    if (!isModFileLatest) {
+      debug(`${modID}@${version} was changed by the author. Redownloading.`);
+      removeArrayElement(cachedMods, mod);
+    } else {
+      debug(`${modID}@${version} is not downloaded. Downloading now.`);
+    }
     const modPath = await downloadMod(modID, version);
     if (!modPath) {
       return undefined;
@@ -94,7 +101,8 @@ export async function getCachedMod(modID: string, version: string): Promise<Mod 
 }
 
 export async function removeModFromCache(modID: string, version: string): Promise<void> {
-  const mod = await getCachedMod(modID, version);
+  const mod = (await getCachedMods())
+    .find((cachedMod) => cachedMod.mod_id === modID && cachedMod.version === version);
   if (mod) {
     removeArrayElement(cachedMods, mod);
     if (mod.path) {

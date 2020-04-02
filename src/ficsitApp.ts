@@ -1,6 +1,6 @@
 import request from 'request-promise-native';
 import { compare, satisfies } from 'semver';
-import { versionSatisfiesAll, removeArrayElementWhere } from './utils';
+import { versionSatisfiesAll, removeArrayElementWhere, JSONDateParser } from './utils';
 import { ModNotFoundError } from './errors';
 import { minSMLVersion, SMLModID } from './smlHandler';
 import { BootstrapperModID } from './bootstrapperHandler';
@@ -31,7 +31,13 @@ const allTempModIDs: Array<string> = [];
 
 export function addTempMod(mod: FicsitAppMod): void {
   if (useTempMods) {
-    tempMods.push(mod);
+    const fixedMod = mod;
+    fixedMod.versions = fixedMod.versions.map((ver) => {
+      const tmpVer = ver;
+      tmpVer.created_at = new Date(0, 0, 0, 0, 0, 0, 0);
+      return tmpVer;
+    });
+    tempMods.push(fixedMod);
     allTempModIDs.push(mod.id);
   } else {
     warn('Temporary mods are only available in debug mode');
@@ -42,7 +48,9 @@ export function addTempModVersion(version: FicsitAppVersion): void {
   if (useTempMods) {
     const tempMod = tempMods.find((mod) => mod.id === version.mod_id);
     if (tempMod) {
-      tempMod.versions.push(version);
+      const fixedVersion = version;
+      fixedVersion.created_at = new Date(0, 0, 0, 0, 0, 0, 0);
+      tempMod.versions.push(fixedVersion);
     }
   } else {
     warn('Temporary mods are only available in debug mode');
@@ -81,7 +89,7 @@ export async function fiscitApiQuery(query: string,
       headers: {
         'Content-Type': 'application/json',
       },
-    }));
+    }), JSONDateParser);
     return response.data;
   } catch (e) {
     debug(e);
@@ -139,6 +147,7 @@ export interface FicsitAppVersion {
   changelog: string;
   downloads: string;
   stability: 'alpha' | 'beta' | 'release';
+  created_at: Date;
   link: string;
 }
 
@@ -227,6 +236,7 @@ export async function getAvailableMods(): Promise<Array<FicsitAppMod>> {
             changelog,
             downloads,
             stability,
+            created_at,
             link
           }
         }
@@ -237,9 +247,6 @@ export async function getAvailableMods(): Promise<Array<FicsitAppMod>> {
       throw res.errors;
     } else {
       const resGetMods = res.getMods.mods;
-      for (let i = 0; i < resGetMods.length; i += 1) {
-        resGetMods[i].last_version_date = resGetMods[i].last_version_date ? new Date(resGetMods[i].last_version_date) : null;
-      }
       if (useTempMods) {
         resGetMods.push(...tempMods);
       }
@@ -283,6 +290,7 @@ export async function getMod(modID: string): Promise<FicsitAppMod> {
             changelog,
             downloads,
             stability,
+            created_at,
             link
           }
       }
@@ -303,7 +311,6 @@ export async function getMod(modID: string): Promise<FicsitAppMod> {
         }
         throw new ModNotFoundError(`Mod ${modID} not found`);
       }
-      resGetMod.last_version_date = resGetMod.last_version_date ? new Date(resGetMod.last_version_date) : null;
       setCache(requestID, resGetMod);
     }
   }
@@ -329,6 +336,7 @@ export async function getModVersions(modID: string): Promise<Array<FicsitAppVers
               changelog,
               downloads,
               stability,
+              created_at,
               link
             }
         }
@@ -345,6 +353,50 @@ export async function getModVersions(modID: string): Promise<Array<FicsitAppVers
         const tempMod = tempMods.find((mod) => mod.id === modID);
         if (tempMod) {
           return tempMod.versions;
+        }
+      }
+      throw new ModNotFoundError(`Mod ${modID} not found`);
+    }
+  }
+  return getCache(requestID);
+}
+
+export async function getModVersion(modID: string, version: string): Promise<FicsitAppVersion> {
+  const requestID = `getModVersion_${modID}_${version}`;
+  if (cooldownPassed(requestID)) {
+    const res = await fiscitApiQuery(`
+      query($modID: ModID!, $version: String!){
+        getMod(modId: $modID)
+        {
+          version(version: $version)
+          {
+            mod_id,
+            version,
+            sml_version,
+            changelog,
+            downloads,
+            stability,
+            created_at,
+            link
+          }
+        }
+      }
+      `, {
+      modID,
+      version,
+    });
+    if (res.errors) {
+      throw res.errors;
+    } else if (res.getMod) {
+      setCache(requestID, res.getMod.version);
+    } else {
+      if (useTempMods) {
+        const tempMod = tempMods.find((mod) => mod.id === modID);
+        if (tempMod) {
+          const tempVer = tempMod.versions.find((ver) => ver.version === version);
+          if (tempVer) {
+            return tempVer;
+          }
         }
       }
       throw new ModNotFoundError(`Mod ${modID} not found`);
@@ -411,9 +463,6 @@ export async function getAvailableSMLVersions(): Promise<Array<FicsitAppSMLVersi
     } else {
       // filter SML versions supported by SMManager
       const smlVersionsCompatible = res.getSMLVersions.sml_versions.filter((version: FicsitAppSMLVersion) => satisfies(version.version, '>=2.0.0'));
-      for (let i = 0; i < smlVersionsCompatible.length; i += 1) {
-        smlVersionsCompatible[i].date = smlVersionsCompatible[i].date ? new Date(smlVersionsCompatible[i].date) : null;
-      }
       setCache(requestID, smlVersionsCompatible);
     }
   }
@@ -454,9 +503,6 @@ export async function getAvailableBootstrapperVersions(): Promise<Array<FicsitAp
       throw res.errors;
     } else {
       const resGetBootstrapVersions = res.getBootstrapVersions.bootstrap_versions;
-      for (let i = 0; i < resGetBootstrapVersions.length; i += 1) {
-        resGetBootstrapVersions[i].date = resGetBootstrapVersions[i].date ? new Date(resGetBootstrapVersions[i].date) : null;
-      }
       setCache(requestID, resGetBootstrapVersions);
     }
   }
