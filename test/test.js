@@ -14,6 +14,7 @@ const dummySfExecutable = 'sf.exe';
 const dummyMods = [
   {
     mod_id: 'dummyMod1',
+    mod_reference: 'dummyMod1',
     version: '1.0.0',
     dependencies: {
       'SML': '2.0.0',
@@ -21,6 +22,7 @@ const dummyMods = [
   },
   {
     mod_id: 'dummyMod1',
+    mod_reference: 'dummyMod1',
     version: '1.0.1',
     dependencies: {
       'SML': '^1.0.0',
@@ -28,6 +30,7 @@ const dummyMods = [
   },
   {
     mod_id: 'dummyMod1',
+    mod_reference: 'dummyMod1',
     version: '1.0.2',
     dependencies: {
       'SML': '>=1.0.0',
@@ -35,6 +38,7 @@ const dummyMods = [
   },
   {
     mod_id: 'dummyMod2',
+    mod_reference: 'dummyMod2',
     version: '1.0.0',
     dependencies: {
       'SML': '1.0.0',
@@ -43,6 +47,7 @@ const dummyMods = [
   },
   {
     mod_id: 'dummyMod2',
+    mod_reference: 'dummyMod2',
     version: '1.0.1',
     dependencies: {
       'SML': '2.0.0',
@@ -51,6 +56,7 @@ const dummyMods = [
   },
   {
     mod_id: 'dummyMod2',
+    mod_reference: 'dummyMod2',
     version: '1.0.2',
     dependencies: {
       'SML': '>1.0.0',
@@ -59,6 +65,7 @@ const dummyMods = [
   },
   {
     mod_id: 'dummyMod3',
+    mod_reference: 'dummyMod3',
     version: '1.0.0',
     dependencies: {
       'SML': '>1.0.0',
