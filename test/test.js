@@ -4,7 +4,7 @@ const assert = require('assert');
 const semver = require('semver');
 const { SatisfactoryInstall, getManifestFolderPath, UnsolvableDependencyError, DependencyManifestMismatchError, InvalidConfigError } = require('../');
 const { modCacheDir, forEachAsync } = require('../lib/utils');
-const { addTempMod, addTempModVersion, removeTempMod, setUseTempMods } = require('../lib/ficsitApp');
+const { addTempMod, addTempModVersion, removeTempMod, removeTempModVersion, setUseTempMods } = require('../lib/ficsitApp');
 const JSZip = require('jszip');
 
 const dummySfName = 'DummySF';
@@ -313,6 +313,21 @@ async function main() {
       installedMods = await sfInstall._getInstalledMods();
       assert.strictEqual(installedMods.some((mod) => mod.mod_id === 'dummyMod3'), false, 'Removed mod 1 is still installed');
       assert.strictEqual(installedMods.some((mod) => mod.mod_id === 'dummyMod2'), false, 'Removed mod 2 is still installed');
+    } catch (e) {
+      if (e instanceof assert.AssertionError) {
+        throw e;
+      }
+      assert.fail(`Unexpected error: ${e}`);
+    }
+
+    await sfInstall.installMod('dummyMod1', '1.0.2');
+
+    removeTempModVersion('dummyMod1', '1.0.2')
+
+    try {
+      await sfInstall.manifestMutate([], [], []);
+      installedMods = await sfInstall._getInstalledMods();
+      assert.strictEqual(installedMods.some((mod) => mod.mod_id === 'dummyMod1' && mod.version === '1.0.2'), false, 'Removed version is still installed');
     } catch (e) {
       if (e instanceof assert.AssertionError) {
         throw e;
