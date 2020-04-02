@@ -4,6 +4,7 @@ import fs from 'fs';
 import request from 'request-promise-native';
 import { satisfies } from 'semver';
 import processExists from 'process-exists';
+import { execSync } from 'child_process';
 import {
   setLogsDir, setLogFileNameFormat, setLogDebug, debug,
 } from './logging';
@@ -206,5 +207,18 @@ export function mergeArrays<T>(...arrays: Array<Array<T>>): Array<T> {
 }
 
 export async function isRunning(command: string): Promise<boolean> {
-  return processExists(command);
+  try {
+    return processExists(command);
+  } catch (e) {
+    // fallback to tasklist
+    const { platform } = process;
+    let cmd = '';
+    switch (platform) {
+      case 'win32': cmd = `wmic process where caption="${command}" get commandline`; break;
+      case 'darwin': cmd = `ps -ax | grep ${command}`; break;
+      case 'linux': cmd = 'ps -A'; break;
+      default: break;
+    }
+    return execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).toLowerCase().indexOf(command.toLowerCase()) > -1;
+  }
 }
