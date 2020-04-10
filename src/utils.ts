@@ -208,7 +208,7 @@ export function mergeArrays<T>(...arrays: Array<Array<T>>): Array<T> {
 
 export async function isRunning(command: string): Promise<boolean> {
   try {
-    return processExists(command);
+    return await processExists(command);
   } catch (e) {
     // fallback to tasklist
     const { platform } = process;
