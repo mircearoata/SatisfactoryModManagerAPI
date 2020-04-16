@@ -12,7 +12,7 @@ import {
 import { ManifestHandler, Manifest, ManifestItem } from './manifest';
 import { ItemVersionList, Lockfile } from './lockfile';
 import {
-  filterObject, mergeArrays, isRunning, ensureExists, configFolder, dirs, deleteFolderRecursive, manifestsDir, removeArrayElement,
+  filterObject, mergeArrays, isRunning, ensureExists, configFolder, dirs, deleteFolderRecursive, manifestsDir,
 } from './utils';
 import {
   debug, info, error, warn,
@@ -26,7 +26,8 @@ export function getConfigFolderPath(configName: string): string {
 }
 
 const VANILLA_CONFIG_NAME = 'vanilla';
-const DEFAULT_MODDED_CONFIG_NAME = 'modded';
+const MODDED_CONFIG_NAME = 'modded';
+const DEVELOPMENT_CONFIG_NAME = 'development';
 
 const CacheRelativePath = '.cache';
 
@@ -155,7 +156,7 @@ export class SatisfactoryInstall {
         await this._manifestHandler.writeLockfile(currentLockfile);
         if (e instanceof ModRemovedByAuthor) {
           if (update.includes(e.modID)) {
-            removeArrayElement(update, e.modID);
+            update.remove(e.modID);
             uninstall.push(e.modID);
             info(`Uninstalling mod ${e.modID}, it was removed from ficsit.app`);
             await this.manifestMutate(install, uninstall, update);
@@ -198,7 +199,7 @@ export class SatisfactoryInstall {
     this._manifestHandler.writeManifest(manifest);
     this._manifestHandler.writeLockfile(lockfile);
     try {
-      await this.validateInstall();
+      await this.manifestMutate([], [], []);
     } catch (e) {
       // Something invalid was found. Revert and pass the error forward
       this._manifestHandler.writeManifest(currentManifest);
@@ -234,6 +235,8 @@ export class SatisfactoryInstall {
     if (!(await this._getInstalledMods()).some((mod) => mod.mod_id === modID)) {
       info(`Installing ${modID}${version ? `@${version}` : ''}`);
       await this._installItem(modID, version);
+    } else {
+      info(`${modID} is already installed with version ${(await this._getInstalledMods()).find((mod) => mod.mod_id === modID)?.version}`);
     }
   }
 
@@ -340,20 +343,11 @@ export function getConfigs(): Array<string> {
 }
 
 export function deleteConfig(name: string): void {
-  if (name.toLowerCase() === VANILLA_CONFIG_NAME) {
-    throw new InvalidConfigError('Cannot delete vanilla config');
+  if (name.toLowerCase() === VANILLA_CONFIG_NAME || name.toLowerCase() === MODDED_CONFIG_NAME || name.toLowerCase() === DEVELOPMENT_CONFIG_NAME) {
+    throw new InvalidConfigError(`Cannot delete ${name} config (it is part of the default set of configs)`);
   }
   if (fs.existsSync(getConfigFolderPath(name))) {
     deleteFolderRecursive(getConfigFolderPath(name));
-  }
-}
-
-if (!fs.existsSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'manifest.json'))) { // If vanilla already exists, then the config was deleted by the user
-  if (!fs.existsSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'manifest.json'))) {
-    fs.writeFileSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'manifest.json'), JSON.stringify({ items: new Array<ManifestItem>() } as Manifest));
-  }
-  if (!fs.existsSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'lock.json'))) {
-    fs.writeFileSync(path.join(getConfigFolderPath(DEFAULT_MODDED_CONFIG_NAME), 'lock.json'), JSON.stringify({} as Lockfile));
   }
 }
 
@@ -362,6 +356,20 @@ if (!fs.existsSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'manifest
 }
 if (!fs.existsSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'lock.json'))) {
   fs.writeFileSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'lock.json'), JSON.stringify({} as Lockfile));
+}
+
+if (!fs.existsSync(path.join(getConfigFolderPath(MODDED_CONFIG_NAME), 'manifest.json'))) {
+  fs.writeFileSync(path.join(getConfigFolderPath(MODDED_CONFIG_NAME), 'manifest.json'), JSON.stringify({ items: new Array<ManifestItem>() } as Manifest));
+}
+if (!fs.existsSync(path.join(getConfigFolderPath(MODDED_CONFIG_NAME), 'lock.json'))) {
+  fs.writeFileSync(path.join(getConfigFolderPath(MODDED_CONFIG_NAME), 'lock.json'), JSON.stringify({} as Lockfile));
+}
+
+if (!fs.existsSync(path.join(getConfigFolderPath(DEVELOPMENT_CONFIG_NAME), 'manifest.json'))) {
+  fs.writeFileSync(path.join(getConfigFolderPath(DEVELOPMENT_CONFIG_NAME), 'manifest.json'), JSON.stringify({ items: [{ id: SH.SMLModID }] } as Manifest));
+}
+if (!fs.existsSync(path.join(getConfigFolderPath(DEVELOPMENT_CONFIG_NAME), 'lock.json'))) {
+  fs.writeFileSync(path.join(getConfigFolderPath(DEVELOPMENT_CONFIG_NAME), 'lock.json'), JSON.stringify({} as Lockfile));
 }
 
 const EpicManifestsFolder = path.join(getDataFolders()[0], 'Epic', 'EpicGamesLauncher', 'Data', 'Manifests'); // TODO: other platforms
