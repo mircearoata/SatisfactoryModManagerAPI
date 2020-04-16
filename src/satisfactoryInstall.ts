@@ -129,17 +129,16 @@ export class SatisfactoryInstall {
       debug('Copying Bootstrapper to Satisfactory install');
       await BH.installBootstrapper(mismatches.install[BH.BootstrapperModID], this.installLocation);
     }
-    await Promise.all(Object.entries(mismatches.install).map((modInstall) => {
+    await Object.entries(mismatches.install).forEachAsync(async (modInstall) => {
       const modInstallID = modInstall[0];
       const modInstallVersion = modInstall[1];
       if (modInstallID !== SH.SMLModID && modInstallID !== BH.BootstrapperModID) {
         if (modsDir) {
           debug(`Copying ${modInstallID}@${modInstallVersion} to Satisfactory install`);
-          return MH.installMod(modInstallID, modInstallVersion, modsDir);
+          await MH.installMod(modInstallID, modInstallVersion, modsDir);
         }
       }
-      return Promise.resolve();
-    }));
+    });
   }
 
   async manifestMutate(install: Array<ManifestItem>, uninstall: Array<string>, update: Array<string>): Promise<void> {
