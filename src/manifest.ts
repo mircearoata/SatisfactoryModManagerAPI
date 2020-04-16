@@ -2,7 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import { valid, coerce } from 'semver';
 import {
-  ensureExists, mapObject, forEachAsync, dirs, oldAppDataDir, deleteFolderRecursive, removeArrayElementWhere, manifestsDir,
+  ensureExists, mapObject, dirs, oldAppDataDir, deleteFolderRecursive, manifestsDir,
 } from './utils';
 import {
   LockfileGraph, Lockfile, LockfileGraphNode, ItemVersionList,
@@ -66,7 +66,7 @@ export class ManifestHandler {
   async mutate(install: Array<ManifestItem>, uninstall: Array<string>, update: Array<string>): Promise<void> {
     const manifest = this.readManifest();
     uninstall.forEach((item) => {
-      removeArrayElementWhere(manifest.items, (manifestItem) => manifestItem.id === item);
+      manifest.items.removeWhere((manifestItem) => manifestItem.id === item);
     });
     install.forEach((item) => {
       const existingItem = manifest.items.find((manifestItem) => manifestItem.id === item.id);
@@ -100,10 +100,9 @@ export class ManifestHandler {
       id: 'SatisfactoryGame',
       version: valid(coerce(manifest.satisfactoryVersion)),
       dependencies: {},
-      isInManifest: true,
     } as LockfileGraphNode;
     graph.add(satisfactoryNode);
-    await forEachAsync(manifest.items, async (item) => {
+    await manifest.items.forEachAsync(async (item) => {
       const itemData = {
         id: `manifest_${item.id}`,
         version: '0.0.0',
@@ -111,7 +110,6 @@ export class ManifestHandler {
           [item.id]: item.version || '>=0.0.0',
         },
       } as LockfileGraphNode;
-      itemData.isInManifest = true;
       try {
         await graph.add(itemData);
       } catch (e) {

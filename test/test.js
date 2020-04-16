@@ -75,7 +75,7 @@ const dummyMods = [
 ];
 
 async function createDummyMods() {
-  await forEachAsync(dummyMods, async (mod) => new Promise((resolve) => {
+  await dummyMods.forEachAsync(async (mod) => new Promise((resolve) => {
     const filePath = path.join(modCacheDir, `${mod.mod_id}_${mod.version}.smod`);
     const zip = new JSZip();
     zip.file("data.json", JSON.stringify(mod));
@@ -108,7 +108,7 @@ async function createDummyMods() {
 }
 
 async function removeDummyMods() {
-  await forEachAsync(dummyMods, async (mod) => {
+  await dummyMods.forEachAsync(async (mod) => {
     const filePath = path.join(modCacheDir, `${mod.mod_id}_${mod.version}.smod`);
     if(fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
@@ -320,7 +320,7 @@ async function main() {
       assert.fail(`Unexpected error: ${e}`);
     }
 
-    await sfInstall.installMod('dummyMod1', '1.0.2');
+    await sfInstall.updateMod('dummyMod1');
 
     removeTempModVersion('dummyMod1', '1.0.2')
 
@@ -328,6 +328,20 @@ async function main() {
       await sfInstall.manifestMutate([], [], []);
       installedMods = await sfInstall._getInstalledMods();
       assert.strictEqual(installedMods.some((mod) => mod.mod_id === 'dummyMod1' && mod.version === '1.0.2'), false, 'Removed version is still installed');
+    } catch (e) {
+      if (e instanceof assert.AssertionError) {
+        throw e;
+      }
+      assert.fail(`Unexpected error: ${e}`);
+    }
+
+    removeTempModVersion('dummyMod1', '1.0.1')
+    removeTempModVersion('dummyMod1', '1.0.0')
+
+    try {
+      await sfInstall.manifestMutate([], [], []);
+      installedMods = await sfInstall._getInstalledMods();
+      assert.strictEqual(installedMods.some((mod) => mod.mod_id === 'dummyMod1'), false, 'Mod with all compatible versions removed is still installed');
     } catch (e) {
       if (e instanceof assert.AssertionError) {
         throw e;

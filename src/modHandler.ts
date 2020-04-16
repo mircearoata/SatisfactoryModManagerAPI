@@ -3,7 +3,7 @@ import path from 'path';
 import util from 'util';
 import JSZip from 'jszip';
 import {
-  modCacheDir, copyFile, downloadFile, forEachAsync, removeArrayElement,
+  modCacheDir, copyFile, downloadFile,
 } from './utils';
 import { getModDownloadLink, getModVersion } from './ficsitApp';
 import { InvalidModFileError } from './errors';
@@ -85,9 +85,9 @@ export async function getCachedMod(modID: string, version: string): Promise<Mod 
   const ficsitAppModVersionDate = (await getModVersion(modID, version)).created_at;
   const isModFileLatest = mod && (!mod.path || fs.statSync(mod.path).mtime >= ficsitAppModVersionDate);
   if (!mod || !isModFileLatest) {
-    if (!isModFileLatest) {
+    if (mod && !isModFileLatest) {
       debug(`${modID}@${version} was changed by the author. Redownloading.`);
-      removeArrayElement(cachedMods, mod);
+      cachedMods.remove(mod);
     } else {
       debug(`${modID}@${version} is not downloaded. Downloading now.`);
     }
@@ -100,11 +100,15 @@ export async function getCachedMod(modID: string, version: string): Promise<Mod 
   return mod;
 }
 
+export async function getCachedModVersions(modID: string): Promise<string[]> {
+  return (await getCachedMods()).filter((cachedMod) => cachedMod.mod_id === modID).map((mod) => mod.version);
+}
+
 export async function removeModFromCache(modID: string, version: string): Promise<void> {
   const mod = (await getCachedMods())
     .find((cachedMod) => cachedMod.mod_id === modID && cachedMod.version === version);
   if (mod) {
-    removeArrayElement(cachedMods, mod);
+    cachedMods.remove(mod);
     if (mod.path) {
       fs.unlinkSync(mod.path);
     }
@@ -140,7 +144,7 @@ export async function installMod(modID: string, version: string, modsDir: string
 
 export async function uninstallMod(modID: string, modsDir: string): Promise<void> {
   if (fs.existsSync(modsDir)) {
-    await forEachAsync(fs.readdirSync(modsDir), async (file) => {
+    await fs.readdirSync(modsDir).forEachAsync(async (file) => {
       const fullPath = path.join(modsDir, file);
       if (modExtensions.includes(path.extname(fullPath))) {
         const mod = await getModFromFile(fullPath);

@@ -120,11 +120,13 @@ export async function downloadFile(url: string, file: string): Promise<void> {
   let statusCode = 0;
   for (let i = 0; i < DOWNLOAD_ATTEMPTS; i += 1) {
     try {
-      // eslint-disable-next-line no-await-in-loop
-      const buffer: Buffer = await request(url, {
+      const req = request(url, {
         method: 'GET',
         encoding: null,
       });
+      req.timeout = 2 * 1000;
+      // eslint-disable-next-line no-await-in-loop
+      const buffer: Buffer = await req;
       ensureExists(path.dirname(file));
       fs.writeFileSync(file, buffer);
       return;
@@ -142,33 +144,34 @@ export async function downloadFile(url: string, file: string): Promise<void> {
   throw new NetworkError('Could not download file. Please try again later.', statusCode);
 }
 
-export async function forEachAsync<T>(array: Array<T>,
-  callback: {(value: T, index: number, array: Array<T>): void}): Promise<void> {
-  for (let i = 0; i < array.length; i += 1) {
+// eslint-disable-next-line no-extend-native
+Array.prototype.forEachAsync = async function forEachAsync<T>(callback: {(value: T, index: number, array: Array<T>): Promise<void>}): Promise<void> {
+  for (let i = 0; i < this.length; i += 1) {
     // eslint-disable-next-line no-await-in-loop
-    await callback(array[i], i, array);
+    await callback(this[i], i, this);
   }
-}
+};
 
-export function removeArrayElement<T>(array: Array<T>, element: T): void {
-  const index = array.indexOf(element);
+// eslint-disable-next-line no-extend-native
+Array.prototype.remove = function remove<T>(element: T): void {
+  const index = this.indexOf(element);
   if (index !== -1) {
-    array.splice(index, 1);
+    this.splice(index, 1);
   }
-}
+};
 
-export function removeArrayElementWhere<T>(array: Array<T>,
-  condition: (element: T) => boolean): void {
+// eslint-disable-next-line no-extend-native
+Array.prototype.removeWhere = function removeWhere<T>(condition: (element: T) => boolean): void {
   const toRemove = new Array<T>();
-  array.forEach((element) => {
+  this.forEach((element) => {
     if (condition(element)) {
       toRemove.push(element);
     }
   });
   toRemove.forEach((element) => {
-    removeArrayElement(array, element);
+    this.remove(element);
   });
-}
+};
 
 export function versionSatisfiesAll(version: string, versionConstraints: Array<string>): boolean {
   return versionConstraints.every((versionConstraint) => satisfies(version, versionConstraint));
