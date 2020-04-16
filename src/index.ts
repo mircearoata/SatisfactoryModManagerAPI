@@ -16,4 +16,6 @@ export {
 export { } from './manifest';
 export * from './errors';
 export { getLogFilePath } from './logging';
-export { clearCache, setDebug, toggleDebug } from './utils';
+export {
+  clearCache, setDebug, toggleDebug, isDebug,
+} from './utils';
