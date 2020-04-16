@@ -2,7 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import bindings from 'bindings';
 import {
-  downloadFile, bootstrapperCacheDir, ensureExists,
+  downloadFile, bootstrapperCacheDir, ensureExists, deleteFolderRecursive,
 } from './utils';
 import { ModNotFoundError } from './errors';
 import { debug } from './logging';
@@ -60,7 +60,12 @@ async function getBootstrapperVersionCache(version: string): Promise<string> {
 
 export async function installBootstrapper(version: string, satisfactoryPath: string): Promise<void> {
   if (!getBootstrapperVersion(satisfactoryPath)) {
-    const bootstrapperVersionCache = await getBootstrapperVersionCache(version);
+    let bootstrapperVersionCache = await getBootstrapperVersionCache(version);
+    if (!fs.existsSync(path.join(bootstrapperVersionCache, bootstrapperFileName))
+    || !fs.existsSync(path.join(bootstrapperVersionCache, bootstrapperDIAFileName))) {
+      deleteFolderRecursive(bootstrapperVersionCache);
+      bootstrapperVersionCache = await getBootstrapperVersionCache(version);
+    }
     ensureExists(path.dirname(path.join(satisfactoryPath, bootstrapperRelativePath)));
     ensureExists(path.dirname(path.join(satisfactoryPath, bootstrapperDIARelativePath)));
     fs.copyFileSync(path.join(bootstrapperVersionCache, bootstrapperFileName), path.join(satisfactoryPath, bootstrapperRelativePath));
