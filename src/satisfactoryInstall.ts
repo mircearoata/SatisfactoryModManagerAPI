@@ -100,9 +100,9 @@ export class SatisfactoryInstall {
 
   async validateInstall(): Promise<void> {
     const items = this._manifestHandler.getItemsList();
-    debug(items);
+    debug(`Items: ${JSON.stringify(items)}`);
     const mismatches = await this._getInstalledMismatches(items);
-    debug(mismatches);
+    debug(`Mismatches: ${JSON.stringify(mismatches)}`);
     const modsDir = SH.getModsDir(this.installLocation);
     await Promise.all(mismatches.uninstall.map((id) => {
       if (id !== SH.SMLModID && id !== BH.BootstrapperModID) {

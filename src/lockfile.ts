@@ -3,9 +3,9 @@ import {
   compare, valid, coerce,
 } from 'semver';
 import {
-  findAllVersionsMatchingAll, getSMLVersionInfo, getBootstrapperVersionInfo, getModDownloadLink,
+  findAllVersionsMatchingAll, getSMLVersionInfo, getBootstrapperVersionInfo, getModDownloadLink, getMod,
 } from './ficsitApp';
-import { getCachedMod, getCachedModVersions } from './modHandler';
+import { getCachedMod } from './modHandler';
 import {
   UnsolvableDependencyError, DependencyManifestMismatchError,
   InvalidLockfileOperation,
@@ -70,17 +70,10 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
   };
 }
 
-export async function getModReference(id: string): Promise<string> {
+export async function getFriendlyItemName(id: string): Promise<string> {
   if (id === SMLModID || id === BootstrapperModID) return id;
-  const modVersions = await getCachedModVersions(id);
-  if (modVersions.length === 0) return id;
-  modVersions.sort((a, b) => -compare(a, b)); // Sort descending
-  try {
-    const modData = await getCachedMod(id, modVersions[0]); // Check latest version, it should have mod_reference if the mod is updated
-    return modData?.mod_reference || id;
-  } catch (e) {
-    return id;
-  }
+  if (id.startsWith('manifest_')) return `manifest_${(await getMod(id.substring('manifest_'.length))).name}`;
+  return (await getMod(id)).name;
 }
 
 async function versionExistsOnFicsitApp(id: string, version: string): Promise<boolean> {
@@ -123,6 +116,7 @@ export class LockfileGraph {
     });
   }
 
+  // TODO: propagate game version incompatible error (or something)
   async validate(dependency: string): Promise<void> {
     debug(`Validating ${dependency}`);
     const dependencyNode = this.findById(dependency);
@@ -132,12 +126,12 @@ export class LockfileGraph {
     const versionValid = dependencyNode && versionSatisfiesAll(dependencyNode.version, constraints);
     if (!isOnFicsitApp || !versionValid) {
       if (dependency === 'SatisfactoryGame') {
-        throw new DependencyManifestMismatchError(`Game version incompatible. ${(await Promise.all(dependants.map(async (dependant) => `${await getModReference(dependant.id)} requires ${gameVersionConstraint(dependant.dependencies[dependency])}`))).join(', ')}`);
+        throw new DependencyManifestMismatchError(`Game version incompatible. Installed: ${dependencyNode?.version}. ${(await Promise.all(dependants.map(async (dependant) => `${await getFriendlyItemName(dependant.id)} requires ${gameVersionConstraint(dependant.dependencies[dependency])}`))).join(', ')}`);
       }
       if (dependencyNode) {
         this.remove(dependencyNode);
         if (!isOnFicsitApp) {
-          info(`Version ${dependencyNode?.version} of ${await getModReference(dependency)} was removed from ficsit.app. Removing and attempting to use the latest version available.`);
+          info(`Version ${dependencyNode?.version} of ${await getFriendlyItemName(dependency)} was removed from ficsit.app. Removing and attempting to use the latest version available.`);
         }
       }
       let availableVersions;
@@ -146,11 +140,11 @@ export class LockfileGraph {
       } catch (e) {
         const manifestNode = this.findById(`manifest_${dependency}`);
         if (!manifestNode) {
-          info(`${dependency} is a dependency of ${(await (await Promise.all(dependants.map(async (dependant) => getModReference(dependant.id)))).join(', '))}, but ficsit.app cannot find dependencies yet. Please install it manually.`);
+          info(`${dependency} is a dependency of ${(await (await Promise.all(dependants.map(async (dependant) => getFriendlyItemName(dependant.id)))).join(', '))}, but ficsit.app cannot find dependencies yet. Please install it manually.`);
           return;
         }
         if (!isOnFicsitApp) {
-          throw new ModRemovedByAuthor(`Mod ${await getModReference(dependency)} was removed by the author, and no other version is compatible`, dependency, dependencyNode?.version);
+          throw new ModRemovedByAuthor(`Mod ${await getFriendlyItemName(dependency)} was removed by the author, and no other version is compatible`, dependency, dependencyNode?.version);
         }
         throw e;
       }
@@ -164,24 +158,24 @@ export class LockfileGraph {
             await Object.keys(newNode.dependencies).forEachAsync(async (dep) => this.validate(dep));
             return;
           } catch (e) {
-            debug(e);
+            debug(`${dependency}@${version} is not good: ${JSON.stringify(e)} Trace:\n${e.stack}`);
             this.remove(newNode);
           }
         }
       }
-      const modReference = await getModReference(dependency);
-      const dependantsString = (await Promise.all(dependants.map(async (dependant) => `${await getModReference(dependant.id)} (requires ${dependant.dependencies[dependency]})`))).join(', ');
+      const friendlyItemName = await getFriendlyItemName(dependency);
+      const dependantsString = (await Promise.all(dependants.map(async (dependant) => `${await getFriendlyItemName(dependant.id)} (requires ${dependant.dependencies[dependency]})`))).join(', ');
       const manifestNode = this.findById(`manifest_${dependency}`);
       if (manifestNode && manifestNode.dependencies[dependency] !== '>=0.0.0') {
         if (dependants.length === 1) { // Only manifest
-          throw new ModNotFoundError(`${modReference} is a dependency of other mods, but an incompatible version is installed by you. Please uninstall it to use a compatible version. Dependants: ${dependantsString}`);
+          throw new ModNotFoundError(`${friendlyItemName} was removed from ficsit.app`);
         }
-        throw new DependencyManifestMismatchError(`${modReference} is a dependency of other mods, but an incompatible version is installed by you. Please uninstall it to use a compatible version. Dependants: ${dependantsString}`);
+        throw new DependencyManifestMismatchError(`${friendlyItemName} is a dependency of other mods, but an incompatible version is installed by you. Please uninstall it to use a compatible version. Dependants: ${dependantsString}`);
       }
       if (!isOnFicsitApp) {
-        throw new ModRemovedByAuthor(`Mod ${modReference}@${dependencyNode?.version} was removed by the author, and no other version is compatible`, dependency, dependencyNode?.version);
+        throw new ModRemovedByAuthor(`Mod ${friendlyItemName}@${dependencyNode?.version} was removed by the author, and no other version is compatible`, dependency, dependencyNode?.version);
       }
-      throw new UnsolvableDependencyError(`No version of ${modReference} is compatible with ${dependantsString}`);
+      throw new UnsolvableDependencyError(`No version of ${friendlyItemName} is compatible with ${dependantsString}`);
     }
   }
 
@@ -223,7 +217,7 @@ export class LockfileGraph {
   async add(node: LockfileGraphNode): Promise<void> {
     if (this.nodes.some((graphNode) => graphNode.id === node.id)) {
       const existingNode = this.nodes.find((graphNode) => graphNode.id === node.id);
-      debug(`Item ${getModReference(node.id)} already has another version installed: ${existingNode?.version}`);
+      debug(`Item ${await getFriendlyItemName(node.id)} already has another version installed: ${existingNode?.version}`);
     } else {
       debug(`Adding ${node.id}@${node.version}`);
       try {

@@ -92,7 +92,7 @@ export async function fiscitApiQuery(query: string,
     }), JSONDateParser);
     return response.data;
   } catch (e) {
-    debug(e);
+    debug(`Error getting data from ficsit.app: ${JSON.stringify(e)}`);
     return { errors: new Error('Network error. Please try again later.') };
   }
 }
