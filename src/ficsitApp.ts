@@ -37,6 +37,9 @@ export function addTempMod(mod: FicsitAppMod): void {
       tmpVer.created_at = new Date(0, 0, 0, 0, 0, 0, 0);
       return tmpVer;
     });
+    if (!fixedMod.name) {
+      fixedMod.name = fixedMod.id;
+    }
     tempMods.push(fixedMod);
     allTempModIDs.push(mod.id);
   } else {

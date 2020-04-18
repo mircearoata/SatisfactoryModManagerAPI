@@ -1,9 +1,9 @@
 /* eslint-disable no-await-in-loop */
 import {
-  compare, valid, coerce,
+  compare, valid, coerce, satisfies,
 } from 'semver';
 import {
-  findAllVersionsMatchingAll, getSMLVersionInfo, getBootstrapperVersionInfo, getModDownloadLink, getMod,
+  findAllVersionsMatchingAll, getSMLVersionInfo, getBootstrapperVersionInfo, getModDownloadLink, getMod, getModVersion,
 } from './ficsitApp';
 import { getCachedMod } from './modHandler';
 import {
@@ -17,7 +17,7 @@ import {
 import { SMLModID } from './smlHandler';
 import { BootstrapperModID } from './bootstrapperHandler';
 import { debug, info } from './logging';
-import { versionSatisfiesAll } from './utils';
+import { versionSatisfiesAll, unique } from './utils';
 
 export interface ItemVersionList {
   [id: string]: string;
@@ -57,6 +57,9 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
     throw new InvalidLockfileOperation('SMManager cannot modify Satisfactory Game version. This should never happen, unless Satisfactory was not temporarily added to the lockfile as a manifest entry');
   }
   // TODO: Get mod data from ficsit.app so the mod doesn't have to be downloaded
+  if (!satisfies((await getModVersion(id, version)).sml_version, '>=2.0.0')) {
+    throw new ModNotFoundError(`${id}@${version} is incompatible with SML 2.0`);
+  }
   const modData = await getCachedMod(id, version);
   if (!modData) {
     throw new ModNotFoundError(`${id}@${version} not found`);
@@ -74,8 +77,18 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
 
 export async function getFriendlyItemName(id: string): Promise<string> {
   if (id === SMLModID || id === BootstrapperModID) return id;
-  if (id.startsWith('manifest_')) return `installing ${(await getMod(id.substring('manifest_'.length))).name}`;
-  return (await getMod(id)).name;
+  if (id.startsWith('manifest_')) {
+    try {
+      return `installing ${(await getMod(id.substring('manifest_'.length))).name}`;
+    } catch (e) {
+      return id;
+    }
+  }
+  try {
+    return (await getMod(id)).name;
+  } catch (e) {
+    return id;
+  }
 }
 
 async function versionExistsOnFicsitApp(id: string, version: string): Promise<boolean> {
@@ -125,6 +138,8 @@ export class LockfileGraph {
     const dependants = this.getDependants(dependency);
     const constraints = dependants.map((node) => node.dependencies[dependency]);
     const versionValid = dependencyNode && versionSatisfiesAll(dependencyNode.version, constraints);
+    const friendlyItemName = await getFriendlyItemName(dependency);
+    const dependantsString = (await Promise.all(dependants.map(async (dependant) => `${friendlyItemName} (requires ${dependant.dependencies[dependency]})`))).join(', ');
     if (!isOnFicsitApp || !versionValid) {
       if (dependency === 'SatisfactoryGame') {
         if (!dependencyNode) {
@@ -135,7 +150,7 @@ export class LockfileGraph {
       if (dependencyNode) {
         this.remove(dependencyNode);
         if (!isOnFicsitApp) {
-          info(`Version ${dependencyNode?.version} of ${await getFriendlyItemName(dependency)} was removed from ficsit.app. Removing and attempting to use the latest version available.`);
+          info(`Version ${dependencyNode?.version} of ${friendlyItemName} was removed from ficsit.app. Removing and attempting to use the latest version available.`);
         }
       }
       let availableVersions;
@@ -144,11 +159,11 @@ export class LockfileGraph {
       } catch (e) {
         const manifestNode = this.findById(`manifest_${dependency}`);
         if (!manifestNode) {
-          info(`${dependency} is a dependency of ${(await (await Promise.all(dependants.map(async (dependant) => getFriendlyItemName(dependant.id)))).join(', '))}, but ficsit.app cannot find dependencies yet. Please install it manually.`);
+          info(`${dependency} is a dependency of ${dependantsString}, but ficsit.app cannot find dependencies yet. Please install it manually.`);
           return;
         }
         if (!isOnFicsitApp) {
-          throw new ModRemovedByAuthor(`Mod ${await getFriendlyItemName(dependency)} was removed by the author, and no other version is compatible`, dependency, dependencyNode?.version);
+          throw new ModRemovedByAuthor(`Mod ${friendlyItemName} was removed by the author, and no other version is compatible`, dependency, dependencyNode?.version);
         }
         throw e;
       }
@@ -157,14 +172,21 @@ export class LockfileGraph {
       while (availableVersions.length > 0) {
         const version = availableVersions.pop();
         if (version) {
-          const newNode = await getItemData(dependency, version);
           try {
-            this.add(newNode);
-            await Object.keys(newNode.dependencies).forEachAsync(async (dep) => this.validate(dep));
-            return;
+            const newNode = await getItemData(dependency, version);
+            try {
+              this.add(newNode);
+              await Object.keys(newNode.dependencies).forEachAsync(async (dep) => this.validate(dep));
+              return;
+            } catch (e) {
+              debug(`${dependency}@${version} is not good: ${e.message} Trace:\n${e.stack}`);
+              this.remove(newNode);
+              lastError = e;
+            }
           } catch (e) {
-            debug(`${dependency}@${version} is not good: ${e.message} Trace:\n${e.stack}`);
-            this.remove(newNode);
+            if (e instanceof ModNotFoundError && !versionExistsOnFicsitApp(dependency, version)) {
+              lastError = new ModRemovedByAuthor(`Mod ${await getFriendlyItemName(dependency)}@${version} is not compatible with SML 2.0`, dependency, version); //
+            }
             lastError = e;
           }
         }
@@ -172,8 +194,6 @@ export class LockfileGraph {
       if (lastError && lastError instanceof ImcompatibleGameVersion) {
         throw lastError;
       }
-      const friendlyItemName = await getFriendlyItemName(dependency);
-      const dependantsString = (await Promise.all(dependants.map(async (dependant) => `${await getFriendlyItemName(dependant.id)} (requires ${dependant.dependencies[dependency]})`))).join(', ');
       const manifestNode = this.findById(`manifest_${dependency}`);
       if (manifestNode && manifestNode.dependencies[dependency] !== '>=0.0.0') {
         if (dependants.length === 1) { // Only manifest
@@ -192,6 +212,7 @@ export class LockfileGraph {
     await this.nodes
       .map((node) => Object.keys(node.dependencies))
       .reduce((acc, cur) => acc.concat(cur))
+      .filter(unique)
       .forEachAsync((dep) => this.validate(dep));
   }
 

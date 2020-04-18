@@ -236,3 +236,7 @@ export function JSONDateParser(key: string, value: any): any {
 
   return value;
 }
+
+export function unique<T>(value: T, index: number, self: T[]): boolean {
+  return self.indexOf(value) === index;
+}
