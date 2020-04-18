@@ -6,6 +6,7 @@ export class ModNotFoundError extends Error {}
 export class InvalidModFileError extends Error {}
 export class GameRunningError extends Error {}
 export class InvalidConfigError extends Error {}
+export class ImcompatibleGameVersion extends Error {}
 export class NetworkError extends Error {
   statusCode: number;
   constructor(message: string, statusCode: number) {

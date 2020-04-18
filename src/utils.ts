@@ -136,7 +136,7 @@ export async function downloadFile(url: string, file: string): Promise<void> {
         delete e.error;
         delete e.response.body;
       }
-      debug(`Error downloading file ${url}: ${JSON.stringify(e)}`);
+      debug(`Error downloading file ${url}: ${e.message}. Trace:\n${e.stack}`);
       statusCode = e.statusCode;
     }
     debug(`Attempt ${i}/${DOWNLOAD_ATTEMPTS} to download ${url} failed`);

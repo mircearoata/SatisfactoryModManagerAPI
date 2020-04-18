@@ -7,7 +7,9 @@ import {
 } from './ficsitApp';
 import { getCachedMod } from './modHandler';
 import {
-  UnsolvableDependencyError, DependencyManifestMismatchError,
+  ImcompatibleGameVersion,
+  UnsolvableDependencyError,
+  DependencyManifestMismatchError,
   InvalidLockfileOperation,
   ModNotFoundError,
   ModRemovedByAuthor,
@@ -72,7 +74,7 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
 
 export async function getFriendlyItemName(id: string): Promise<string> {
   if (id === SMLModID || id === BootstrapperModID) return id;
-  if (id.startsWith('manifest_')) return `manifest_${(await getMod(id.substring('manifest_'.length))).name}`;
+  if (id.startsWith('manifest_')) return `installing ${(await getMod(id.substring('manifest_'.length))).name}`;
   return (await getMod(id)).name;
 }
 
@@ -97,7 +99,7 @@ async function versionExistsOnFicsitApp(id: string, version: string): Promise<bo
   }
 }
 
-function gameVersionConstraint(constraint: string): string {
+function gameVersionFromSemver(constraint: string): string {
   if (constraint.endsWith('.0.0')) return constraint.substring(0, constraint.length - '.0.0'.length);
   return constraint;
 }
@@ -116,7 +118,6 @@ export class LockfileGraph {
     });
   }
 
-  // TODO: propagate game version incompatible error (or something)
   async validate(dependency: string): Promise<void> {
     debug(`Validating ${dependency}`);
     const dependencyNode = this.findById(dependency);
@@ -126,7 +127,10 @@ export class LockfileGraph {
     const versionValid = dependencyNode && versionSatisfiesAll(dependencyNode.version, constraints);
     if (!isOnFicsitApp || !versionValid) {
       if (dependency === 'SatisfactoryGame') {
-        throw new DependencyManifestMismatchError(`Game version incompatible. Installed: ${dependencyNode?.version}. ${(await Promise.all(dependants.map(async (dependant) => `${await getFriendlyItemName(dependant.id)} requires ${gameVersionConstraint(dependant.dependencies[dependency])}`))).join(', ')}`);
+        if (!dependencyNode) {
+          throw new Error('This should never happen. It is here just for typescript null check');
+        }
+        throw new ImcompatibleGameVersion(`Game version incompatible. Installed: ${gameVersionFromSemver(dependencyNode.version)}. ${(await Promise.all(dependants.map(async (dependant) => `${await getFriendlyItemName(dependant.id)} requires ${gameVersionFromSemver(dependant.dependencies[dependency])}`))).join(', ')}`);
       }
       if (dependencyNode) {
         this.remove(dependencyNode);
@@ -149,6 +153,7 @@ export class LockfileGraph {
         throw e;
       }
       availableVersions.sort(compare);
+      let lastError: Error | null = null;
       while (availableVersions.length > 0) {
         const version = availableVersions.pop();
         if (version) {
@@ -158,10 +163,14 @@ export class LockfileGraph {
             await Object.keys(newNode.dependencies).forEachAsync(async (dep) => this.validate(dep));
             return;
           } catch (e) {
-            debug(`${dependency}@${version} is not good: ${JSON.stringify(e)} Trace:\n${e.stack}`);
+            debug(`${dependency}@${version} is not good: ${e.message} Trace:\n${e.stack}`);
             this.remove(newNode);
+            lastError = e;
           }
         }
+      }
+      if (lastError && lastError instanceof ImcompatibleGameVersion) {
+        throw lastError;
       }
       const friendlyItemName = await getFriendlyItemName(dependency);
       const dependantsString = (await Promise.all(dependants.map(async (dependant) => `${await getFriendlyItemName(dependant.id)} (requires ${dependant.dependencies[dependency]})`))).join(', ');
@@ -175,7 +184,7 @@ export class LockfileGraph {
       if (!isOnFicsitApp) {
         throw new ModRemovedByAuthor(`Mod ${friendlyItemName}@${dependencyNode?.version} was removed by the author, and no other version is compatible`, dependency, dependencyNode?.version);
       }
-      throw new UnsolvableDependencyError(`No version of ${friendlyItemName} is compatible with ${dependantsString}`);
+      throw new UnsolvableDependencyError(`No version of ${friendlyItemName} is compatible with the other installed mods`);
     }
   }
 
