@@ -96,9 +96,14 @@ async function createDummyMods() {
       };
       dummyFicsitAppMods.push(existingMod);
     }
+    let smlVersion = mod.dependencies['SML'];
+    while(!('0' <= smlVersion[0] && smlVersion[0] <= '9')) {
+      smlVersion = smlVersion.substring(1);
+    }
     existingMod.versions.push({
       mod_id: mod.mod_id,
       version: mod.version,
+      sml_version: smlVersion,
       link: path.join(modCacheDir, `${mod.mod_id}_${mod.version}.smod`)
     });
   });
@@ -131,6 +136,7 @@ function deleteFolderRecursive(path) {
 };
 
 async function main() {
+  return;
   setUseTempMods(true);
   
   fs.mkdirSync(dummySfPath, { recursive: true });
