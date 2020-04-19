@@ -192,6 +192,7 @@ export class SatisfactoryInstall {
     }
     try {
       lockfile = JSON.parse(fs.readFileSync(path.join(getConfigFolderPath(configName), 'lock.json'), 'utf8'));
+      delete lockfile['SML'];
     } catch (e) {
       throw new InvalidConfigError(`Config ${configName} is invalid`);
     }
