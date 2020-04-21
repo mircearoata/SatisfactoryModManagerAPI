@@ -3,7 +3,7 @@ import {
   compare, valid, coerce, satisfies,
 } from 'semver';
 import {
-  findAllVersionsMatchingAll, getSMLVersionInfo, getBootstrapperVersionInfo, getModDownloadLink, getMod, getModVersion,
+  findAllVersionsMatchingAll, getSMLVersionInfo, getBootstrapperVersionInfo, getMod, getModVersion,
 } from './ficsitApp';
 import { getCachedMod } from './modHandler';
 import {
@@ -73,7 +73,7 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
 }
 
 export async function getFriendlyItemName(id: string): Promise<string> {
-  if (id === SMLModID || id === BootstrapperModID) return id;
+  if (id === SMLModID || id === BootstrapperModID || id === 'SatisfactoryGame') return id;
   if (id.startsWith('manifest_')) {
     try {
       return `installing ${(await getMod(id.substring('manifest_'.length))).name}`;
@@ -140,7 +140,7 @@ export class LockfileGraph {
     const constraints = dependants.map((node) => node.dependencies[dependency]);
     const versionValid = dependencyNode && versionSatisfiesAll(dependencyNode.version, constraints);
     const friendlyItemName = await getFriendlyItemName(dependency);
-    const dependantsString = (await Promise.all(dependants.map(async (dependant) => `${friendlyItemName} (requires ${dependant.dependencies[dependency]})`))).join(', ');
+    const dependantsString = (await Promise.all(dependants.map(async (dependant) => `${await getFriendlyItemName(dependant.id)} (requires ${dependant.dependencies[dependency]})`))).join(', ');
     if (!isOnFicsitApp || !versionValid) {
       if (dependency === 'SatisfactoryGame') {
         if (!dependencyNode) {
