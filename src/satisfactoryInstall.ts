@@ -31,8 +31,12 @@ const DEVELOPMENT_CONFIG_NAME = 'development';
 
 const CacheRelativePath = '.cache';
 
+export function getInstallHash(satisfactoryPath: string): string {
+  return createHash('sha256').update(satisfactoryPath, 'utf8').digest('hex');
+}
+
 export function getManifestFolderPath(satisfactoryPath: string): string {
-  return path.join(manifestsDir, createHash('sha256').update(satisfactoryPath, 'utf8').digest('hex'));
+  return path.join(manifestsDir, getInstallHash(satisfactoryPath));
 }
 
 export class SatisfactoryInstall {
@@ -190,11 +194,14 @@ export class SatisfactoryInstall {
     } catch (e) {
       throw new InvalidConfigError(`Config ${configName} is invalid`);
     }
-    try {
-      lockfile = JSON.parse(fs.readFileSync(path.join(getConfigFolderPath(configName), 'lock.json'), 'utf8'));
-      delete lockfile['SML'];
-    } catch (e) {
-      throw new InvalidConfigError(`Config ${configName} is invalid`);
+    if (fs.existsSync(path.join(getConfigFolderPath(configName), `lock-${getInstallHash(this.installLocation)}.json`))) {
+      try {
+        lockfile = JSON.parse(fs.readFileSync(path.join(getConfigFolderPath(configName), `lock-${getInstallHash(this.installLocation)}.json`), 'utf8'));
+      } catch (e) {
+        throw new InvalidConfigError(`Config ${configName} is invalid`);
+      }
+    } else {
+      lockfile = {};
     }
     this._manifestHandler.writeManifest(manifest);
     this._manifestHandler.writeLockfile(lockfile);
@@ -216,7 +223,7 @@ export class SatisfactoryInstall {
     const manifest = this._manifestHandler.readManifest();
     delete manifest.satisfactoryVersion;
     fs.writeFileSync(path.join(getConfigFolderPath(configName), 'manifest.json'), JSON.stringify(manifest));
-    fs.writeFileSync(path.join(getConfigFolderPath(configName), 'lock.json'), JSON.stringify(this._manifestHandler.readLockfile()));
+    fs.writeFileSync(path.join(getConfigFolderPath(configName), `lock-${getInstallHash(this.installLocation)}.json`), JSON.stringify(this._manifestHandler.readLockfile()));
   }
 
   async _installItem(id: string, version?: string): Promise<void> {
