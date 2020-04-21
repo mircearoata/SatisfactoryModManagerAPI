@@ -57,9 +57,6 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
     throw new InvalidLockfileOperation('SMManager cannot modify Satisfactory Game version. This should never happen, unless Satisfactory was not temporarily added to the lockfile as a manifest entry');
   }
   // TODO: Get mod data from ficsit.app so the mod doesn't have to be downloaded
-  if (!satisfies((await getModVersion(id, version)).sml_version, '>=2.0.0')) {
-    throw new ModNotFoundError(`${id}@${version} is incompatible with SML 2.0`);
-  }
   const modData = await getCachedMod(id, version);
   if (!modData) {
     throw new ModNotFoundError(`${id}@${version} not found`);
@@ -102,8 +99,7 @@ async function versionExistsOnFicsitApp(id: string, version: string): Promise<bo
     return true;
   }
   try {
-    await getModDownloadLink(id, version);
-    return true;
+    return satisfies((await getModVersion(id, version)).sml_version, '>=2.0.0');
   } catch (e) {
     if (e instanceof ModNotFoundError) {
       return false;
@@ -119,6 +115,7 @@ function gameVersionFromSemver(constraint: string): string {
 
 export class LockfileGraph {
   nodes = new Array<LockfileGraphNode>();
+  private _validated = new Array<string>();
 
   async fromLockfile(lockfile: Lockfile): Promise<void> {
     Object.keys(lockfile).forEach((entry) => {
@@ -132,6 +129,10 @@ export class LockfileGraph {
   }
 
   async validate(dependency: string): Promise<void> {
+    if (this._validated.includes(dependency)) {
+      debug(`Already validated ${dependency}`);
+      return;
+    }
     debug(`Validating ${dependency}`);
     const dependencyNode = this.findById(dependency);
     const isOnFicsitApp = dependencyNode && await versionExistsOnFicsitApp(dependency, dependencyNode.version);
@@ -160,6 +161,7 @@ export class LockfileGraph {
         const manifestNode = this.findById(`manifest_${dependency}`);
         if (!manifestNode) {
           info(`${dependency} is a dependency of ${dependantsString}, but ficsit.app cannot find dependencies yet. Please install it manually.`);
+          this._validated.push(dependency);
           return;
         }
         if (!isOnFicsitApp) {
@@ -171,12 +173,14 @@ export class LockfileGraph {
       let lastError: Error | null = null;
       while (availableVersions.length > 0) {
         const version = availableVersions.pop();
-        if (version) {
+        if (version && versionExistsOnFicsitApp(dependency, version)) {
           try {
             const newNode = await getItemData(dependency, version);
             try {
               this.add(newNode);
+              Object.keys(newNode.dependencies).forEach((dep) => this._validated.remove(dep));
               await Object.keys(newNode.dependencies).forEachAsync(async (dep) => this.validate(dep));
+              this._validated.push(dependency);
               return;
             } catch (e) {
               debug(`${dependency}@${version} is not good: ${e.message} Trace:\n${e.stack}`);
@@ -184,9 +188,6 @@ export class LockfileGraph {
               lastError = e;
             }
           } catch (e) {
-            if (e instanceof ModNotFoundError && !versionExistsOnFicsitApp(dependency, version)) {
-              lastError = new ModRemovedByAuthor(`Mod ${await getFriendlyItemName(dependency)}@${version} is not compatible with SML 2.0`, dependency, version); //
-            }
             lastError = e;
           }
         }
@@ -206,9 +207,11 @@ export class LockfileGraph {
       }
       throw new UnsolvableDependencyError(`No version of ${friendlyItemName} is compatible with the other installed mods`);
     }
+    this._validated.push(dependency);
   }
 
   async validateAll(): Promise<void> {
+    this._validated = new Array<string>();
     await this.nodes
       .map((node) => Object.keys(node.dependencies))
       .reduce((acc, cur) => acc.concat(cur))

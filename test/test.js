@@ -136,7 +136,6 @@ function deleteFolderRecursive(path) {
 };
 
 async function main() {
-  return;
   setUseTempMods(true);
   
   fs.mkdirSync(dummySfPath, { recursive: true });
