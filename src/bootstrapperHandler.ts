@@ -1,8 +1,9 @@
 import path from 'path';
 import fs from 'fs';
 import bindings from 'bindings';
+import { valid, coerce } from 'semver';
 import {
-  downloadFile, bootstrapperCacheDir, ensureExists, deleteFolderRecursive,
+  downloadFile, bootstrapperCacheDir, ensureExists, deleteFolderRecursive, fileURLExists,
 } from './utils';
 import { ModNotFoundError } from './errors';
 import { debug } from './logging';
@@ -30,31 +31,32 @@ export function getBootstrapperVersion(satisfactoryPath: string): string | undef
 }
 
 async function getBootstrapperVersionCache(version: string): Promise<string> {
-  const bootstrapperVersionCacheDir = path.join(bootstrapperCacheDir, version);
-  const bootstrapperVersionCacheDirWithV = path.join(bootstrapperCacheDir, `v${version}`);
-  if (!fs.existsSync(bootstrapperVersionCacheDir) && !fs.existsSync(bootstrapperVersionCacheDirWithV)) {
-    const bootstrapperDownloadLink = getBootstrapperDownloadLink(version);
-    const bootstrapperDIADownloadLink = getBootstrapperDIADownloadLink(version);
-    try {
-      await downloadFile(bootstrapperDownloadLink,
-        path.join(bootstrapperVersionCacheDir, bootstrapperFileName));
-      await downloadFile(bootstrapperDIADownloadLink,
-        path.join(bootstrapperVersionCacheDir, bootstrapperDIAFileName));
-      debug(`Bootstrapper ${version} is not cached. Downloading`);
-    } catch (e) {
-      if (e.statusCode === 404) {
-        if (version.startsWith('v')) {
-          throw new ModNotFoundError(`Bootstrapper version ${version.substr(1)} not found`);
-        }
-        return getBootstrapperVersionCache(`v${version}`);
+  const validVersion = valid(coerce(version));
+  if (!validVersion) {
+    throw new ModNotFoundError(`bootstrapper@${version} not found.`);
+  }
+  const bootstrapperVersionCacheDir = path.join(bootstrapperCacheDir, validVersion);
+  const bootstrapperCacheFile = path.join(bootstrapperVersionCacheDir, bootstrapperFileName);
+  const bootstrapperCacheDIAFile = path.join(bootstrapperVersionCacheDir, bootstrapperDIAFileName);
+  if (!fs.existsSync(bootstrapperVersionCacheDir)) {
+    debug(`Bootstrapper@${version} is not cached. Downloading`);
+    const bootstrapperDownloadLink = getBootstrapperDownloadLink(validVersion);
+    const bootstrapperDIADownloadLink = getBootstrapperDIADownloadLink(validVersion);
+    if (await fileURLExists(bootstrapperDownloadLink)) {
+      await downloadFile(bootstrapperDownloadLink, bootstrapperCacheFile);
+      await downloadFile(bootstrapperDIADownloadLink, bootstrapperCacheDIAFile);
+    } else {
+      const bootstrapperDownloadLinkWithV = getBootstrapperDownloadLink(`v${validVersion}`);
+      const bootstrapperDIADownloadLinkWithV = getBootstrapperDIADownloadLink(`v${validVersion}`);
+      if (await fileURLExists(bootstrapperDownloadLinkWithV)) {
+        await downloadFile(bootstrapperDownloadLinkWithV, bootstrapperCacheFile);
+        await downloadFile(bootstrapperDIADownloadLinkWithV, bootstrapperCacheDIAFile);
+      } else {
+        throw new ModNotFoundError(`bootstrapper@${version} not found.`);
       }
-      throw e;
     }
   }
-  if (fs.existsSync(bootstrapperVersionCacheDir)) {
-    return bootstrapperVersionCacheDir;
-  }
-  return bootstrapperVersionCacheDirWithV;
+  return bootstrapperVersionCacheDir;
 }
 
 

@@ -18,4 +18,5 @@ export * from './errors';
 export { getLogFilePath } from './logging';
 export {
   clearCache, setDebug, toggleDebug, isDebug,
+  addDownloadProgressCallback,
 } from './utils';

@@ -173,7 +173,7 @@ export async function getModDownloadLink(modID: string, version: string): Promis
     `, { modID, version });
   if (res.errors) {
     throw res.errors;
-  } else if (res.data) {
+  } else if (res.data && res.data.getMod && res.data.getMod.version) {
     return API_URL + res.data.getMod.version.link;
   } else {
     throw new ModNotFoundError(`${modID}@${version} not found`);
@@ -364,6 +364,9 @@ export async function getModVersion(modID: string, version: string): Promise<Fic
   if (res.errors) {
     throw res.errors;
   } else if (res.data.getMod) {
+    if (!res.data.getMod.version) {
+      throw new ModNotFoundError(`Mod ${modID}@${version} not found`);
+    }
     return res.data.getMod.version;
   } else {
     if (useTempMods) {

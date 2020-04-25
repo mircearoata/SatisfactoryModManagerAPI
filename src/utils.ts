@@ -1,10 +1,10 @@
 import { getDataHome, getCacheFolder } from 'platform-folders';
 import path from 'path';
 import fs from 'fs';
-import request from 'request-promise-native';
 import { satisfies } from 'semver';
 import processExists from 'process-exists';
 import { execSync } from 'child_process';
+import got, { HTTPError, Progress } from 'got';
 import {
   setLogsDir, setLogFileNameFormat, setLogDebug, debug,
 } from './logging';
@@ -116,32 +116,49 @@ setLogFileNameFormat(`${appName}-%DATE%.log`);
 
 const DOWNLOAD_ATTEMPTS = 3;
 
-export async function downloadFile(url: string, file: string): Promise<void> {
-  let statusCode = 0;
-  for (let i = 0; i < DOWNLOAD_ATTEMPTS; i += 1) {
-    try {
-      const req = request(url, {
-        method: 'GET',
-        encoding: null,
-      });
-      req.timeout = 2 * 1000;
-      // eslint-disable-next-line no-await-in-loop
-      const buffer: Buffer = await req;
-      ensureExists(path.dirname(file));
-      fs.writeFileSync(file, buffer);
-      return;
-    } catch (e) {
-      if (e.name === 'StatusCodeError') {
-        e.message = `${e.statusCode} - ${e.options.uri}`;
-        delete e.error;
-        delete e.response.body;
-      }
-      debug(`Error downloading file ${url}: ${e.message}. Trace:\n${e.stack}`);
-      statusCode = e.statusCode;
-    }
-    debug(`Attempt ${i}/${DOWNLOAD_ATTEMPTS} to download ${url} failed`);
+type ProgressCallback = (url: string, progress: Progress) => void;
+const progressCallbacks: Array<ProgressCallback> = [];
+
+export function addDownloadProgressCallback(cb: ProgressCallback): void {
+  if (!progressCallbacks.includes(cb)) {
+    progressCallbacks.push(cb);
   }
-  throw new NetworkError('Could not download file. Please try again later.', statusCode);
+}
+
+export async function fileURLExists(url: string): Promise<boolean> {
+  try {
+    const req = got(url);
+    req.on('downloadProgress', (progress) => {
+      if (progress.total) {
+        req.cancel('success');
+      } else {
+        req.cancel('fail');
+      }
+    });
+    await req;
+    return true;
+  } catch (e) {
+    return e.message === 'success';
+  }
+}
+
+export async function downloadFile(url: string, file: string): Promise<void> {
+  try {
+    const buffer: Buffer = (await got(url, {
+      retry: {
+        limit: DOWNLOAD_ATTEMPTS,
+      },
+    }).on('downloadProgress', (progress) => { if (progress.total) progressCallbacks.forEach(async (cb) => cb(url, progress)); }).buffer());
+    ensureExists(path.dirname(file));
+    fs.writeFileSync(file, buffer);
+    return;
+  } catch (e) {
+    if (e.name === 'HTTPError') {
+      debug(`Network error while downloading file ${url}: ${e.message}. Trace:\n${e.stack}`);
+      throw new NetworkError(`Could not download file (${e.message}). Please try again later.`, (e as HTTPError).response.statusCode);
+    }
+    throw new Error(`Unexpected error while downloading file ${url}: ${e.message}. Trace:\n${e.stack}`);
+  }
 }
 
 // eslint-disable-next-line no-extend-native
