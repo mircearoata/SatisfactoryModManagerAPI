@@ -183,11 +183,14 @@ export async function getModDownloadLink(modID: string, version: string): Promis
   }
 }
 
-export async function getAvailableMods(): Promise<Array<FicsitAppMod>> {
+const MODS_PER_PAGE = 20;
+
+export async function getAvailableMods(page: number): Promise<Array<FicsitAppMod>> {
   const res = await fiscitApiQuery<{ getMods: { mods: Array<FicsitAppMod> } }>(gql`
-    query{
+    query($limit: Int!, $offset: Int!){
       getMods(filter: {
-        limit: 100
+        limit: $limit,
+        offset: $offset
       })
       {
         mods
@@ -228,12 +231,15 @@ export async function getAvailableMods(): Promise<Array<FicsitAppMod>> {
         }
       }
     }
-  `);
+  `, {
+    offset: page * MODS_PER_PAGE,
+    limit: MODS_PER_PAGE,
+  });
   if (res.errors) {
     throw res.errors;
   } else {
     const resGetMods = res.data.getMods.mods;
-    if (useTempMods) {
+    if (page === 0 && useTempMods) {
       resGetMods.push(...tempMods);
     }
     return resGetMods;
