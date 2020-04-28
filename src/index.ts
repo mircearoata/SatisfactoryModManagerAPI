@@ -7,9 +7,12 @@ export {
   deleteConfig,
   getManifestFolderPath,
 } from './satisfactoryInstall';
-export { Mod, ModObject } from './modHandler';
 export {
-  getAvailableMods, getMod, getModVersions, getModLatestVersion,
+  Mod, ModObject,
+  loadCache,
+} from './modHandler';
+export {
+  getAvailableMods, getMod, getModName, getModVersions, getModLatestVersion,
   getAvailableSMLVersions, getLatestSMLVersion,
   FicsitAppMod, FicsitAppVersion, FicsitAppAuthor, FicsitAppUser, FicsitAppSMLVersion,
 } from './ficsitApp';

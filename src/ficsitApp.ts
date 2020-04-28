@@ -1,4 +1,6 @@
-import { compare, satisfies } from 'semver';
+import {
+  compare, satisfies, valid, coerce,
+} from 'semver';
 import { DocumentNode } from 'graphql';
 import gql from 'graphql-tag';
 import fetch from 'cross-fetch';
@@ -100,6 +102,7 @@ export async function fiscitApiQuery<T>(query: DocumentNode<unknown, unknown>,
     const response = await client.query<T>({
       query,
       variables,
+      fetchPolicy: 'cache-first',
     });
     return response;
   } catch (e) {
@@ -296,6 +299,35 @@ export async function getMod(modID: string): Promise<FicsitAppMod> {
   }
 }
 
+export async function getModName(modID: string): Promise<string> {
+  const res = await fiscitApiQuery<{ getMod: FicsitAppMod }>(gql`
+    query($modID: ModID!){
+      getMod(modId: $modID)
+      {
+        id,
+        name
+      }
+    }
+    `, {
+    modID,
+  });
+  if (res.errors) {
+    throw res.errors;
+  } else {
+    const resGetMod = res.data.getMod;
+    if (resGetMod === null) {
+      if (useTempMods) {
+        const tempMod = tempMods.find((mod) => mod.id === modID);
+        if (tempMod) {
+          return tempMod.name;
+        }
+      }
+      throw new ModNotFoundError(`Mod ${modID} not found`);
+    }
+    return resGetMod.name;
+  }
+}
+
 export async function getModVersions(modID: string): Promise<Array<FicsitAppVersion>> {
   const res = await fiscitApiQuery<{ getMod: FicsitAppMod }>(gql`
     query($modID: ModID!){
@@ -414,6 +446,8 @@ export interface FicsitAppSMLVersion {
   bootstrap_version: string;
 }
 
+const smlVersionIDMap: {[version: string]: string} = {};
+
 export async function getAvailableSMLVersions(): Promise<Array<FicsitAppSMLVersion>> {
   const res = await fiscitApiQuery<{ getSMLVersions: { sml_versions: Array<FicsitAppSMLVersion> } }>(gql`
     query{
@@ -438,6 +472,10 @@ export async function getAvailableSMLVersions(): Promise<Array<FicsitAppSMLVersi
   } else {
     // filter SML versions supported by SMManager
     const smlVersionsCompatible = res.data.getSMLVersions.sml_versions.filter((version) => satisfies(version.version, '>=2.0.0'));
+    smlVersionsCompatible.forEach((ver) => {
+      const validVersion = valid(coerce(ver.version));
+      if (validVersion) smlVersionIDMap[validVersion] = ver.id;
+    });
     return smlVersionsCompatible;
   }
 }
@@ -451,6 +489,8 @@ export interface FicsitAppBootstrapperVersion {
   changelog: string;
   date: Date;
 }
+
+const bootstrapperVersionIDMap: {[version: string]: string} = {};
 
 export async function getAvailableBootstrapperVersions(): Promise<Array<FicsitAppBootstrapperVersion>> {
   const res = await fiscitApiQuery<{ getBootstrapVersions: { bootstrap_versions: Array<FicsitAppBootstrapperVersion> } }>(gql`
@@ -473,13 +513,43 @@ export async function getAvailableBootstrapperVersions(): Promise<Array<FicsitAp
   if (res.errors) {
     throw res.errors;
   } else {
+    res.data.getBootstrapVersions.bootstrap_versions.forEach((ver) => {
+      const validVersion = valid(coerce(ver.version));
+      if (validVersion) bootstrapperVersionIDMap[validVersion] = ver.id;
+    });
     return res.data.getBootstrapVersions.bootstrap_versions;
   }
 }
 
 export async function getSMLVersionInfo(version: string): Promise<FicsitAppSMLVersion | undefined> {
-  const versions = await getAvailableSMLVersions();
-  return versions.find((smlVersion) => smlVersion.version === version);
+  const validVersion = valid(coerce(version));
+  if (!validVersion) throw new Error(`Invalid SML version ${version}`);
+  if (!smlVersionIDMap[validVersion]) {
+    return (await getAvailableSMLVersions()).find((smlVersion) => smlVersion.version === version);
+  }
+  const versionID = smlVersionIDMap[validVersion];
+  const res = await fiscitApiQuery<{ getSMLVersion: FicsitAppSMLVersion }>(gql`
+  query($versionID: SMLVersionID!){
+    getSMLVersion(smlVersionID: $versionID)
+    {
+      id,
+      version,
+      satisfactory_version
+      stability,
+      link,
+      changelog,
+      date,
+      bootstrap_version
+    }
+  }
+  `, {
+    versionID,
+  });
+  if (res.errors) {
+    throw res.errors;
+  } else {
+    return res.data.getSMLVersion;
+  }
 }
 
 export async function getLatestSMLVersion(): Promise<FicsitAppSMLVersion> {
@@ -489,8 +559,33 @@ export async function getLatestSMLVersion(): Promise<FicsitAppSMLVersion> {
 }
 
 export async function getBootstrapperVersionInfo(version: string): Promise<FicsitAppBootstrapperVersion | undefined> {
-  const versions = await getAvailableBootstrapperVersions();
-  return versions.find((bootstrapperVersion) => bootstrapperVersion.version === version);
+  const validVersion = valid(coerce(version));
+  if (!validVersion) throw new Error(`Invalid bootstrapper version ${version}`);
+  if (!smlVersionIDMap[validVersion]) {
+    return (await getAvailableBootstrapperVersions()).find((bootstrapperVersion) => bootstrapperVersion.version === version);
+  }
+  const versionID = bootstrapperVersionIDMap[validVersion];
+  const res = await fiscitApiQuery<{ getSMLVersion: FicsitAppBootstrapperVersion }>(gql`
+  query($versionID: BootstrapVersionID!){
+    getBootstrapVersion(bootstrapVersionID: $versionID)
+    {
+      id,
+      version,
+      satisfactory_version
+      stability,
+      link,
+      changelog,
+      date,
+    }
+  }
+  `, {
+    versionID,
+  });
+  if (res.errors) {
+    throw res.errors;
+  } else {
+    return res.data.getSMLVersion;
+  }
 }
 
 export async function getLatestBootstrapperVersion(): Promise<FicsitAppBootstrapperVersion> {

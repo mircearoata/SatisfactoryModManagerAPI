@@ -139,7 +139,7 @@ async function main() {
   setUseTempMods(true);
   
   fs.mkdirSync(dummySfPath, { recursive: true });
-  await createDummyMods()
+  await createDummyMods();
 
   let success = true;
 

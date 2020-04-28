@@ -3,7 +3,7 @@ import {
   compare, valid, coerce, satisfies,
 } from 'semver';
 import {
-  findAllVersionsMatchingAll, getSMLVersionInfo, getBootstrapperVersionInfo, getMod, getModVersion,
+  findAllVersionsMatchingAll, getSMLVersionInfo, getBootstrapperVersionInfo, getModVersion, getModName,
 } from './ficsitApp';
 import { getCachedMod } from './modHandler';
 import {
@@ -76,13 +76,13 @@ export async function getFriendlyItemName(id: string): Promise<string> {
   if (id === SMLModID || id === BootstrapperModID || id === 'SatisfactoryGame') return id;
   if (id.startsWith('manifest_')) {
     try {
-      return `installing ${(await getMod(id.substring('manifest_'.length))).name}`;
+      return `installing ${(await getModName(id.substring('manifest_'.length)))}`;
     } catch (e) {
       return id;
     }
   }
   try {
-    return (await getMod(id)).name;
+    return (await getModName(id));
   } catch (e) {
     return id;
   }

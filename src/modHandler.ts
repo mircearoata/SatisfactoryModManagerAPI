@@ -5,7 +5,7 @@ import JSZip from 'jszip';
 import {
   modCacheDir, copyFile, downloadFile,
 } from './utils';
-import { getModDownloadLink, getModVersion } from './ficsitApp';
+import { getModDownloadLink, getModVersion, getModName } from './ficsitApp';
 import { InvalidModFileError } from './errors';
 import { error, debug } from './logging';
 
@@ -61,7 +61,7 @@ export async function loadCache(): Promise<void> {
 export async function downloadMod(modID: string, version: string): Promise<string> {
   const downloadURL = await getModDownloadLink(modID, version);
   const filePath = path.join(modCacheDir, `${modID}_${version}.smod`);
-  await downloadFile(downloadURL, filePath);
+  await downloadFile(downloadURL, filePath, await getModName(modID));
   const modInfo = await getModFromFile(filePath);
   if (modInfo) {
     const modReferenceFilePath = path.join(modCacheDir, `${modInfo.mod_reference}_${version}.smod`);

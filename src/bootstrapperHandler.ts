@@ -43,14 +43,14 @@ async function getBootstrapperVersionCache(version: string): Promise<string> {
     const bootstrapperDownloadLink = getBootstrapperDownloadLink(validVersion);
     const bootstrapperDIADownloadLink = getBootstrapperDIADownloadLink(validVersion);
     if (await fileURLExists(bootstrapperDownloadLink)) {
-      await downloadFile(bootstrapperDownloadLink, bootstrapperCacheFile);
-      await downloadFile(bootstrapperDIADownloadLink, bootstrapperCacheDIAFile);
+      await downloadFile(bootstrapperDownloadLink, bootstrapperCacheFile, 'Bootstrappper (1/2)');
+      await downloadFile(bootstrapperDIADownloadLink, bootstrapperCacheDIAFile, 'Bootstrappper (2/2)');
     } else {
       const bootstrapperDownloadLinkWithV = getBootstrapperDownloadLink(`v${validVersion}`);
       const bootstrapperDIADownloadLinkWithV = getBootstrapperDIADownloadLink(`v${validVersion}`);
       if (await fileURLExists(bootstrapperDownloadLinkWithV)) {
-        await downloadFile(bootstrapperDownloadLinkWithV, bootstrapperCacheFile);
-        await downloadFile(bootstrapperDIADownloadLinkWithV, bootstrapperCacheDIAFile);
+        await downloadFile(bootstrapperDownloadLinkWithV, bootstrapperCacheFile, 'Bootstrappper (1/2)');
+        await downloadFile(bootstrapperDIADownloadLinkWithV, bootstrapperCacheDIAFile, 'Bootstrappper (2/2)');
       } else {
         throw new ModNotFoundError(`bootstrapper@${version} not found.`);
       }

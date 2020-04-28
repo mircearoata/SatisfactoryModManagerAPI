@@ -277,6 +277,12 @@ export class SatisfactoryInstall {
     return filterObject(this._manifestHandler.getItemsList(), (id) => id !== SH.SMLModID && id !== BH.BootstrapperModID);
   }
 
+  get manifestMods(): string[] {
+    return this._manifestHandler.readManifest().items
+      .filter((item) => item.id !== SH.SMLModID && item.id !== BH.BootstrapperModID)
+      .map((item) => item.id);
+  }
+
   async installSML(version?: string): Promise<void> {
     return this._installItem(SH.SMLModID, version);
   }
