@@ -4,7 +4,9 @@
 
 export declare global {
   interface Array<T> {
-    removeWhere(condition: (element: T) => boolean): void;
+    removeWhere(predicate: (value: T, index: number, array: Array<T>) => boolean): void;
+    removeWhereAsync(predicate: (value: T, index: number, array: Array<T>) => Promise<boolean>): Promise<void>;
+    filterAsync(predicate: (value: T, index: number, array: Array<T>) => Promise<boolean>): Promise<Array<T>>;
     remove(element: T): void;
     forEachAsync(callback: {(value: T, index: number, array: Array<T>): Promise<void>}): Promise<void>;
   }

@@ -14,7 +14,7 @@ const smlVersionNative = bindings('smlVersion');
 const oldSMLFiles = ['FactoryGame/Binaries/Win64/mods', 'FactoryGame/Binaries/Win64/configs', 'FactoryGame/Content/Paks/!(FactoryGame-WindowsNoEditor).*', 'FactoryGame/Binaries/Win64/xinput1_3.dll'];
 
 export const minSMLVersion = '2.0.0';
-export const SMLModID = 'SML';
+export const SMLID = 'SML';
 
 const SMLFileName = 'UE4-SML-Win64-Shipping.dll';
 
@@ -35,7 +35,7 @@ export function getModsDir(satisfactoryPath: string): string {
 async function getSMLVersionCache(version: string): Promise<string> {
   const validVersion = valid(coerce(version));
   if (!validVersion) {
-    throw new ModNotFoundError(`SML@${version} not found.`);
+    throw new ModNotFoundError(`SML@${version} not found.`, 'SML', version);
   }
   const smlVersionCacheDir = path.join(smlCacheDir, validVersion);
   const smlVerionCacheFile = path.join(smlVersionCacheDir, SMLFileName);
@@ -49,7 +49,7 @@ async function getSMLVersionCache(version: string): Promise<string> {
       if (await fileURLExists(smlDownloadLinkWithV)) {
         await downloadFile(smlDownloadLinkWithV, smlVerionCacheFile, `SML@${validVersion}`);
       } else {
-        throw new ModNotFoundError(`SML@${version} not found.`);
+        throw new ModNotFoundError(`SML@${version} not found.`, 'SML', version);
       }
     }
   }

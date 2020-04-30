@@ -2,7 +2,26 @@
 export class UnsolvableDependencyError extends Error {}
 export class DependencyManifestMismatchError extends Error {}
 export class InvalidLockfileOperation extends Error {}
-export class ModNotFoundError extends Error {}
+export class ModNotFoundError extends Error {
+  modID: string;
+  version?: string;
+  constructor(message: string, modID: string, version?: string) {
+    super(message);
+    this.modID = modID;
+    this.version = version;
+  }
+}
+export class ValidationError extends Error {
+  modID: string;
+  version?: string;
+  innerError: Error;
+  constructor(message: string, innerError: Error, modID: string, version?: string) {
+    super(message);
+    this.modID = modID;
+    this.version = version;
+    this.innerError = innerError;
+  }
+}
 export class InvalidModFileError extends Error {}
 export class GameRunningError extends Error {}
 export class InvalidConfigError extends Error {}

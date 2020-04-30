@@ -10,7 +10,7 @@ import { debug } from './logging';
 
 const bootstrapperVersionNative = bindings('bootstrapperVersion');
 
-export const BootstrapperModID = 'bootstrapper';
+export const BootstrapperID = 'bootstrapper';
 
 const bootstrapperFileName = 'xinput1_3.dll';
 const bootstrapperDIAFileName = 'msdia140.dll';
@@ -27,13 +27,15 @@ export function getBootstrapperDIADownloadLink(version: string): string {
 }
 
 export function getBootstrapperVersion(satisfactoryPath: string): string | undefined {
-  return bootstrapperVersionNative.getBootstrapperVersion(satisfactoryPath);
+  return fs.existsSync(path.join(satisfactoryPath, bootstrapperDIARelativePath))
+    ? bootstrapperVersionNative.getBootstrapperVersion(satisfactoryPath)
+    : undefined;
 }
 
 async function getBootstrapperVersionCache(version: string): Promise<string> {
   const validVersion = valid(coerce(version));
   if (!validVersion) {
-    throw new ModNotFoundError(`bootstrapper@${version} not found.`);
+    throw new ModNotFoundError(`bootstrapper@${version} not found.`, 'bootstrapper', version);
   }
   const bootstrapperVersionCacheDir = path.join(bootstrapperCacheDir, validVersion);
   const bootstrapperCacheFile = path.join(bootstrapperVersionCacheDir, bootstrapperFileName);
@@ -52,7 +54,7 @@ async function getBootstrapperVersionCache(version: string): Promise<string> {
         await downloadFile(bootstrapperDownloadLinkWithV, bootstrapperCacheFile, `Bootstrappper@${validVersion} (1/2)`);
         await downloadFile(bootstrapperDIADownloadLinkWithV, bootstrapperCacheDIAFile, `Bootstrappper@${validVersion} (2/2)`);
       } else {
-        throw new ModNotFoundError(`bootstrapper@${version} not found.`);
+        throw new ModNotFoundError(`bootstrapper@${version} not found.`, 'bootstrapper', version);
       }
     }
   }

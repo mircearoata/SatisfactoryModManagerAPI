@@ -2,12 +2,18 @@ import path from 'path';
 import fs from 'fs';
 import { valid, coerce } from 'semver';
 import {
-  ensureExists, mapObject, dirs, oldAppDataDir, deleteFolderRecursive, manifestsDir,
+  ensureExists, mapObject, dirs, oldAppDataDir, deleteFolderRecursive, manifestsDir, unique,
 } from './utils';
 import {
   LockfileGraph, Lockfile, LockfileGraphNode, ItemVersionList,
 } from './lockfile';
-import { debug } from './logging';
+import { info, debug } from './logging';
+import { SMLID } from './smlHandler';
+import { BootstrapperID } from './bootstrapperHandler';
+import {
+  getSMLVersionInfo, getBootstrapperVersionInfo, getModVersion, getModName, getModReferenceFromId,
+} from './ficsitApp';
+import { ModNotFoundError, ValidationError } from './errors';
 
 export interface ManifestItem {
   id: string;
@@ -39,6 +45,40 @@ function checkUpgradeManifest(manifest: any): Manifest {
     upgradedManifest.items = manifest.items;
   }
   return upgradedManifest;
+}
+
+async function versionExistsOnFicsitApp(id: string, version: string): Promise<boolean> {
+  if (id === SMLID) {
+    return !!(await getSMLVersionInfo(version));
+  }
+  if (id === BootstrapperID) {
+    return !!(await getBootstrapperVersionInfo(version));
+  }
+  if (id === 'SatisfactoryGame') {
+    return true;
+  }
+  try {
+    return !!await getModVersion(id, version);
+  } catch (e) {
+    if (e instanceof ModNotFoundError) {
+      return false;
+    }
+    throw e;
+  }
+}
+
+async function itemExistsOnFicsitApp(id: string): Promise<boolean> {
+  if (id === SMLID || id === BootstrapperID) {
+    return true;
+  }
+  try {
+    return !!await getModName(id);
+  } catch (e) {
+    if (e instanceof ModNotFoundError) {
+      return false;
+    }
+    throw e;
+  }
 }
 
 export class ManifestHandler {
@@ -83,9 +123,42 @@ export class ManifestHandler {
       }
     });
 
+    await manifest.items.forEachAsync(async (item, idx) => {
+      const isOnFicsitApp = await itemExistsOnFicsitApp(item.id);
+      if (!isOnFicsitApp) {
+        try {
+          const modReference = await getModReferenceFromId(item.id);
+          manifest.items[idx].id = modReference;
+          debug(`Converted mod ${modReference} from mod ID to mod reference in manifest`);
+        } catch (e) {
+          if (!(e instanceof ModNotFoundError)) {
+            throw e;
+          }
+        }
+      }
+    });
+
+    manifest.items.removeWhereAsync(async (item) => !(await itemExistsOnFicsitApp(item.id)));
+
     const initialLockfile = this.readLockfile();
     const graph = new LockfileGraph();
     await graph.fromLockfile(initialLockfile);
+
+    await graph.nodes.forEachAsync(async (node, idx) => {
+      const isOnFicsitApp = await versionExistsOnFicsitApp(node.id, node.version);
+      if (!isOnFicsitApp) {
+        try {
+          const modReference = await getModReferenceFromId(node.id);
+          graph.nodes[idx].id = modReference;
+          debug(`Converted mod ${modReference} from mod ID to mod reference in lockfile`);
+        } catch (e) {
+          if (!(e instanceof ModNotFoundError)) {
+            throw e;
+          }
+        }
+      }
+    });
+
     graph.roots().forEach((root) => {
       if (!manifest.items.some((manifestItem) => manifestItem.id === root.id)) {
         graph.remove(root);
@@ -96,6 +169,13 @@ export class ManifestHandler {
         graph.remove(node);
       }
     });
+
+    const modsRemovedFromFicsitApp = await graph.nodes.filterAsync(async (node) => !(await versionExistsOnFicsitApp(node.id, node.version)));
+    modsRemovedFromFicsitApp.forEach((node) => {
+      graph.nodes.remove(node);
+      info(`Trying to update mod ${node.id}, the installed version was removed from ficsit.app`);
+    });
+
     const satisfactoryNode = {
       id: 'SatisfactoryGame',
       version: valid(coerce(manifest.satisfactoryVersion)),
@@ -110,14 +190,52 @@ export class ManifestHandler {
           [item.id]: item.version || '>=0.0.0',
         },
       } as LockfileGraphNode;
-      try {
-        await graph.add(itemData);
-      } catch (e) {
-        debug(`Failed to install ${item}. Changes will be discarded. ${e}`);
-        throw e;
-      }
+      await graph.add(itemData);
     });
-    await graph.validateAll();
+
+    const removedUninstall: Array<string> = [];
+    await graph.nodes
+      .map((node) => Object.keys(node.dependencies))
+      .reduce((acc, cur) => acc.concat(cur))
+      .filter(unique)
+      .forEachAsync(async (dep) => {
+        try {
+          await graph.validate(dep);
+        } catch (e) {
+          if (e instanceof ModNotFoundError) {
+            if (modsRemovedFromFicsitApp.some((rem) => rem.id === e.modID)) {
+              removedUninstall.push(e.modID);
+              return;
+            }
+          } else if (e instanceof ValidationError) {
+            if (modsRemovedFromFicsitApp.some((rem) => rem.id === e.modID)) {
+              removedUninstall.push((e as ModNotFoundError).modID);
+              return;
+            }
+            let inner: Error = e.innerError;
+            while (inner instanceof ValidationError) {
+              if (inner instanceof ModNotFoundError) {
+                const id = inner.modID;
+                if (modsRemovedFromFicsitApp.some((rem) => rem.id === id)) {
+                  removedUninstall.push((inner as ModNotFoundError).modID);
+                  return;
+                }
+              }
+              inner = inner.innerError;
+            }
+          }
+          throw e;
+        }
+      });
+
+    if (removedUninstall.length > 0) {
+      removedUninstall.forEach((rem) => {
+        info(`Removing ${rem}, it was removed from ficsit.app`);
+      });
+      await this.mutate(install, uninstall.concat(removedUninstall), update);
+      return;
+    }
+
     graph.cleanup();
     graph.remove(satisfactoryNode);
     const newLockfile = graph.toLockfile();

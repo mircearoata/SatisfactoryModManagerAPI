@@ -182,16 +182,36 @@ Array.prototype.remove = function remove<T>(element: T): void {
 };
 
 // eslint-disable-next-line no-extend-native
-Array.prototype.removeWhere = function removeWhere<T>(condition: (element: T) => boolean): void {
+Array.prototype.removeWhere = function removeWhere<T>(predicate: (value: T, index: number, array: Array<T>) => boolean): void {
   const toRemove = new Array<T>();
-  this.forEach((element) => {
-    if (condition(element)) {
-      toRemove.push(element);
+  this.forEach((value, index, array) => {
+    if (predicate(value, index, array)) {
+      toRemove.push(value);
     }
   });
   toRemove.forEach((element) => {
     this.remove(element);
   });
+};
+
+// eslint-disable-next-line no-extend-native, max-len
+Array.prototype.removeWhereAsync = async function removeWhereAsync<T>(predicate: (value: T, index: number, array: Array<T>) => Promise<boolean>): Promise<void> {
+  const toRemove = new Array<T>();
+  await this.forEachAsync(async (value, index, array) => {
+    if (await predicate(value, index, array)) {
+      toRemove.push(value);
+    }
+  });
+  toRemove.forEach((element) => {
+    this.remove(element);
+  });
+};
+
+// eslint-disable-next-line no-extend-native, max-len
+Array.prototype.filterAsync = async function filterAsync<T>(predicate: (value: T, index: number, array: Array<T>) => Promise<boolean>): Promise<Array<T>> {
+  const results = await Promise.all(this.map(predicate));
+
+  return this.filter((_v, index) => results[index]);
 };
 
 export function versionSatisfiesAll(version: string, versionConstraints: Array<string>): boolean {

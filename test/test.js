@@ -2,9 +2,9 @@ const path = require('path');
 const fs = require('fs');
 const assert = require('assert');
 const semver = require('semver');
-const { SatisfactoryInstall, getManifestFolderPath, UnsolvableDependencyError, DependencyManifestMismatchError, InvalidConfigError } = require('../');
-const { modCacheDir, forEachAsync } = require('../lib/utils');
-const { addTempMod, addTempModVersion, removeTempMod, removeTempModVersion, setUseTempMods } = require('../lib/ficsitApp');
+const { SatisfactoryInstall, getManifestFolderPath, UnsolvableDependencyError, DependencyManifestMismatchError, InvalidConfigError, ModNotFoundError } = require('../');
+const { modCacheDir, forEachAsync, clearCache } = require('../lib/utils');
+const { addTempMod, addTempModVersion, removeTempMod, removeTempModVersion, setUseTempMods, setTempModReference } = require('../lib/ficsitApp');
 const JSZip = require('jszip');
 
 const dummySfName = 'DummySF';
@@ -69,7 +69,23 @@ const dummyMods = [
     version: '1.0.0',
     dependencies: {
       'SML': '>1.0.0',
+    }
+  },
+  {
+    mod_id: 'dummyMod4',
+    mod_reference: 'dummyMod4',
+    version: '1.0.0',
+    dependencies: {
+      'SML': '>1.0.0',
       'nonExistentMod': '^1.0.1'
+    },
+  },
+  {
+    mod_id: 'dummyMod5',
+    mod_reference: 'dummyMod5ModReference',
+    version: '1.0.0',
+    dependencies: {
+      'SML': '>=2.0.0',
     }
   }
 ];
@@ -104,7 +120,8 @@ async function createDummyMods() {
       mod_id: mod.mod_id,
       version: mod.version,
       sml_version: smlVersion,
-      link: path.join(modCacheDir, `${mod.mod_id}_${mod.version}.smod`)
+      link: path.join(modCacheDir, `${mod.mod_id}_${mod.version}.smod`),
+      dependencies: Object.entries(mod.dependencies).map(([depId, depConstraint]) => ({ mod_id: depId, condition: depConstraint, optional: false }))
     });
   });
   dummyFicsitAppMods.forEach((mod) => {
@@ -136,6 +153,7 @@ function deleteFolderRecursive(path) {
 };
 
 async function main() {
+  // clearCache();
   setUseTempMods(true);
   
   fs.mkdirSync(dummySfPath, { recursive: true });
@@ -164,15 +182,15 @@ async function main() {
 
     // TEMPORARY (until ficsit.app can be searched by mod_reference)
     try {
-      await sfInstall.installMod('dummyMod3', '1.0.0');
-      installedMods = await sfInstall._getInstalledMods();
-      assert.strictEqual(installedMods.length, 1, 'Install with mod_reference dependency failed');
-      await sfInstall.uninstallMod('dummyMod3');
+      await sfInstall.installMod('dummyMod4', '1.0.0');
+      assert.fail('Install with non existend dependency succeded');
     } catch (e) {
       if (e instanceof assert.AssertionError) {
         throw e;
       }
-      assert.fail(`Unexpected error: ${e}`);
+      if (!e instanceof ModNotFoundError) {
+        assert.fail(`Unexpected error: ${e}`);
+      }
     }
 
     try {
@@ -227,7 +245,6 @@ async function main() {
     const testConfigInstalledMods = await sfInstall._getInstalledMods();
 
     try {
-
       await sfInstall.saveConfig('testConfig');
     } catch (e) {
       assert.fail(`Unexpected error: ${e}`);
@@ -347,6 +364,22 @@ async function main() {
       await sfInstall.manifestMutate([], [], []);
       installedMods = await sfInstall._getInstalledMods();
       assert.strictEqual(installedMods.some((mod) => mod.mod_id === 'dummyMod1'), false, 'Mod with all compatible versions removed is still installed');
+    } catch (e) {
+      if (e instanceof assert.AssertionError) {
+        throw e;
+      }
+      assert.fail(`Unexpected error: ${e}`);
+    }
+
+    setTempModReference('dummyMod5', 'dummyMod5');
+    await sfInstall.installMod('dummyMod5');
+    setTempModReference('dummyMod5', 'dummyMod5ModReference');
+
+    try {
+      await sfInstall.manifestMutate([], [], []);
+      installedMods = await sfInstall.mods;
+      assert.strictEqual(!!installedMods['dummyMod5ModReference'], true, 'Mod installed with ID updated with mod reference not updated');
+      assert.strictEqual(!!installedMods['dummyMod5'], false, 'Mod installed with ID updated with mod reference still installed by ID');
     } catch (e) {
       if (e instanceof assert.AssertionError) {
         throw e;

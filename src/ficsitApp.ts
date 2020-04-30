@@ -11,9 +11,9 @@ import { InMemoryCache } from 'apollo-cache-inmemory';
 import { ApolloLink } from 'apollo-link';
 import { versionSatisfiesAll } from './utils';
 import { ModNotFoundError, NetworkError } from './errors';
-import { minSMLVersion, SMLModID } from './smlHandler';
-import { BootstrapperModID } from './bootstrapperHandler';
-import { warn, debug } from './logging';
+import { minSMLVersion, SMLID } from './smlHandler';
+import { BootstrapperID } from './bootstrapperHandler';
+import { warn, error } from './logging';
 
 if (typeof fetch === 'undefined') {
   global.fetch = crossFetch;
@@ -54,7 +54,16 @@ export function getUseTempMods(): boolean {
 }
 
 const tempMods: Array<FicsitAppMod> = [];
-const allTempModIDs: Array<string> = [];
+const allTempModReferences: Array<string> = [];
+
+export function setTempModReference(modID: string, mod_reference: string): void {
+  const tempMod = tempMods.find((mod) => mod.id === modID);
+  if (tempMod) {
+    allTempModReferences.remove(tempMod.mod_reference);
+    allTempModReferences.push(mod_reference);
+    tempMod.mod_reference = mod_reference;
+  }
+}
 
 export function addTempMod(mod: FicsitAppMod): void {
   if (useTempMods) {
@@ -67,8 +76,11 @@ export function addTempMod(mod: FicsitAppMod): void {
     if (!fixedMod.name) {
       fixedMod.name = fixedMod.id;
     }
+    if (!fixedMod.mod_reference) {
+      fixedMod.mod_reference = fixedMod.id;
+    }
     tempMods.push(fixedMod);
-    allTempModIDs.push(mod.id);
+    allTempModReferences.push(mod.mod_reference);
   } else {
     warn('Temporary mods are only available in debug mode');
   }
@@ -76,7 +88,7 @@ export function addTempMod(mod: FicsitAppMod): void {
 
 export function addTempModVersion(version: FicsitAppVersion): void {
   if (useTempMods) {
-    const tempMod = tempMods.find((mod) => mod.id === version.mod_id);
+    const tempMod = tempMods.find((mod) => mod.mod_reference === version.mod_id);
     if (tempMod) {
       const fixedVersion = version;
       fixedVersion.created_at = new Date(0, 0, 0, 0, 0, 0, 0);
@@ -87,17 +99,17 @@ export function addTempModVersion(version: FicsitAppVersion): void {
   }
 }
 
-export function removeTempMod(modID: string): void {
+export function removeTempMod(modReference: string): void {
   if (useTempMods) {
-    tempMods.removeWhere((mod) => mod.id === modID);
+    tempMods.removeWhere((mod) => mod.mod_reference === modReference);
   } else {
     warn('Temporary mods are only available in debug mode');
   }
 }
 
-export function removeTempModVersion(modID: string, version: string): void {
+export function removeTempModVersion(modReference: string, version: string): void {
   if (useTempMods) {
-    const mod = tempMods.find((tempMod) => tempMod.id === modID);
+    const mod = tempMods.find((tempMod) => tempMod.mod_reference === modReference);
     if (mod) {
       mod.versions.removeWhere((modVersion) => modVersion.version === version);
     }
@@ -118,7 +130,7 @@ export async function fiscitApiQuery<T>(query: DocumentNode<unknown, unknown>,
     debug('Done ficsit.app query');
     return response;
   } catch (e) {
-    debug(`Error getting data from ficsit.app: ${e.message}. Trace:\n${e.stack}`);
+    error(`Error getting data from ficsit.app: ${e.message}. Trace:\n${e.stack}`);
     throw new NetworkError('Network error. Please try again later.', e.statusCode);
   }
 }
@@ -126,6 +138,7 @@ export async function fiscitApiQuery<T>(query: DocumentNode<unknown, unknown>,
 export interface FicsitAppMod {
   id: string;
   name: string;
+  mod_reference: string;
   short_description: string;
   full_description: string;
   logo: string;
@@ -137,7 +150,6 @@ export interface FicsitAppMod {
   last_version_date: Date;
   authors: Array<FicsitAppAuthor>;
   versions: Array<FicsitAppVersion>;
-  version: FicsitAppVersion;
 }
 
 export interface FicsitAppVersion {
@@ -149,6 +161,7 @@ export interface FicsitAppVersion {
   stability: 'alpha' | 'beta' | 'release';
   created_at: Date;
   link: string;
+  dependencies: FicsitAppModVersionDependency[];
 }
 
 export interface FicsitAppAuthor {
@@ -162,20 +175,26 @@ export interface FicsitAppUser {
   avatar: string;
 }
 
-export async function getModDownloadLink(modID: string, version: string): Promise<string> {
-  if (allTempModIDs.includes(modID)) {
-    const tempMod = tempMods.find((mod) => mod.id === modID);
+export interface FicsitAppModVersionDependency {
+  mod_id: string;
+  condition: string;
+  optional: boolean;
+}
+
+export async function getModDownloadLink(modReference: string, version: string): Promise<string> {
+  if (allTempModReferences.includes(modReference)) {
+    const tempMod = tempMods.find((mod) => mod.mod_reference === modReference);
     if (tempMod) {
       const tempModVersion = tempMod.versions.find((ver) => ver.version === version);
       if (tempModVersion) {
         return tempModVersion.link;
       }
     }
-    throw new ModNotFoundError(`Temporary mod ${modID}@${version} not found`);
+    throw new ModNotFoundError(`Temporary mod ${modReference}@${version} not found`, modReference, version);
   }
-  const res = await fiscitApiQuery<{getMod: { version: { link: string } } }>(gql`
-    query($modID: ModID!, $version: String!){
-      getMod(modId: $modID)
+  const res = await fiscitApiQuery<{getModByReference: { version: { link: string } } }>(gql`
+    query($modReference: ModReference!, $version: String!){
+      getModByReference(modReference: $modReference)
       {
         id,
         version(version: $version)
@@ -185,13 +204,13 @@ export async function getModDownloadLink(modID: string, version: string): Promis
         }
       }
     }
-    `, { modID, version });
+    `, { modReference, version });
   if (res.errors) {
     throw res.errors;
-  } else if (res.data && res.data.getMod && res.data.getMod.version) {
-    return API_URL + res.data.getMod.version.link;
+  } else if (res.data && res.data.getModByReference && res.data.getModByReference.version) {
+    return API_URL + res.data.getModByReference.version.link;
   } else {
-    throw new ModNotFoundError(`${modID}@${version} not found`);
+    throw new ModNotFoundError(`${modReference}@${version} not found`, modReference, version);
   }
 }
 
@@ -209,6 +228,7 @@ export async function getAvailableMods(page: number): Promise<Array<FicsitAppMod
         {
           id,
           name,
+          mod_reference,
           short_description,
           full_description,
           logo,
@@ -227,18 +247,6 @@ export async function getAvailableMods(page: number): Promise<Array<FicsitAppMod
               avatar
             },
             role
-          },
-          versions
-          {
-            id,
-            mod_id,
-            version,
-            sml_version,
-            changelog,
-            downloads,
-            stability,
-            created_at,
-            link
           }
         }
       }
@@ -258,13 +266,43 @@ export async function getAvailableMods(page: number): Promise<Array<FicsitAppMod
   }
 }
 
-export async function getMod(modID: string): Promise<FicsitAppMod> {
+export async function getModReferenceFromId(modID: string): Promise<string> {
   const res = await fiscitApiQuery<{ getMod: FicsitAppMod }>(gql`
     query($modID: ModID!){
       getMod(modId: $modID)
       {
         id,
+        mod_reference,
+      }
+    }
+    `, {
+    modID,
+  });
+  if (res.errors) {
+    throw res.errors;
+  } else {
+    const resGetMod = res.data.getMod;
+    if (!resGetMod) {
+      if (useTempMods) {
+        const tempMod = tempMods.find((mod) => mod.id === modID);
+        if (tempMod) {
+          return tempMod.mod_reference;
+        }
+      }
+      throw new ModNotFoundError(`Mod ${modID} not found`, modID);
+    }
+    return resGetMod.mod_reference;
+  }
+}
+
+export async function getMod(modReference: string): Promise<FicsitAppMod> {
+  const res = await fiscitApiQuery<{ getModByReference: FicsitAppMod }>(gql`
+    query($modReference: ModReference!){
+      getModByReference(modReference: $modReference)
+      {
+        id,
         name,
+        mod_reference,
         short_description,
         full_description,
         logo,
@@ -293,66 +331,71 @@ export async function getMod(modID: string): Promise<FicsitAppMod> {
           downloads,
           stability,
           created_at,
-          link
+          link,
+          dependencies
+          {
+            mod_id,
+            condition,
+            optional
+          }
         }
       }
     }
     `, {
-    modID,
+    modReference,
   });
   if (res.errors) {
     throw res.errors;
   } else {
-    const resGetMod = res.data.getMod;
-    if (resGetMod === null) {
+    const resGetMod = res.data.getModByReference;
+    if (!resGetMod) {
       if (useTempMods) {
-        const tempMod = tempMods.find((mod) => mod.id === modID);
+        const tempMod = tempMods.find((mod) => mod.mod_reference === modReference);
         if (tempMod) {
           return tempMod;
         }
       }
-      throw new ModNotFoundError(`Mod ${modID} not found`);
+      throw new ModNotFoundError(`Mod ${modReference} not found`, modReference);
     }
     return resGetMod;
   }
 }
 
-export async function getModName(modID: string): Promise<string> {
-  const res = await fiscitApiQuery<{ getMod: FicsitAppMod }>(gql`
-    query($modID: ModID!){
-      getMod(modId: $modID)
+export async function getModName(modReference: string): Promise<string> {
+  const res = await fiscitApiQuery<{ getModByReference: FicsitAppMod }>(gql`
+    query($modReference: ModReference!){
+      getModByReference(modReference: $modReference)
       {
         id,
         name
       }
     }
     `, {
-    modID,
+    modReference,
   });
   if (res.errors) {
     throw res.errors;
   } else {
-    const resGetMod = res.data.getMod;
-    if (resGetMod === null) {
+    const resGetMod = res.data.getModByReference;
+    if (!resGetMod) {
       if (useTempMods) {
-        const tempMod = tempMods.find((mod) => mod.id === modID);
+        const tempMod = tempMods.find((mod) => mod.mod_reference === modReference);
         if (tempMod) {
           return tempMod.name;
         }
       }
-      throw new ModNotFoundError(`Mod ${modID} not found`);
+      throw new ModNotFoundError(`Mod ${modReference} not found`, modReference);
     }
     return resGetMod.name;
   }
 }
 
-export async function getModVersions(modID: string): Promise<Array<FicsitAppVersion>> {
-  const res = await fiscitApiQuery<{ getMod: FicsitAppMod }>(gql`
-    query($modID: ModID!){
-      getMod(modId: $modID)
+export async function getModVersions(modReference: string): Promise<Array<FicsitAppVersion>> {
+  const res = await fiscitApiQuery<{ getModByReference: FicsitAppMod }>(gql`
+    query($modReference: ModReference!){
+      getModByReference(modReference: $modReference)
       {
         id,
-        name,
         versions(filter: {
             limit: 100
           })
@@ -365,32 +408,38 @@ export async function getModVersions(modID: string): Promise<Array<FicsitAppVers
           downloads,
           stability,
           created_at,
-          link
+          link,
+          dependencies
+          {
+            mod_id,
+            condition,
+            optional
+          }
         }
       }
     }
     `, {
-    modID,
+    modReference,
   });
   if (res.errors) {
     throw res.errors;
-  } else if (res.data.getMod) {
-    return res.data.getMod.versions;
+  } else if (res.data.getModByReference) {
+    return res.data.getModByReference.versions;
   } else {
     if (useTempMods) {
-      const tempMod = tempMods.find((mod) => mod.id === modID);
+      const tempMod = tempMods.find((mod) => mod.mod_reference === modReference);
       if (tempMod) {
         return tempMod.versions;
       }
     }
-    throw new ModNotFoundError(`Mod ${modID} not found`);
+    throw new ModNotFoundError(`Mod ${modReference} not found`, modReference);
   }
 }
 
-export async function getModVersion(modID: string, version: string): Promise<FicsitAppVersion> {
-  const res = await fiscitApiQuery<{ getMod: { version: FicsitAppVersion } }>(gql`
-    query($modID: ModID!, $version: String!){
-      getMod(modId: $modID)
+export async function getModVersion(modReference: string, version: string): Promise<FicsitAppVersion> {
+  const res = await fiscitApiQuery<{ getModByReference: { version: FicsitAppVersion } }>(gql`
+    query($modReference: ModReference!, $version: String!){
+      getModByReference(modReference: $modReference)
       {
         id,
         version(version: $version)
@@ -403,24 +452,30 @@ export async function getModVersion(modID: string, version: string): Promise<Fic
           downloads,
           stability,
           created_at,
-          link
+          link,
+          dependencies
+          {
+            mod_id,
+            condition,
+            optional
+          }
         }
       }
     }
     `, {
-    modID,
+    modReference,
     version,
   });
   if (res.errors) {
     throw res.errors;
-  } else if (res.data.getMod) {
-    if (!res.data.getMod.version) {
-      throw new ModNotFoundError(`Mod ${modID}@${version} not found`);
+  } else if (res.data.getModByReference) {
+    if (!res.data.getModByReference.version) {
+      throw new ModNotFoundError(`Mod ${modReference}@${version} not found`, modReference, version);
     }
-    return res.data.getMod.version;
+    return res.data.getModByReference.version;
   } else {
     if (useTempMods) {
-      const tempMod = tempMods.find((mod) => mod.id === modID);
+      const tempMod = tempMods.find((mod) => mod.mod_reference === modReference);
       if (tempMod) {
         const tempVer = tempMod.versions.find((ver) => ver.version === version);
         if (tempVer) {
@@ -428,22 +483,23 @@ export async function getModVersion(modID: string, version: string): Promise<Fic
         }
       }
     }
-    throw new ModNotFoundError(`Mod ${modID} not found`);
+    throw new ModNotFoundError(`Mod ${modReference} not found`, modReference);
   }
 }
 
-export async function getModLatestVersion(modID: string): Promise<FicsitAppVersion> {
-  const versions = await getModVersions(modID);
+
+export async function getModLatestVersion(modReference: string): Promise<FicsitAppVersion> {
+  const versions = await getModVersions(modReference);
   versions.sort((a, b) => -compare(a.version, b.version));
   return versions[0];
 }
 
-export async function findVersionMatchingAll(modID: string,
+export async function findVersionMatchingAll(modReference: string,
   versionConstraints: Array<string>): Promise<string | undefined> {
-  const modInfo = await getMod(modID);
+  const versions = await getModVersions(modReference);
   let finalVersion = '';
   let found = false;
-  modInfo.versions.forEach((modVersion) => {
+  versions.forEach((modVersion) => {
     if (!found && versionSatisfiesAll(modVersion.version, versionConstraints)) {
       found = true;
       finalVersion = modVersion.version;
@@ -612,22 +668,22 @@ export async function getLatestBootstrapperVersion(): Promise<FicsitAppBootstrap
   return versions[0];
 }
 
-export async function findAllVersionsMatchingAll(modID: string, versionConstraints: Array<string>): Promise<Array<string>> {
-  if (modID === SMLModID) {
+export async function findAllVersionsMatchingAll(item: string, versionConstraints: Array<string>): Promise<Array<string>> {
+  if (item === SMLID) {
     const smlVersions = await getAvailableSMLVersions();
     return smlVersions
       .filter((smlVersion) => satisfies(smlVersion.version, `>=${minSMLVersion}`))
       .filter((smlVersion) => versionSatisfiesAll(smlVersion.version, versionConstraints))
       .map((smlVersion) => smlVersion.version);
   }
-  if (modID === BootstrapperModID) {
+  if (item === BootstrapperID) {
     const bootstrapperVersions = await getAvailableBootstrapperVersions();
     return bootstrapperVersions
       .filter((bootstrapperVersion) => versionSatisfiesAll(bootstrapperVersion.version, versionConstraints))
       .map((bootstrapperVersion) => bootstrapperVersion.version);
   }
-  const modInfo = await getMod(modID);
-  return modInfo.versions
+  const versions = await getModVersions(item);
+  return versions
     .filter((modVersion) => versionSatisfiesAll(modVersion.version, versionConstraints))
     .map((modVersion) => modVersion.version);
 }
