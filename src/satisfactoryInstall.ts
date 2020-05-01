@@ -9,10 +9,12 @@ import * as BH from './bootstrapperHandler';
 import {
   FicsitAppVersion, FicsitAppMod, getModReferenceFromId,
 } from './ficsitApp';
-import { ManifestHandler, Manifest, ManifestItem } from './manifest';
+import {
+  Manifest, ManifestItem, mutateManifest, readManifest, readLockfile, getItemsList, writeManifest, writeLockfile,
+} from './manifest';
 import { ItemVersionList, Lockfile } from './lockfile';
 import {
-  filterObject, mergeArrays, isRunning, ensureExists, configFolder, dirs, deleteFolderRecursive, manifestsDir,
+  filterObject, mergeArrays, isRunning, ensureExists, configFolder, dirs, deleteFolderRecursive,
 } from './utils';
 import {
   debug, info, error, warn,
@@ -37,20 +39,16 @@ export function getInstallHash(satisfactoryPath: string): string {
   return createHash('sha256').update(satisfactoryPath, 'utf8').digest('hex');
 }
 
-export function getManifestFolderPath(satisfactoryPath: string): string {
-  return path.join(manifestsDir, getInstallHash(satisfactoryPath));
-}
-
 export class SatisfactoryInstall {
-  private _manifestHandler: ManifestHandler;
   name: string;
   version: string;
   installLocation: string;
   mainGameAppName: string;
 
+  private _config = MODDED_CONFIG_NAME;
+
   constructor(name: string, version: string, installLocation: string, mainGameAppName: string) {
     this.installLocation = installLocation;
-    this._manifestHandler = new ManifestHandler(getManifestFolderPath(installLocation));
 
     this.name = name;
     this.version = version;
@@ -104,8 +102,7 @@ export class SatisfactoryInstall {
     return mismatches;
   }
 
-  async validateInstall(): Promise<void> {
-    const items = this._manifestHandler.getItemsList();
+  async validateInstall(items: ItemVersionList): Promise<void> {
     debug(`Items: ${JSON.stringify(items)}`);
     const mismatches = await this._getInstalledMismatches(items);
     debug(`Mismatches: ${JSON.stringify(mismatches)}`);
@@ -148,20 +145,25 @@ export class SatisfactoryInstall {
   }
 
   async manifestMutate(install: Array<ManifestItem>, uninstall: Array<string>, update: Array<string>): Promise<void> {
+    if (this._config === VANILLA_CONFIG_NAME && (install.length > 0 || update.length > 0)) {
+      throw new InvalidConfigError('Cannot modify vanilla config. Use "modded" config or create a new config');
+    }
     if (!await SatisfactoryInstall.isGameRunning()) {
       debug(`install: [${install.map((item) => (item.version ? `${item.id}@${item.version}` : item.id)).join(', ')}], uninstall: [${uninstall.join(', ')}], update: [${update.join(', ')}]`);
-      const currentManifest = this._manifestHandler.readManifest();
-      const currentLockfile = this._manifestHandler.readLockfile();
+      const currentManifest = readManifest(this.configManifest);
+      const currentLockfile = readLockfile(this.configLockfile);
       try {
-        await this._manifestHandler.setSatisfactoryVersion(this.version);
-        await this._manifestHandler.mutate(install, uninstall, update);
-        await this.validateInstall();
+        const {
+          manifest: newManifest,
+          lockfile: newLockfile,
+        } = await mutateManifest({ manifest: currentManifest, lockfile: currentLockfile }, this.version, install, uninstall, update);
+        await this.validateInstall(getItemsList(newLockfile));
+        writeManifest(this.configManifest, newManifest);
+        writeLockfile(this.configLockfile, newLockfile);
       } catch (e) {
-        await this._manifestHandler.writeManifest(currentManifest);
-        await this._manifestHandler.writeLockfile(currentLockfile);
         e.message = `${e.message}\nAll changes were discarded.`;
         error(e);
-        await this.validateInstall();
+        await this.validateInstall(getItemsList(currentLockfile));
         throw e;
       }
     } else {
@@ -169,47 +171,19 @@ export class SatisfactoryInstall {
     }
   }
 
-  async loadConfig(configName: string): Promise<void> {
-    const currentManifest = this._manifestHandler.readManifest();
-    const currentLockfile = this._manifestHandler.readLockfile();
-    let manifest: Manifest;
-    let lockfile: Lockfile;
-    try {
-      manifest = JSON.parse(fs.readFileSync(path.join(getConfigFolderPath(configName), 'manifest.json'), 'utf8'));
-      manifest.satisfactoryVersion = this.version;
-    } catch (e) {
-      throw new InvalidConfigError(`Config ${configName} is invalid`);
-    }
-    if (fs.existsSync(path.join(getConfigFolderPath(configName), `lock-${getInstallHash(this.installLocation)}.json`))) {
-      try {
-        lockfile = JSON.parse(fs.readFileSync(path.join(getConfigFolderPath(configName), `lock-${getInstallHash(this.installLocation)}.json`), 'utf8'));
-      } catch (e) {
-        throw new InvalidConfigError(`Config ${configName} is invalid`);
-      }
-    } else {
-      lockfile = {};
-    }
-    this._manifestHandler.writeManifest(manifest);
-    this._manifestHandler.writeLockfile(lockfile);
+  async setConfig(configName: string): Promise<void> {
+    const currentConfig = this._config;
+    this._config = configName;
     try {
       await this.manifestMutate([], [], []);
     } catch (e) {
-      // Something invalid was found. Revert and pass the error forward
-      this._manifestHandler.writeManifest(currentManifest);
-      this._manifestHandler.writeLockfile(currentLockfile);
-      await this.validateInstall();
+      this._config = currentConfig;
       throw new InvalidConfigError(`Error while loading config: ${e}`);
     }
   }
 
-  async saveConfig(configName: string): Promise<void> {
-    if (configName.toLowerCase() === VANILLA_CONFIG_NAME) {
-      throw new InvalidConfigError('Cannot modify vanilla config. Use Modded config or create a new config');
-    }
-    const manifest = this._manifestHandler.readManifest();
-    delete manifest.satisfactoryVersion;
-    fs.writeFileSync(path.join(getConfigFolderPath(configName), 'manifest.json'), JSON.stringify(manifest));
-    fs.writeFileSync(path.join(getConfigFolderPath(configName), `lock-${getInstallHash(this.installLocation)}.json`), JSON.stringify(this._manifestHandler.readLockfile()));
+  get config(): string {
+    return this._config;
   }
 
   async _installItem(id: string, version?: string): Promise<void> {
@@ -260,11 +234,11 @@ export class SatisfactoryInstall {
   }
 
   get mods(): ItemVersionList {
-    return filterObject(this._manifestHandler.getItemsList(), (id) => id !== SH.SMLID && id !== BH.BootstrapperID);
+    return filterObject(this._itemsList, (id) => id !== SH.SMLID && id !== BH.BootstrapperID);
   }
 
   get manifestMods(): string[] {
-    return this._manifestHandler.readManifest().items
+    return readManifest(this.configManifest).items
       .filter((item) => item.id !== SH.SMLID && item.id !== BH.BootstrapperID)
       .map((item) => item.id);
   }
@@ -287,11 +261,11 @@ export class SatisfactoryInstall {
   }
 
   get smlVersion(): string | undefined {
-    return this._manifestHandler.getItemsList()[SH.SMLID];
+    return this._itemsList[SH.SMLID];
   }
 
   get isSMLInstalledDev(): boolean {
-    return this._manifestHandler.readManifest().items.some((item) => item.id === SH.SMLID);
+    return readManifest(this.configManifest).items.some((item) => item.id === SH.SMLID);
   }
 
   async updateBootstrapper(): Promise<void> {
@@ -313,11 +287,15 @@ export class SatisfactoryInstall {
   }
 
   get bootstrapperVersion(): string | undefined {
-    return this._manifestHandler.getItemsList()[BH.BootstrapperID];
+    return this._itemsList[BH.BootstrapperID];
   }
 
   private async _getInstalledBootstrapperVersion(): Promise<string | undefined> {
     return BH.getBootstrapperVersion(this.installLocation);
+  }
+
+  private get _itemsList(): ItemVersionList {
+    return getItemsList(readLockfile(this.configLockfile));
   }
 
   get launchPath(): string | undefined {
@@ -334,6 +312,18 @@ export class SatisfactoryInstall {
 
   get modsDir(): string {
     return SH.getModsDir(this.installLocation);
+  }
+
+  get configManifest(): string {
+    return path.join(getConfigFolderPath(this._config), 'manifest.json');
+  }
+
+  get configLockfile(): string {
+    return path.join(getConfigFolderPath(this._config), this.lockfileName);
+  }
+
+  get lockfileName(): string {
+    return `lock-${getInstallHash(this.installLocation)}.json`;
   }
 }
 
@@ -385,6 +375,7 @@ interface UEInstalledManifest {
 }
 
 export async function getInstalls(): Promise<Array<SatisfactoryInstall>> {
+  // TODO steam
   let foundInstalls = new Array<SatisfactoryInstall>();
   if (fs.existsSync(EpicManifestsFolder)) {
     fs.readdirSync(EpicManifestsFolder).forEach((fileName) => {

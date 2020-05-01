@@ -5,7 +5,6 @@ export {
   getInstalls,
   getConfigs,
   deleteConfig,
-  getManifestFolderPath,
 } from './satisfactoryInstall';
 export {
   Mod, ModObject,

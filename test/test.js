@@ -5,6 +5,7 @@ const semver = require('semver');
 const { SatisfactoryInstall, getManifestFolderPath, UnsolvableDependencyError, DependencyManifestMismatchError, InvalidConfigError, ModNotFoundError } = require('../');
 const { modCacheDir, forEachAsync, clearCache } = require('../lib/utils');
 const { addTempMod, addTempModVersion, removeTempMod, removeTempModVersion, setUseTempMods, setTempModReference } = require('../lib/ficsitApp');
+const { getConfigFolderPath } = require('../lib/satisfactoryInstall');
 const JSZip = require('jszip');
 
 const dummySfName = 'DummySF';
@@ -153,7 +154,7 @@ function deleteFolderRecursive(path) {
 };
 
 async function main() {
-  // clearCache();
+  clearCache();
   setUseTempMods(true);
   
   fs.mkdirSync(dummySfPath, { recursive: true });
@@ -161,9 +162,12 @@ async function main() {
 
   let success = true;
 
+  deleteFolderRecursive(getConfigFolderPath('testConfig'));
+
   try {
     // TODO: maybe better testing
     const sfInstall = new SatisfactoryInstall(dummySfName, dummySfVersion, dummySfPath, dummySfExecutable);
+    await sfInstall.setConfig('testConfig');
     let installedMods;
 
     fs.mkdirSync(sfInstall.modsDir, { recursive: true });
@@ -180,7 +184,6 @@ async function main() {
     // TODO: This cannot be tested yet
 
 
-    // TEMPORARY (until ficsit.app can be searched by mod_reference)
     try {
       await sfInstall.installMod('dummyMod4', '1.0.0');
       assert.fail('Install with non existend dependency succeded');
@@ -242,16 +245,21 @@ async function main() {
       assert.fail(`Unexpected error: ${e}`);
     }
 
-    const testConfigInstalledMods = await sfInstall._getInstalledMods();
+    const testConfigInstalledMods = installedMods;
 
     try {
-      await sfInstall.saveConfig('testConfig');
+      await sfInstall.setConfig('vanilla');
+      assert.strictEqual(sfInstall.config, 'vanilla', 'Failed to set config to vanilla');
     } catch (e) {
+      if (e instanceof assert.AssertionError) {
+        throw e;
+      }
       assert.fail(`Unexpected error: ${e}`);
     }
+
     try {
-      await sfInstall.saveConfig('Vanilla');
-      assert.fail('Saved vanilla config');
+      await sfInstall.installMod('dummyMod1');
+      assert.fail('Installed a mod in vanilla config');
     } catch (e) {
       if (e instanceof assert.AssertionError) {
         throw e;
@@ -259,6 +267,18 @@ async function main() {
       if (!(e instanceof InvalidConfigError)) {
         assert.fail(`Unexpected error: ${e}`);
       }
+    }
+
+    try {
+      await sfInstall.setConfig('testConfig');
+      assert.strictEqual(sfInstall.config, 'testConfig', 'Failed to set config to testConfig');
+      installedMods = await sfInstall._getInstalledMods();
+      assert.deepStrictEqual(testConfigInstalledMods, installedMods, 'Config was not loaded correctly');
+    } catch (e) {
+      if (e instanceof assert.AssertionError) {
+        throw e;
+      }
+      assert.fail(`Unexpected error: ${e}`);
     }
 
     try {
@@ -299,13 +319,7 @@ async function main() {
     }
 
     try {
-      await sfInstall.loadConfig('testConfig');
-    } catch (e) {
-      assert.fail(`Unexpected error: ${e}`);
-    }
-
-    try {
-      await sfInstall.loadConfig('Vanilla');
+      await sfInstall.setConfig('vanilla');
       installedMods = await sfInstall._getInstalledMods();
       assert.strictEqual(installedMods.length, 0, 'Vanilla is not clean');
       assert.strictEqual(sfInstall.smlVersion, undefined, 'Vanilla is not clean');
@@ -317,13 +331,7 @@ async function main() {
       assert.fail(`Unexpected error: ${e}`);
     }
 
-    try {
-      await sfInstall.loadConfig('testConfig');
-      installedMods = await sfInstall._getInstalledMods();
-      assert.deepStrictEqual(testConfigInstalledMods, installedMods, 'Config not loaded correctly');
-    } catch (e) {
-      assert.fail(`Unexpected error: ${e}`);
-    }
+    await sfInstall.setConfig('testConfig');
 
     await sfInstall.installMod('dummyMod3', '1.0.0');
 
@@ -342,7 +350,7 @@ async function main() {
       assert.fail(`Unexpected error: ${e}`);
     }
 
-    await sfInstall.updateMod('dummyMod1');
+    await sfInstall.installMod('dummyMod1');
 
     removeTempModVersion('dummyMod1', '1.0.2');
 
@@ -390,17 +398,8 @@ async function main() {
     console.error(e);
     success = false;
   } finally {
-    try {
-      fs.rmdirSync(dummySfPath, { recursive: true });
-      fs.rmdirSync(getManifestFolderPath(dummySfPath), { recursive: true });
-    } catch (e) {
-      if (e.code === "ENOTEMPTY") {
-        deleteFolderRecursive(dummySfPath);
-        deleteFolderRecursive(getManifestFolderPath(dummySfPath));
-      } else {
-        throw e;
-      }
-    }
+    deleteFolderRecursive(dummySfPath);
+    deleteFolderRecursive(getConfigFolderPath('testConfig'));
     await removeDummyMods();
   }
   if (!success) {
