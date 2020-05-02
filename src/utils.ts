@@ -148,6 +148,7 @@ export async function downloadFile(url: string, file: string, friendlyName?: str
       retry: {
         limit: DOWNLOAD_ATTEMPTS,
       },
+      dnsCache: false,
     }).on('downloadProgress', (progress) => { if (progress.total) progressCallbacks.forEach(async (cb) => cb(url, progress, friendlyName)); }).buffer());
     ensureExists(path.dirname(file));
     fs.writeFileSync(file, buffer);
