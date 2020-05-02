@@ -59,8 +59,6 @@ ensureExists(bootstrapperCacheDir);
 export const logsDir = path.join(cacheDir, 'logs');
 ensureExists(logsDir);
 
-export const manifestsDir = path.join(appDataDir, 'manifests');
-ensureExists(manifestsDir);
 export const configFolder = path.join(appDataDir, 'configs');
 ensureExists(configFolder);
 
