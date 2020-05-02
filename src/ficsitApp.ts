@@ -19,7 +19,13 @@ const API_URL = 'https://api.ficsit.app';
 const GRAPHQL_API_URL = `${API_URL}/v2/query`;
 const link = ApolloLink.from([
   createPersistedQueryLink({ useGETForHashedQueries: true }),
-  createHttpLink({ uri: GRAPHQL_API_URL, fetch }),
+  createHttpLink({
+    uri: GRAPHQL_API_URL,
+    fetch,
+    headers: {
+      'User-Agent': 'SatisfactoryModManager', // TODO: allow apps to set this
+    },
+  }),
 ]);
 const client = new ApolloClient({
   cache: new InMemoryCache(),

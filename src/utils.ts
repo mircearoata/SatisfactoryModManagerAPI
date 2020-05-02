@@ -158,6 +158,7 @@ export async function downloadFile(url: string, file: string, friendlyName?: str
       debug(`Network error while downloading file ${url}: ${e.message}. Trace:\n${e.stack}`);
       throw new NetworkError(`Could not download file (${e.message}). Please try again later.`, (e as HTTPError).response.statusCode);
     }
+    debug(`Unexpected error while downloading ${url}: ${e.message}. Trace:\n${e.stack}`);
     throw new Error(`Unexpected error while downloading file ${url}: ${e.message}. Trace:\n${e.stack}`);
   }
 }
