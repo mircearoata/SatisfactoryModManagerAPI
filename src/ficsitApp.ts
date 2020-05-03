@@ -27,7 +27,7 @@ const link = ApolloLink.from([
     uri: GRAPHQL_API_URL,
     fetch: global.fetch,
     headers: {
-      'User-Agent': 'SatisfactoryModManager', // TODO: allow apps to set this
+      'User-Agent': `${process.env.SMM_API_USERAGENT?.replace(' ', '') || 'SatisfactoryModManagerAPI'}/${process.env.SMM_API_USERAGENT_VERSION || 'unknown'}`, // TODO: allow apps to set this
     },
   }),
 ]);
@@ -247,6 +247,24 @@ export async function getAvailableMods(page: number): Promise<Array<FicsitAppMod
               avatar
             },
             role
+          },
+          versions
+          {
+            id,
+            mod_id,
+            version,
+            sml_version,
+            changelog,
+            downloads,
+            stability,
+            created_at,
+            link,
+            dependencies
+            {
+              mod_id,
+              condition,
+              optional
+            }
           }
         }
       }
