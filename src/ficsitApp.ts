@@ -3,7 +3,7 @@ import {
 } from 'semver';
 import { DocumentNode } from 'graphql';
 import gql from 'graphql-tag';
-import fetch from 'cross-fetch';
+import crossFetch from 'cross-fetch';
 import { ApolloClient, ApolloQueryResult } from 'apollo-client';
 import { createHttpLink } from 'apollo-link-http';
 import { createPersistedQueryLink } from 'apollo-link-persisted-queries';
@@ -15,13 +15,17 @@ import { minSMLVersion, SMLModID } from './smlHandler';
 import { BootstrapperModID } from './bootstrapperHandler';
 import { warn, debug } from './logging';
 
+if (typeof fetch === 'undefined') {
+  global.fetch = crossFetch;
+}
+
 const API_URL = 'https://api.ficsit.app';
 const GRAPHQL_API_URL = `${API_URL}/v2/query`;
 const link = ApolloLink.from([
   createPersistedQueryLink({ useGETForHashedQueries: true }),
   createHttpLink({
     uri: GRAPHQL_API_URL,
-    fetch,
+    fetch: global.fetch,
     headers: {
       'User-Agent': 'SatisfactoryModManager', // TODO: allow apps to set this
     },
@@ -105,11 +109,13 @@ export function removeTempModVersion(modID: string, version: string): void {
 export async function fiscitApiQuery<T>(query: DocumentNode<unknown, unknown>,
   variables?: { [key: string]: unknown }): Promise<ApolloQueryResult<T>> {
   try {
+    debug('Starting ficsit.app query');
     const response = await client.query<T>({
       query,
       variables,
       fetchPolicy: 'cache-first',
     });
+    debug('Done ficsit.app query');
     return response;
   } catch (e) {
     debug(`Error getting data from ficsit.app: ${e.message}. Trace:\n${e.stack}`);
