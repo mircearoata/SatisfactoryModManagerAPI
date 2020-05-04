@@ -127,7 +127,9 @@ export function addDownloadProgressCallback(cb: ProgressCallback): void {
 
 export async function fileURLExists(url: string): Promise<boolean> {
   try {
-    const req = got(url);
+    const req = got(url, {
+      dnsCache: false,
+    });
     req.on('downloadProgress', (progress) => {
       if (progress.total) {
         req.cancel('success');
