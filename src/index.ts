@@ -13,7 +13,7 @@ export {
 } from './modHandler';
 export {
   getAvailableMods, getMod, getModName, getModVersions, getModLatestVersion,
-  getAvailableSMLVersions, getLatestSMLVersion,
+  getAvailableSMLVersions, getLatestSMLVersion, getAvailableBootstrapperVersions, getLatestBootstrapperVersion,
   FicsitAppMod, FicsitAppVersion, FicsitAppAuthor, FicsitAppUser, FicsitAppSMLVersion,
 } from './ficsitApp';
 export { } from './manifest';
