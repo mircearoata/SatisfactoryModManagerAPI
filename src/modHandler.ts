@@ -16,8 +16,8 @@ const modExtensions = ['.zip', '.smod'];
 
 export async function getModFromFile(modPath: string): Promise<Mod | undefined> {
   if (modExtensions.includes(path.extname(modPath))) {
-    return util.promisify(fs.readFile)(modPath)
-      .then((data) => JSZip.loadAsync(data))
+    const zipData = fs.readFileSync(modPath);
+    return JSZip.loadAsync(zipData)
       .then((zip) => zip.file('data.json').async('text'))
       .then((data) => {
         const mod = JSON.parse(data) as Mod;
@@ -145,7 +145,7 @@ export async function installMod(modReference: string, version: string, modsDir:
 
 export async function uninstallMod(modReference: string, modsDir: string): Promise<void> {
   if (fs.existsSync(modsDir)) {
-    await fs.readdirSync(modsDir).forEachAsync(async (file) => {
+    await Promise.all(fs.readdirSync(modsDir).map(async (file) => {
       const fullPath = path.join(modsDir, file);
       if (modExtensions.includes(path.extname(fullPath))) {
         const mod = await getModFromFile(fullPath);
@@ -155,7 +155,7 @@ export async function uninstallMod(modReference: string, modsDir: string): Promi
           }
         }
       }
-    });
+    }));
   }
 }
 
