@@ -13,7 +13,7 @@ import { versionSatisfiesAll } from './utils';
 import { ModNotFoundError, NetworkError } from './errors';
 import { minSMLVersion, SMLID } from './smlHandler';
 import { BootstrapperID } from './bootstrapperHandler';
-import { warn, error } from './logging';
+import { warn, error, debug } from './logging';
 
 if (typeof fetch === 'undefined') {
   global.fetch = crossFetch;

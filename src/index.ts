@@ -4,6 +4,7 @@ export {
   SatisfactoryInstall,
   getInstalls,
   getConfigs,
+  createConfig,
   deleteConfig,
 } from './satisfactoryInstall';
 export {
