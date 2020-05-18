@@ -214,7 +214,24 @@ export async function getModDownloadLink(modReference: string, version: string):
   }
 }
 
-const MODS_PER_PAGE = 20;
+export async function getModsCount(): Promise<number> {
+  const res = await fiscitApiQuery<{ getMods: { count: number} }>(gql`
+  query
+  {
+    getMods
+    {
+      count
+    }
+  }
+  `);
+  if (res.errors) {
+    throw res.errors;
+  } else {
+    return res.data.getMods.count;
+  }
+}
+
+export const MODS_PER_PAGE = 20;
 
 export async function getAvailableMods(page: number): Promise<Array<FicsitAppMod>> {
   const res = await fiscitApiQuery<{ getMods: { mods: Array<FicsitAppMod> } }>(gql`

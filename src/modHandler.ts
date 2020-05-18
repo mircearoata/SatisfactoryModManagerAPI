@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import JSZip from 'jszip';
+import StreamZip from 'node-stream-zip';
 import {
   modCacheDir, copyFile, downloadFile,
 } from './utils';
@@ -15,21 +15,21 @@ const modExtensions = ['.zip', '.smod'];
 
 export async function getModFromFile(modPath: string): Promise<Mod | undefined> {
   if (modExtensions.includes(path.extname(modPath))) {
-    const zipData = fs.readFileSync(modPath);
-    return JSZip.loadAsync(zipData)
-      .then((zip) => zip.file('data.json').async('text'))
-      .then((data) => {
-        const mod = JSON.parse(data) as Mod;
-        if (!mod.mod_id || !mod.mod_reference) {
-          return undefined;
-        }
-        mod.path = modPath;
-        return mod;
-      })
-      .catch((e) => {
-        error(e);
+    const zipData = new StreamZip({ file: modPath });
+    try {
+      await new Promise((resolve) => zipData.on('ready', resolve));
+      const mod = JSON.parse(zipData.entryDataSync('data.json').toString('utf8')) as Mod;
+      zipData.close();
+      if (!mod.mod_id || !mod.mod_reference) {
         return undefined;
-      });
+      }
+      mod.path = modPath;
+      return mod;
+    } catch (e) {
+      zipData.close();
+      error(e);
+      return undefined;
+    }
   }
   throw new InvalidModFileError(`Invalid mod file ${modPath}. Extension is ${path.extname(modPath)}, required ${modExtensions.join(', ')}`);
 }

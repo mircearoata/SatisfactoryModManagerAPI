@@ -12,7 +12,7 @@ export {
   loadCache,
 } from './modHandler';
 export {
-  getAvailableMods, getMod, getModName, getModVersions, getModLatestVersion,
+  getAvailableMods, getMod, getModName, getModVersions, getModLatestVersion, getModsCount, MODS_PER_PAGE,
   getAvailableSMLVersions, getLatestSMLVersion, getAvailableBootstrapperVersions, getLatestBootstrapperVersion,
   FicsitAppMod, FicsitAppVersion, FicsitAppAuthor, FicsitAppUser, FicsitAppSMLVersion,
 } from './ficsitApp';
