@@ -107,15 +107,8 @@ export class SatisfactoryInstall {
     const mismatches = await this._getInstalledMismatches(items);
     debug(`Mismatches: ${JSON.stringify(mismatches)}`);
     const modsDir = SH.getModsDir(this.installLocation);
-    await Promise.all(mismatches.uninstall.map((id) => {
-      if (id !== SH.SMLID && id !== BH.BootstrapperID) {
-        if (modsDir) {
-          debug(`Removing ${id} from Satisfactory install`);
-          return MH.uninstallMod(id, modsDir);
-        }
-      }
-      return Promise.resolve();
-    }));
+    mismatches.uninstall.forEach((id) => debug(`Removing ${id} from Satisfactory install`));
+    await MH.uninstallMods(mismatches.uninstall, modsDir);
     if (mismatches.uninstall.includes(SH.SMLID)) {
       debug('Removing SML from Satisfactory install');
       await SH.uninstallSML(this.installLocation);

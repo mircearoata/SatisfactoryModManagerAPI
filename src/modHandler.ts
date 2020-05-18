@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import util from 'util';
 import JSZip from 'jszip';
 import {
   modCacheDir, copyFile, downloadFile,
@@ -143,13 +142,13 @@ export async function installMod(modReference: string, version: string, modsDir:
   }
 }
 
-export async function uninstallMod(modReference: string, modsDir: string): Promise<void> {
+export async function uninstallMods(modReferences: Array<string>, modsDir: string): Promise<void> {
   if (fs.existsSync(modsDir)) {
     await Promise.all(fs.readdirSync(modsDir).map(async (file) => {
       const fullPath = path.join(modsDir, file);
       if (modExtensions.includes(path.extname(fullPath))) {
         const mod = await getModFromFile(fullPath);
-        if (mod && (mod.mod_reference === modReference || mod.mod_id === modReference)) {
+        if (mod && (modReferences.includes(mod.mod_reference) || modReferences.includes(mod.mod_id))) {
           if (fs.existsSync(fullPath)) {
             fs.unlinkSync(fullPath);
           }
