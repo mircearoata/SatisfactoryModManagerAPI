@@ -1,7 +1,5 @@
 import path from 'path';
-import { getDataFolders } from 'platform-folders';
 import fs from 'fs';
-import { compare, valid, coerce } from 'semver';
 import { createHash } from 'crypto';
 import * as MH from './modHandler';
 import * as SH from './smlHandler';
@@ -17,7 +15,7 @@ import {
   filterObject, mergeArrays, isRunning, ensureExists, configFolder, dirs, deleteFolderRecursive,
 } from './utils';
 import {
-  debug, info, error, warn,
+  debug, info, error,
 } from './logging';
 import {
   GameRunningError, InvalidConfigError,
@@ -43,16 +41,16 @@ export class SatisfactoryInstall {
   name: string;
   version: string;
   installLocation: string;
-  mainGameAppName: string;
+  launchPath: string;
 
   private _config = MODDED_CONFIG_NAME;
 
-  constructor(name: string, version: string, installLocation: string, mainGameAppName: string) {
+  constructor(name: string, version: string, installLocation: string, launchPath: string) {
     this.installLocation = installLocation;
 
     this.name = name;
     this.version = version;
-    this.mainGameAppName = mainGameAppName;
+    this.launchPath = launchPath;
   }
 
   private async _getInstalledMismatches(items: ItemVersionList):
@@ -291,16 +289,12 @@ export class SatisfactoryInstall {
     return getItemsList(readLockfile(this.configLockfile));
   }
 
-  get launchPath(): string | undefined {
-    return `com.epicgames.launcher://apps/${this.mainGameAppName}?action=launch&silent=true`;
-  }
-
   get binariesDir(): string {
     return path.join(this.installLocation, 'FactoryGame', 'Binaries', 'Win64'); // TODO: other platforms
   }
 
   get displayName(): string {
-    return `${this.name} (${this.version})`;
+    return `${this.name} - CL${this.version}`;
   }
 
   get modsDir(): string {
@@ -363,89 +357,4 @@ if (!fs.existsSync(path.join(getConfigFolderPath(DEVELOPMENT_CONFIG_NAME), 'mani
 }
 if (!fs.existsSync(path.join(getConfigFolderPath(DEVELOPMENT_CONFIG_NAME), 'lock.json'))) {
   fs.writeFileSync(path.join(getConfigFolderPath(DEVELOPMENT_CONFIG_NAME), 'lock.json'), JSON.stringify({} as Lockfile));
-}
-
-const EpicManifestsFolder = path.join(getDataFolders()[0], 'Epic', 'EpicGamesLauncher', 'Data', 'Manifests'); // TODO: other platforms
-const UEInstalledManifest = path.join(getDataFolders()[0], 'Epic', 'UnrealEngineLauncher', 'LauncherInstalled.dat'); // TODO: other platforms
-
-interface UEInstalledManifestEntry {
-  InstallLocation: string;
-  AppName: string;
-  AppVersion: string;
-}
-
-interface UEInstalledManifest {
-  InstallationList: Array<UEInstalledManifestEntry>;
-}
-
-export async function getInstalls(): Promise<Array<SatisfactoryInstall>> {
-  // TODO steam
-  let foundInstalls = new Array<SatisfactoryInstall>();
-  if (fs.existsSync(EpicManifestsFolder)) {
-    fs.readdirSync(EpicManifestsFolder).forEach((fileName) => {
-      if (fileName.endsWith('.item')) {
-        const filePath = path.join(EpicManifestsFolder, fileName);
-        try {
-          const jsonString = fs.readFileSync(filePath, 'utf8');
-          const manifest = JSON.parse(jsonString);
-          if (manifest.CatalogNamespace === 'crab') {
-            try {
-              const gameManifestString = fs.readFileSync(path.join(manifest.ManifestLocation, `${manifest.InstallationGuid}.mancpn`), 'utf8');
-              const gameManifest = JSON.parse(gameManifestString);
-              if (gameManifest.AppName === manifest.MainGameAppName
-              && gameManifest.CatalogItemId === manifest.CatalogItemId
-              && gameManifest.CatalogNamespace === manifest.CatalogNamespace) {
-                const installWithSamePath = foundInstalls.find((install) => install.installLocation === manifest.InstallLocation);
-                if (installWithSamePath) {
-                  if (parseInt(manifest.AppVersionString, 10) > parseInt(installWithSamePath.version, 10)) {
-                    installWithSamePath.version = manifest.AppVersionString;
-                  }
-                } else {
-                  foundInstalls.push(new SatisfactoryInstall(
-                    manifest.DisplayName,
-                    manifest.AppVersionString,
-                    manifest.InstallLocation,
-                    manifest.MainGameAppName,
-                  ));
-                }
-              } else {
-                warn(`Epic install info points to invalid folder ${manifest.InstallLocation}. If you moved your install to an external drive, try verifying the game in Epic and restarting your PC.`);
-              }
-            } catch (e) {
-              warn(`Epic install info points to invalid folder ${manifest.InstallLocation}. If you moved your install to an external drive, try verifying the game in Epic and restarting your PC.`);
-            }
-          }
-        } catch (e) {
-          info(`Found invalid manifest: ${fileName}`);
-        }
-      }
-    });
-  }
-  if (foundInstalls.length === 0) {
-    warn('No Satisfactory installs found');
-  }
-  let installedManifest: UEInstalledManifest = { InstallationList: [] };
-  if (fs.existsSync(UEInstalledManifest)) {
-    try {
-      installedManifest = JSON.parse(fs.readFileSync(UEInstalledManifest, 'utf8'));
-      foundInstalls = foundInstalls.filter((install) => installedManifest.InstallationList.some(
-        (manifestInstall) => manifestInstall.InstallLocation === install.installLocation,
-      )); // Filter out old .items left over by Epic
-      if (foundInstalls.length === 0) {
-        warn('UE manifest filtered all installs.');
-      }
-    } catch (e) {
-      info('Invalid UE manifest. The game might appear multiple times.');
-    }
-  } else {
-    info('Invalid UE manifest. The game might appear multiple times.');
-  }
-  foundInstalls.sort((a, b) => {
-    const semverCmp = compare(valid(coerce(a.version)) || '0.0.0', valid(coerce(b.version)) || '0.0.0');
-    if (semverCmp === 0) {
-      return a.name.localeCompare(b.name);
-    }
-    return semverCmp;
-  });
-  return foundInstalls;
 }

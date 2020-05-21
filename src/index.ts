@@ -2,11 +2,13 @@ import './utils';
 
 export {
   SatisfactoryInstall,
-  getInstalls,
   getConfigs,
   createConfig,
   deleteConfig,
 } from './satisfactoryInstall';
+export {
+  getInstalls,
+} from './installFinder';
 export {
   Mod, ModObject,
   loadCache,
@@ -18,7 +20,9 @@ export {
 } from './ficsitApp';
 export { } from './manifest';
 export * from './errors';
-export { getLogFilePath } from './logging';
+export {
+  getLogFilePath, debug, info, warn, error,
+} from './logging';
 export {
   clearCache, setDebug, toggleDebug, isDebug,
   addDownloadProgressCallback,
