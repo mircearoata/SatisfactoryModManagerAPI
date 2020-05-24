@@ -114,7 +114,7 @@ setLogFileNameFormat(`${appName}-%DATE%.log`);
 
 const DOWNLOAD_ATTEMPTS = 3;
 
-type ProgressCallback = (url: string, progress: Progress, friendlyName?: string) => void;
+type ProgressCallback = (url: string, progress: Progress, name: string, version: string) => void;
 const progressCallbacks: Array<ProgressCallback> = [];
 
 export function addDownloadProgressCallback(cb: ProgressCallback): void {
@@ -142,14 +142,14 @@ export async function fileURLExists(url: string): Promise<boolean> {
   }
 }
 
-export async function downloadFile(url: string, file: string, friendlyName?: string): Promise<void> {
+export async function downloadFile(url: string, file: string, name: string, version: string): Promise<void> {
   try {
     const buffer: Buffer = (await got(url, {
       retry: {
         limit: DOWNLOAD_ATTEMPTS,
       },
       dnsCache: false,
-    }).on('downloadProgress', (progress) => { if (progress.total) progressCallbacks.forEach(async (cb) => cb(url, progress, friendlyName)); }).buffer());
+    }).on('downloadProgress', (progress) => { if (progress.total) progressCallbacks.forEach(async (cb) => cb(url, progress, name, version)); }).buffer());
     ensureExists(path.dirname(file));
     fs.writeFileSync(file, buffer);
     return;

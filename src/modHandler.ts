@@ -60,7 +60,7 @@ export async function loadCache(): Promise<void> {
 export async function downloadMod(modReference: string, version: string): Promise<string> {
   const downloadURL = await getModDownloadLink(modReference, version);
   const filePath = path.join(modCacheDir, `${modReference}_${version}.smod`);
-  await downloadFile(downloadURL, filePath, `${await getModName(modReference)}@${version}`);
+  await downloadFile(downloadURL, filePath, await getModName(modReference), version);
   const modInfo = await getModFromFile(filePath);
   if (modInfo) {
     const modReferenceFilePath = path.join(modCacheDir, `${modInfo.mod_reference}_${version}.smod`);

@@ -43,11 +43,11 @@ async function getSMLVersionCache(version: string): Promise<string> {
     debug(`SML@${version} is not cached. Downloading`);
     const smlDownloadLink = getSMLDownloadLink(validVersion);
     if (await fileURLExists(smlDownloadLink)) {
-      await downloadFile(smlDownloadLink, smlVerionCacheFile, `SML@${validVersion}`);
+      await downloadFile(smlDownloadLink, smlVerionCacheFile, 'SML', validVersion);
     } else {
       const smlDownloadLinkWithV = getSMLDownloadLink(`v${validVersion}`);
       if (await fileURLExists(smlDownloadLinkWithV)) {
-        await downloadFile(smlDownloadLinkWithV, smlVerionCacheFile, `SML@${validVersion}`);
+        await downloadFile(smlDownloadLinkWithV, smlVerionCacheFile, 'SML', validVersion);
       } else {
         throw new ModNotFoundError(`SML@${version} not found.`, 'SML', version);
       }
