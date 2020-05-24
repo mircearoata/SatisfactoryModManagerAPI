@@ -8,9 +8,9 @@ import {
   FicsitAppVersion, FicsitAppMod, getModReferenceFromId,
 } from './ficsitApp';
 import {
-  Manifest, ManifestItem, mutateManifest, readManifest, readLockfile, getItemsList, writeManifest, writeLockfile, ManifestVersion,
+  ManifestItem, mutateManifest, readManifest, readLockfile, getItemsList, writeManifest, writeLockfile, ManifestVersion,
 } from './manifest';
-import { ItemVersionList, Lockfile } from './lockfile';
+import { ItemVersionList } from './lockfile';
 import {
   filterObject, mergeArrays, isRunning, ensureExists, configFolder, dirs, deleteFolderRecursive,
 } from './utils';
@@ -25,6 +25,11 @@ export function getConfigFolderPath(configName: string): string {
   const configPath = path.join(configFolder, configName);
   ensureExists(configPath);
   return configPath;
+}
+
+export function configExists(configName: string): boolean {
+  const configPath = path.join(configFolder, configName);
+  return fs.existsSync(configPath);
 }
 
 const VANILLA_CONFIG_NAME = 'vanilla';
@@ -325,36 +330,29 @@ export function deleteConfig(name: string): void {
   if (name.toLowerCase() === VANILLA_CONFIG_NAME || name.toLowerCase() === MODDED_CONFIG_NAME || name.toLowerCase() === DEVELOPMENT_CONFIG_NAME) {
     throw new InvalidConfigError(`Cannot delete ${name} config (it is part of the default set of configs)`);
   }
-  if (fs.existsSync(getConfigFolderPath(name))) {
+  if (configExists(name)) {
     deleteFolderRecursive(getConfigFolderPath(name));
   }
 }
 
-export function createConfig(name: string): void {
-  if (fs.existsSync(getConfigFolderPath(name))) {
+export function createConfig(name: string, copyConfig = 'vanilla'): void {
+  if (configExists(name)) {
     throw new InvalidConfigError(`Config ${name} already exists`);
   }
-  fs.writeFileSync(path.join(getConfigFolderPath(name), 'manifest.json'), JSON.stringify({ items: new Array<ManifestItem>(), manifestVersion: ManifestVersion.Latest } as Manifest));
-  fs.writeFileSync(path.join(getConfigFolderPath(name), 'lock.json'), JSON.stringify({} as Lockfile));
+  if (!configExists(copyConfig)) {
+    throw new InvalidConfigError(`Config ${copyConfig} does not exist`);
+  }
+  writeManifest(path.join(getConfigFolderPath(name), 'manifest.json'), readManifest(path.join(getConfigFolderPath(copyConfig), 'manifest.json')));
 }
 
 if (!fs.existsSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'manifest.json'))) {
-  fs.writeFileSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'manifest.json'), JSON.stringify({ items: new Array<ManifestItem>(), manifestVersion: ManifestVersion.Latest } as Manifest));
-}
-if (!fs.existsSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'lock.json'))) {
-  fs.writeFileSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'lock.json'), JSON.stringify({} as Lockfile));
+  writeManifest(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'manifest.json'), { items: new Array<ManifestItem>(), manifestVersion: ManifestVersion.Latest });
 }
 
 if (!fs.existsSync(path.join(getConfigFolderPath(MODDED_CONFIG_NAME), 'manifest.json'))) {
-  fs.writeFileSync(path.join(getConfigFolderPath(MODDED_CONFIG_NAME), 'manifest.json'), JSON.stringify({ items: new Array<ManifestItem>(), manifestVersion: ManifestVersion.Latest } as Manifest));
-}
-if (!fs.existsSync(path.join(getConfigFolderPath(MODDED_CONFIG_NAME), 'lock.json'))) {
-  fs.writeFileSync(path.join(getConfigFolderPath(MODDED_CONFIG_NAME), 'lock.json'), JSON.stringify({} as Lockfile));
+  writeManifest(path.join(getConfigFolderPath(MODDED_CONFIG_NAME), 'manifest.json'), { items: new Array<ManifestItem>(), manifestVersion: ManifestVersion.Latest });
 }
 
 if (!fs.existsSync(path.join(getConfigFolderPath(DEVELOPMENT_CONFIG_NAME), 'manifest.json'))) {
-  fs.writeFileSync(path.join(getConfigFolderPath(DEVELOPMENT_CONFIG_NAME), 'manifest.json'), JSON.stringify({ items: [{ id: SH.SMLID }], manifestVersion: ManifestVersion.Latest } as Manifest));
-}
-if (!fs.existsSync(path.join(getConfigFolderPath(DEVELOPMENT_CONFIG_NAME), 'lock.json'))) {
-  fs.writeFileSync(path.join(getConfigFolderPath(DEVELOPMENT_CONFIG_NAME), 'lock.json'), JSON.stringify({} as Lockfile));
+  writeManifest(path.join(getConfigFolderPath(DEVELOPMENT_CONFIG_NAME), 'manifest.json'), { items: [{ id: SH.SMLID }], manifestVersion: ManifestVersion.Latest });
 }
