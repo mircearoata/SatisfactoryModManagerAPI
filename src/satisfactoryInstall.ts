@@ -157,7 +157,7 @@ export class SatisfactoryInstall {
         writeManifest(this.configManifest, newManifest);
         writeLockfile(this.configLockfile, newLockfile);
       } catch (e) {
-        e.message = `${e.message}\nAll changes were discarded.`;
+        e.message = `${e.message}${e.message.endsWith('.') ? '' : '.'}\nAll changes were discarded.`;
         error(e);
         await this.validateInstall(getItemsList(currentLockfile));
         throw e;
@@ -174,7 +174,7 @@ export class SatisfactoryInstall {
       await this.manifestMutate([], [], []);
     } catch (e) {
       this._config = currentConfig;
-      throw new InvalidConfigError(`Error while loading config: ${e}`);
+      throw new InvalidConfigError(`Error while loading config: ${e.message}`);
     }
   }
 
