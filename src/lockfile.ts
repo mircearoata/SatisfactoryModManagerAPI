@@ -64,7 +64,7 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
     modData.dependencies.push({ mod_id: SMLID, condition: `^${valid(coerce(modData.sml_version))}`, optional: false });
   }
   return {
-    id: await getModReferenceFromId(modData.mod_id),
+    id: await getModReferenceFromId(modData.mod_id), // TODO: Isn't this pointless? the mod_reference is the id param
     version: modData.version,
     dependencies: modData.dependencies
       ? modData.dependencies.reduce((prev, current) => (!current.optional ? Object.assign(prev, { [current.mod_id]: current.condition }) : prev), {})
@@ -190,6 +190,10 @@ export class LockfileGraph {
 
   remove(node: LockfileGraphNode): void {
     this.nodes.remove(node);
+  }
+
+  removeWhere(cb: (node: LockfileGraphNode) => boolean): void {
+    this.nodes.removeWhere((node) => cb(node));
   }
 
   async add(node: LockfileGraphNode): Promise<void> {

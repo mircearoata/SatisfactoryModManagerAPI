@@ -141,15 +141,11 @@ export async function mutateManifest(original: {manifest: Manifest; lockfile: Lo
       graph.remove(root);
     }
   });
-  graph.nodes.forEach((node) => {
-    if (update.includes(node.id)) {
-      graph.remove(node);
-    }
-  });
+  graph.removeWhere((node) => update.includes(node.id));
 
   const modsRemovedFromFicsitApp = await graph.nodes.filterAsync(async (node) => !(await versionExistsOnFicsitApp(node.id, node.version)));
   modsRemovedFromFicsitApp.forEach((node) => {
-    graph.nodes.remove(node);
+    graph.remove(node);
     info(`Trying to update mod ${node.id}, the installed version was removed from ficsit.app`);
   });
 

@@ -121,13 +121,11 @@ export function removeTempModVersion(modReference: string, version: string): voi
 export async function fiscitApiQuery<T>(query: DocumentNode<unknown, unknown>,
   variables?: { [key: string]: unknown }): Promise<ApolloQueryResult<T>> {
   try {
-    debug('Starting ficsit.app query');
     const response = await client.query<T>({
       query,
       variables,
       fetchPolicy: 'cache-first',
     });
-    debug('Done ficsit.app query');
     return response;
   } catch (e) {
     error(`Error getting data from ficsit.app: ${e.message}. Trace:\n${e.stack}`);

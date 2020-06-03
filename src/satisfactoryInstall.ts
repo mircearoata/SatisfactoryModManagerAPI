@@ -1,18 +1,20 @@
 import path from 'path';
 import fs from 'fs';
 import { createHash } from 'crypto';
+import { eq } from 'semver';
 import * as MH from './modHandler';
 import * as SH from './smlHandler';
 import * as BH from './bootstrapperHandler';
 import {
-  FicsitAppVersion, FicsitAppMod, getModReferenceFromId,
+  FicsitAppVersion, FicsitAppMod, FicsitAppSMLVersion, FicsitAppBootstrapperVersion,
+  getModReferenceFromId, getModVersions, getAvailableSMLVersions, getAvailableBootstrapperVersions,
 } from './ficsitApp';
 import {
   ManifestItem, mutateManifest, readManifest, readLockfile, getItemsList, writeManifest, writeLockfile, ManifestVersion,
 } from './manifest';
 import { ItemVersionList } from './lockfile';
 import {
-  filterObject, mergeArrays, isRunning, ensureExists, configFolder, dirs, deleteFolderRecursive,
+  filterObject, mergeArrays, isRunning, ensureExists, configFolder, dirs, deleteFolderRecursive, validAndGreater,
 } from './utils';
 import {
   debug, info, error,
@@ -40,6 +42,13 @@ const CacheRelativePath = '.cache';
 
 export function getInstallHash(satisfactoryPath: string): string {
   return createHash('sha256').update(satisfactoryPath, 'utf8').digest('hex');
+}
+
+export interface ItemUpdate {
+  item: string;
+  currentVersion: string;
+  version: string;
+  releases: Array<FicsitAppVersion | FicsitAppSMLVersion | FicsitAppBootstrapperVersion>;
 }
 
 export class SatisfactoryInstall {
@@ -276,6 +285,34 @@ export class SatisfactoryInstall {
     } else {
       throw new GameRunningError('Satisfactory is running. Please close it and wait until it fully shuts down.');
     }
+  }
+
+  async checkForUpdates(): Promise<Array<ItemUpdate>> {
+    const currentManifest = readManifest(this.configManifest);
+    const currentLockfile = readLockfile(this.configLockfile);
+    const {
+      lockfile: newLockfile,
+    } = await mutateManifest({ manifest: currentManifest, lockfile: currentLockfile }, this.version, [], [], Object.keys(this._itemsList));
+    return Promise.all(Object.entries(newLockfile)
+      .filter(([item, { version: newVersion }]) => !!currentLockfile[item] && !eq(currentLockfile[item].version, newVersion))
+      .map(async ([item, { version: newVersion }]) => {
+        const currentVersion = currentLockfile[item].version;
+        if (item === SH.SMLID) {
+          const versions = await getAvailableSMLVersions();
+          return {
+            item, currentVersion, version: newVersion, releases: versions.filter((ver) => validAndGreater(ver.version, currentVersion)),
+          } as ItemUpdate;
+        } if (item === BH.BootstrapperID) {
+          const versions = await getAvailableBootstrapperVersions();
+          return {
+            item, currentVersion, version: newVersion, releases: versions.filter((ver) => validAndGreater(ver.version, currentVersion)),
+          } as ItemUpdate;
+        }
+        const versions = await getModVersions(item);
+        return {
+          item, currentVersion, version: newVersion, releases: versions.filter((ver) => validAndGreater(ver.version, currentVersion)),
+        } as ItemUpdate;
+      }));
   }
 
   static isGameRunning(): Promise<boolean> {

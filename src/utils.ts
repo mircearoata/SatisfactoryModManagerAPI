@@ -1,7 +1,7 @@
 import { getDataHome, getCacheFolder } from 'platform-folders';
 import path from 'path';
 import fs from 'fs';
-import { satisfies } from 'semver';
+import { satisfies, coerce, gt } from 'semver';
 import processExists from 'process-exists';
 import { execSync } from 'child_process';
 import got, { HTTPError, Progress } from 'got';
@@ -214,6 +214,13 @@ Array.prototype.filterAsync = async function filterAsync<T>(predicate: (value: T
 
 export function versionSatisfiesAll(version: string, versionConstraints: Array<string>): boolean {
   return versionConstraints.every((versionConstraint) => satisfies(version, versionConstraint));
+}
+
+export function validAndGreater(v1: string, v2: string): boolean {
+  const fixedV1 = coerce(v1);
+  const fixedV2 = coerce(v2);
+  if (!fixedV1 || !fixedV2) return false;
+  return gt(fixedV1, fixedV2);
 }
 
 export function filterObject<V>(object: { [key: string]: V },
