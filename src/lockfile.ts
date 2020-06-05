@@ -3,7 +3,7 @@ import {
   compare, valid, coerce,
 } from 'semver';
 import {
-  findAllVersionsMatchingAll, getSMLVersionInfo, getBootstrapperVersionInfo, getModVersion, getModName, getModReferenceFromId,
+  findAllVersionsMatchingAll, getSMLVersionInfo, getBootstrapperVersionInfo, getModVersion, getModName,
 } from './ficsitApp';
 import {
   ImcompatibleGameVersion,
@@ -64,7 +64,7 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
     modData.dependencies.push({ mod_id: SMLID, condition: `^${valid(coerce(modData.sml_version))}`, optional: false });
   }
   return {
-    id: await getModReferenceFromId(modData.mod_id), // TODO: Isn't this pointless? the mod_reference is the id param
+    id,
     version: modData.version,
     dependencies: modData.dependencies
       ? modData.dependencies.reduce((prev, current) => (!current.optional ? Object.assign(prev, { [current.mod_id]: current.condition }) : prev), {})
