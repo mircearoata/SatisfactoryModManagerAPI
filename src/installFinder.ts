@@ -99,21 +99,13 @@ function getInstallsSteam(): InstallFindResult {
   return { installs: [], invalidInstalls: [] };
 }
 
-function getInstallsWindows(): Array<SatisfactoryInstall> {
+function getInstallsWindows(): InstallFindResult {
   const { installs: epicInstalls, invalidInstalls: invalidEpicInstalls } = getInstallsEpic();
   const { installs: steamInstalls, invalidInstalls: invalidSteamInstalls } = getInstallsSteam();
-  const totalInstalls = epicInstalls.concat(steamInstalls);
-  const totalInvalidInstalls = invalidEpicInstalls.concat(invalidSteamInstalls);
-  if (totalInstalls.length === 0) {
-    if (totalInvalidInstalls.length !== 0) {
-      throw new Error(`${totalInvalidInstalls.length} Satisfactory installs were found, but all of them point to folders that don't exist. Follow the instructions in #faq of the modding discord (link in the menu).`);
-    }
-    throw new Error('No Satisfactory installs found');
-  }
-  return totalInstalls;
+  return { installs: epicInstalls.concat(steamInstalls), invalidInstalls: invalidEpicInstalls.concat(invalidSteamInstalls) };
 }
 
-export function getInstalls(): Array<SatisfactoryInstall> {
+export function getInstalls(): InstallFindResult {
   // TODO: other OSes
   return getInstallsWindows();
 }
