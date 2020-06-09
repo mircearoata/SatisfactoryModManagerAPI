@@ -2,6 +2,9 @@ import path from 'path';
 import fs from 'fs';
 import { getDataFolders } from 'platform-folders';
 import { compare, valid, coerce } from 'semver';
+import vdf from 'vdf';
+import Registry from 'winreg';
+import { exiftool } from 'exiftool-vendored';
 import { SatisfactoryInstall } from './satisfactoryInstall';
 import { warn, info } from './logging';
 
@@ -23,7 +26,7 @@ interface UEInstalledManifest {
   InstallationList: Array<UEInstalledManifestEntry>;
 }
 
-function getInstallsEpic(): InstallFindResult {
+function getInstallsEpicWindows(): InstallFindResult {
   let foundInstalls: Array<SatisfactoryInstall> = [];
   const invalidInstalls: Array<string> = [];
   if (fs.existsSync(EpicManifestsFolder)) {
@@ -94,18 +97,74 @@ function getInstallsEpic(): InstallFindResult {
   return { installs: foundInstalls, invalidInstalls };
 }
 
-function getInstallsSteam(): InstallFindResult {
-  // TODO: steam
-  return { installs: [], invalidInstalls: [] };
+interface SteamLibraryFoldersManifest {
+  LibraryFolders: {
+    TimeNextStatsReport: string;
+    ContentStatsID: string;
+    [idx: number]: string;
+  };
 }
 
-function getInstallsWindows(): InstallFindResult {
-  const { installs: epicInstalls, invalidInstalls: invalidEpicInstalls } = getInstallsEpic();
-  const { installs: steamInstalls, invalidInstalls: invalidSteamInstalls } = getInstallsSteam();
+interface SteamManifest {
+  AppState: {
+    name: string;
+    installdir: string;
+    UserConfig: {
+      betakey?: string;
+    };
+  };
+}
+
+async function getGameVersionFromExe(exePath: string): Promise<string> {
+  const exif = await exiftool.read(exePath);
+  return ((exif['ProductVersion'].match(/CL-(?<version>\d+)/)?.groups || { version: '0' })['version']) || '0';
+}
+
+async function getRegValue(hive: string, key: string, valueName: string): Promise<Registry.RegistryItem> {
+  return new Promise((resolve, reject) => {
+    const reg = new Registry({
+      hive,
+      key,
+    });
+    reg.get(valueName, (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      return resolve(result);
+    });
+  });
+}
+
+async function getInstallsSteamWindows(): Promise<InstallFindResult> {
+  const steamPath = (await getRegValue(Registry.HKCU, '\\Software\\Valve\\Steam', 'SteamPath')).value;
+  const steamAppsPath = path.join(steamPath, 'steamapps');
+  const libraryfoldersManifest = vdf.parse(fs.readFileSync(path.join(steamAppsPath, 'libraryfolders.vdf'), 'utf8')) as SteamLibraryFoldersManifest;
+  const libraryfolders = Object.entries(libraryfoldersManifest.LibraryFolders).filter(([key]) => /^\d+$/.test(key)).map(([_, library]) => library);
+  const installs: Array<SatisfactoryInstall> = [];
+  await libraryfolders.forEachAsync(async (libraryFolder) => {
+    const sfManifestPath = path.join(libraryFolder, 'steamapps', 'appmanifest_526870.acf');
+    if (fs.existsSync(sfManifestPath)) {
+      const manifest = vdf.parse(fs.readFileSync(sfManifestPath, 'utf8')) as SteamManifest;
+      const fullInstallPath = path.join(libraryFolder, 'steamapps', 'common', manifest.AppState.installdir);
+      const gameVersion = await getGameVersionFromExe(path.join(fullInstallPath, 'FactoryGame', 'Binaries', 'Win64', 'FactoryGame-Win64-Shipping.exe'));
+      installs.push(new SatisfactoryInstall(
+        `${manifest.AppState.name} ${manifest.AppState.UserConfig.betakey?.toLowerCase() === 'experimental' ? 'Experimental' : 'Early Access'} (Steam)`,
+        gameVersion,
+        fullInstallPath,
+        'steam://rungameid/526870',
+      ));
+    }
+  });
+  return { installs, invalidInstalls: [] };
+}
+
+async function getInstallsWindows(): Promise<InstallFindResult> {
+  const { installs: epicInstalls, invalidInstalls: invalidEpicInstalls } = getInstallsEpicWindows();
+  const { installs: steamInstalls, invalidInstalls: invalidSteamInstalls } = await getInstallsSteamWindows();
   return { installs: epicInstalls.concat(steamInstalls), invalidInstalls: invalidEpicInstalls.concat(invalidSteamInstalls) };
 }
 
-export function getInstalls(): InstallFindResult {
+export async function getInstalls(): Promise<InstallFindResult> {
   // TODO: other OSes
   return getInstallsWindows();
 }

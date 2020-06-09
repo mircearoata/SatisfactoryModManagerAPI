@@ -34,8 +34,10 @@
     "@types/glob": "^7.1.1",
     "@types/got": "^9.6.10",
     "@types/jszip": "^3.1.6",
+    "@types/luxon": "^1.24.0",
     "@types/request-promise-native": "^1.0.17",
     "@types/semver": "^6.2.0",
+    "@types/winreg": "^1.2.30",
     "@typescript-eslint/eslint-plugin": "^2.21.0",
     "@typescript-eslint/parser": "^2.21.0",
     "cross-env": "^6.0.3",
@@ -55,6 +57,7 @@
     "bindings": "^1.5.0",
     "child_process": "^1.0.2",
     "cross-fetch": "^3.0.4",
+    "exiftool-vendored": "^11.3.0",
     "glob": "^7.1.6",
     "got": "^11.0.2",
     "graphql": "14.6.0",
@@ -63,6 +66,8 @@
     "platform-folders": "^0.4.1",
     "process-exists": "^4.0.0",
     "request-promise-native": "^1.0.8",
-    "semver": "^7.1.1"
+    "semver": "^7.1.1",
+    "vdf": "^0.0.2",
+    "winreg": "^1.2.4"
   }
 }
