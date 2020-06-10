@@ -52,17 +52,16 @@ function getInstallsEpicWindows(): InstallFindResult {
                   foundInstalls.push(new SatisfactoryInstall(
                     `${manifest.DisplayName} (Epic Games)`,
                     manifest.AppVersionString,
+                    manifest.AppName.substr('Crab'.length),
                     manifest.InstallLocation,
                     `com.epicgames.launcher://apps/${manifest.MainGameAppName}?action=launch&silent=true`,
                   ));
                 }
               } else {
                 invalidInstalls.push(manifest.InstallLocation);
-                warn(`Epic install info points to invalid folder ${manifest.InstallLocation}. If you moved your install to an external drive, try verifying the game in Epic and restarting your PC.`);
               }
             } catch (e) {
               invalidInstalls.push(manifest.InstallLocation);
-              warn(`Epic install info points to invalid folder ${manifest.InstallLocation}. If you moved your install to an external drive, try verifying the game in Epic and restarting your PC.`);
             }
           }
         } catch (e) {
@@ -139,7 +138,7 @@ async function getInstallsSteamWindows(): Promise<InstallFindResult> {
   const steamPath = (await getRegValue(Registry.HKCU, '\\Software\\Valve\\Steam', 'SteamPath')).value;
   const steamAppsPath = path.join(steamPath, 'steamapps');
   const libraryfoldersManifest = vdf.parse(fs.readFileSync(path.join(steamAppsPath, 'libraryfolders.vdf'), 'utf8')) as SteamLibraryFoldersManifest;
-  const libraryfolders = Object.entries(libraryfoldersManifest.LibraryFolders).filter(([key]) => /^\d+$/.test(key)).map(([_, library]) => library);
+  const libraryfolders = Object.entries(libraryfoldersManifest.LibraryFolders).filter(([key]) => /^\d+$/.test(key)).map((entry) => entry[1]);
   const installs: Array<SatisfactoryInstall> = [];
   await libraryfolders.forEachAsync(async (libraryFolder) => {
     const sfManifestPath = path.join(libraryFolder, 'steamapps', 'appmanifest_526870.acf');
@@ -150,6 +149,7 @@ async function getInstallsSteamWindows(): Promise<InstallFindResult> {
       installs.push(new SatisfactoryInstall(
         `${manifest.AppState.name} ${manifest.AppState.UserConfig.betakey?.toLowerCase() === 'experimental' ? 'Experimental' : 'Early Access'} (Steam)`,
         gameVersion,
+        manifest.AppState.UserConfig.betakey || 'EA',
         fullInstallPath,
         'steam://rungameid/526870',
       ));

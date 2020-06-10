@@ -5,6 +5,7 @@ import { satisfies, coerce, gt } from 'semver';
 import processExists from 'process-exists';
 import { execSync } from 'child_process';
 import got, { HTTPError, Progress } from 'got';
+import { createHash } from 'crypto';
 import {
   setLogsDir, setLogFileNameFormat, setLogDebug, debug,
 } from './logging';
@@ -270,6 +271,10 @@ export async function isRunning(command: string): Promise<boolean> {
     }
     return execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).toLowerCase().indexOf(command.toLowerCase()) > -1;
   }
+}
+
+export function hashString(s: string): string {
+  return createHash('sha256').update(s, 'utf8').digest('hex');
 }
 
 const regexIso8601 = /^(\d{4}|\+\d{6})(?:-(\d{2})(?:-(\d{2})(?:T(\d{2}):(\d{2}):(\d{2})\.(\d{1,})(Z|([-+])(\d{2}):(\d{2}))?)?)?)?$/;

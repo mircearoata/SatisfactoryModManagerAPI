@@ -1,6 +1,5 @@
 import path from 'path';
 import fs from 'fs';
-import { createHash } from 'crypto';
 import { eq } from 'semver';
 import * as MH from './modHandler';
 import * as SH from './smlHandler';
@@ -14,7 +13,7 @@ import {
 } from './manifest';
 import { ItemVersionList } from './lockfile';
 import {
-  filterObject, mergeArrays, isRunning, ensureExists, configFolder, dirs, deleteFolderRecursive, validAndGreater,
+  filterObject, mergeArrays, isRunning, ensureExists, configFolder, dirs, deleteFolderRecursive, validAndGreater, hashString,
 } from './utils';
 import {
   debug, info, error,
@@ -40,10 +39,6 @@ const DEVELOPMENT_CONFIG_NAME = 'development';
 
 const CacheRelativePath = '.cache';
 
-export function getInstallHash(satisfactoryPath: string): string {
-  return createHash('sha256').update(satisfactoryPath, 'utf8').digest('hex');
-}
-
 export interface ItemUpdate {
   item: string;
   currentVersion: string;
@@ -54,16 +49,17 @@ export interface ItemUpdate {
 export class SatisfactoryInstall {
   name: string;
   version: string;
+  branch: string;
   installLocation: string;
   launchPath: string;
 
   private _config = MODDED_CONFIG_NAME;
 
-  constructor(name: string, version: string, installLocation: string, launchPath: string) {
-    this.installLocation = installLocation;
-
+  constructor(name: string, version: string, branch: string, installLocation: string, launchPath: string) {
     this.name = name;
     this.version = version;
+    this.branch = branch;
+    this.installLocation = installLocation;
     this.launchPath = launchPath;
   }
 
@@ -352,7 +348,7 @@ export class SatisfactoryInstall {
   }
 
   get lockfileName(): string {
-    return `lock-${getInstallHash(this.installLocation)}.json`;
+    return `lock-${hashString(`${this.installLocation}|${this.branch}`)}.json`;
   }
 }
 
