@@ -14,29 +14,29 @@ import {
 } from './manifest';
 import { ItemVersionList, Lockfile } from './lockfile';
 import {
-  filterObject, mergeArrays, isRunning, ensureExists, configFolder, dirs, deleteFolderRecursive, validAndGreater, hashString,
+  filterObject, mergeArrays, isRunning, ensureExists, profileFolder, dirs, deleteFolderRecursive, validAndGreater, hashString,
 } from './utils';
 import {
   debug, info, error, warn,
 } from './logging';
 import {
-  GameRunningError, InvalidConfigError,
+  GameRunningError, InvalidProfileError,
 } from './errors';
 
-export function getConfigFolderPath(configName: string): string {
-  const configPath = path.join(configFolder, configName);
-  ensureExists(configPath);
-  return configPath;
+export function getProfileFolderPath(profileName: string): string {
+  const profilePath = path.join(profileFolder, profileName);
+  ensureExists(profilePath);
+  return profilePath;
 }
 
-export function configExists(configName: string): boolean {
-  const configPath = path.join(configFolder, configName);
-  return fs.existsSync(configPath);
+export function profileExists(profileName: string): boolean {
+  const profilePath = path.join(profileFolder, profileName);
+  return fs.existsSync(profilePath);
 }
 
-const VANILLA_CONFIG_NAME = 'vanilla';
-const MODDED_CONFIG_NAME = 'modded';
-const DEVELOPMENT_CONFIG_NAME = 'development';
+const VANILLA_PROFILE_NAME = 'vanilla';
+const MODDED_PROFILE_NAME = 'modded';
+const DEVELOPMENT_PROFILE_NAME = 'development';
 
 const CacheRelativePath = '.cache';
 
@@ -47,7 +47,7 @@ export interface ItemUpdate {
   releases: Array<FicsitAppVersion | FicsitAppSMLVersion | FicsitAppBootstrapperVersion>;
 }
 
-export interface ConfigMetadata {
+export interface ProfileMetadata {
   gameVersion: string;
 }
 
@@ -58,7 +58,7 @@ export class SatisfactoryInstall {
   installLocation: string;
   launchPath: string;
 
-  private _config = MODDED_CONFIG_NAME;
+  private _profile = MODDED_PROFILE_NAME;
 
   constructor(name: string, version: string, branch: string, installLocation: string, launchPath: string) {
     this.name = name;
@@ -151,21 +151,21 @@ export class SatisfactoryInstall {
   }
 
   async manifestMutate(install: Array<ManifestItem>, uninstall: Array<string>, update: Array<string>): Promise<void> {
-    if (this._config === VANILLA_CONFIG_NAME && (install.length > 0 || update.length > 0)) {
-      throw new InvalidConfigError('Cannot modify vanilla config. Use "modded" config or create a new config');
+    if (this._profile === VANILLA_PROFILE_NAME && (install.length > 0 || update.length > 0)) {
+      throw new InvalidProfileError('Cannot modify vanilla profile. Use "modded" profile or create a new profile');
     }
     if (!await SatisfactoryInstall.isGameRunning()) {
       debug(`install: [${install.map((item) => (item.version ? `${item.id}@${item.version}` : item.id)).join(', ')}], uninstall: [${uninstall.join(', ')}], update: [${update.join(', ')}]`);
-      const currentManifest = readManifest(this.configManifest);
-      const currentLockfile = readLockfile(this.configLockfile);
+      const currentManifest = readManifest(this.profileManifest);
+      const currentLockfile = readLockfile(this.profileLockfile);
       try {
         const {
           manifest: newManifest,
           lockfile: newLockfile,
         } = await mutateManifest({ manifest: currentManifest, lockfile: currentLockfile }, this.version, install, uninstall, update);
         await this.validateInstall(getItemsList(newLockfile));
-        writeManifest(this.configManifest, newManifest);
-        writeLockfile(this.configLockfile, newLockfile);
+        writeManifest(this.profileManifest, newManifest);
+        writeLockfile(this.profileLockfile, newLockfile);
       } catch (e) {
         e.message = `${e.message}${e.message.endsWith('.') ? '' : '.'}\nAll changes were discarded.`;
         error(e);
@@ -177,19 +177,19 @@ export class SatisfactoryInstall {
     }
   }
 
-  async setConfig(configName: string): Promise<void> {
-    const currentConfig = this._config;
-    this._config = configName;
+  async setProfile(profileName: string): Promise<void> {
+    const currentProfile = this._profile;
+    this._profile = profileName;
     try {
       await this.manifestMutate([], [], []);
     } catch (e) {
-      this._config = currentConfig;
-      throw new InvalidConfigError(`Error while loading config: ${e.message}`);
+      this._profile = currentProfile;
+      throw new InvalidProfileError(`Error while loading profile: ${e.message}`);
     }
   }
 
-  get config(): string {
-    return this._config;
+  get profile(): string {
+    return this._profile;
   }
 
   async _installItem(id: string, version?: string): Promise<void> {
@@ -244,7 +244,7 @@ export class SatisfactoryInstall {
   }
 
   get manifestMods(): string[] {
-    return readManifest(this.configManifest).items
+    return readManifest(this.profileManifest).items
       .filter((item) => item.id !== SH.SMLID && item.id !== BH.BootstrapperID)
       .map((item) => item.id);
   }
@@ -271,7 +271,7 @@ export class SatisfactoryInstall {
   }
 
   get isSMLInstalledDev(): boolean {
-    return readManifest(this.configManifest).items.some((item) => item.id === SH.SMLID);
+    return readManifest(this.profileManifest).items.some((item) => item.id === SH.SMLID);
   }
 
   async updateBootstrapper(): Promise<void> {
@@ -289,8 +289,8 @@ export class SatisfactoryInstall {
   }
 
   async checkForUpdates(): Promise<Array<ItemUpdate>> {
-    const currentManifest = readManifest(this.configManifest);
-    const currentLockfile = readLockfile(this.configLockfile);
+    const currentManifest = readManifest(this.profileManifest);
+    const currentLockfile = readLockfile(this.profileLockfile);
     const {
       lockfile: newLockfile,
     } = await mutateManifest({ manifest: currentManifest, lockfile: currentLockfile }, this.version, [], [], Object.keys(this._itemsList));
@@ -316,53 +316,53 @@ export class SatisfactoryInstall {
       }));
   }
 
-  async importConfig(filePath: string, configName: string, includeVersions = false): Promise<void> {
-    if (configExists(configName)) {
-      throw new InvalidConfigError(`Config ${configName} already exists. Delete it, or choose another name for the config`);
+  async importProfile(filePath: string, profileName: string, includeVersions = false): Promise<void> {
+    if (profileExists(profileName)) {
+      throw new InvalidProfileError(`Profile ${profileName} already exists. Delete it, or choose another name for the profile`);
     }
-    ensureExists(getConfigFolderPath(configName));
+    ensureExists(getProfileFolderPath(profileName));
 
     let lockfile: Lockfile;
     let manifest: Manifest;
-    let metadata: ConfigMetadata;
+    let metadata: ProfileMetadata;
 
     try {
-      const configFile = await JSZip.loadAsync(fs.readFileSync(filePath));
-      lockfile = JSON.parse(await configFile.file('lockfile.json').async('text')) as Lockfile;
-      manifest = JSON.parse(await configFile.file('manifest.json').async('text')) as Manifest;
-      metadata = JSON.parse(await configFile.file('metadata.json').async('text')) as ConfigMetadata;
+      const profileFile = await JSZip.loadAsync(fs.readFileSync(filePath));
+      lockfile = JSON.parse(await profileFile.file('lockfile.json').async('text')) as Lockfile;
+      manifest = JSON.parse(await profileFile.file('manifest.json').async('text')) as Manifest;
+      metadata = JSON.parse(await profileFile.file('metadata.json').async('text')) as ProfileMetadata;
     } catch (e) {
-      throw new Error('File is invalid');
+      throw new Error('Profile file is invalid');
     }
     if (validAndGreater(metadata.gameVersion, this.version)) {
-      warn(`The config you're importing is made for game version ${metadata.gameVersion}, but you're using ${this.version}. Things might not work as expected. ${includeVersions ? 'Including versions.' : 'No versions.'}`);
+      warn(`The profile you're importing is made for game version ${metadata.gameVersion}, but you're using ${this.version}. Things might not work as expected. ${includeVersions ? 'Including versions.' : 'No versions.'}`);
     }
 
-    writeManifest(path.join(getConfigFolderPath(configName), 'manifest.json'), manifest);
+    writeManifest(path.join(getProfileFolderPath(profileName), 'manifest.json'), manifest);
     if (includeVersions) {
-      writeLockfile(path.join(getConfigFolderPath(configName), this.lockfileName), lockfile);
+      writeLockfile(path.join(getProfileFolderPath(profileName), this.lockfileName), lockfile);
     }
 
     try {
-      await this.setConfig(configName);
+      await this.setProfile(profileName);
     } catch (e) {
-      deleteFolderRecursive(getConfigFolderPath(configName));
+      deleteFolderRecursive(getProfileFolderPath(profileName));
       throw e;
     }
   }
 
-  async exportConfig(filePath: string): Promise<void> {
-    const manifest = readManifest(this.configManifest);
-    const lockfile = readLockfile(this.configLockfile);
-    const metadata = { gameVersion: this.version } as ConfigMetadata;
+  async exportProfile(filePath: string): Promise<void> {
+    const manifest = readManifest(this.profileManifest);
+    const lockfile = readLockfile(this.profileLockfile);
+    const metadata = { gameVersion: this.version } as ProfileMetadata;
 
-    const configFile = new JSZip();
-    configFile.file('manifest.json', JSON.stringify(manifest));
-    configFile.file('lockfile.json', JSON.stringify(lockfile));
-    configFile.file('metadata.json', JSON.stringify(metadata));
+    const profileFile = new JSZip();
+    profileFile.file('manifest.json', JSON.stringify(manifest));
+    profileFile.file('lockfile.json', JSON.stringify(lockfile));
+    profileFile.file('metadata.json', JSON.stringify(metadata));
 
     return new Promise((resolve, reject) => {
-      configFile.generateNodeStream().pipe(fs.createWriteStream(filePath)).on('finish', resolve).on('error', reject);
+      profileFile.generateNodeStream().pipe(fs.createWriteStream(filePath)).on('finish', resolve).on('error', reject);
     });
   }
 
@@ -379,7 +379,7 @@ export class SatisfactoryInstall {
   }
 
   private get _itemsList(): ItemVersionList {
-    return getItemsList(readLockfile(this.configLockfile));
+    return getItemsList(readLockfile(this.profileLockfile));
   }
 
   get binariesDir(): string {
@@ -394,12 +394,12 @@ export class SatisfactoryInstall {
     return SH.getModsDir(this.installLocation);
   }
 
-  get configManifest(): string {
-    return path.join(getConfigFolderPath(this._config), 'manifest.json');
+  get profileManifest(): string {
+    return path.join(getProfileFolderPath(this._profile), 'manifest.json');
   }
 
-  get configLockfile(): string {
-    return path.join(getConfigFolderPath(this._config), this.lockfileName);
+  get profileLockfile(): string {
+    return path.join(getProfileFolderPath(this._profile), this.lockfileName);
   }
 
   get lockfileName(): string {
@@ -407,40 +407,40 @@ export class SatisfactoryInstall {
   }
 }
 
-export function getConfigs(): Array<{name: string; items: ManifestItem[]}> {
-  return dirs(configFolder).sort().map((name) => {
-    const manifest = readManifest(path.join(getConfigFolderPath(name), 'manifest.json'));
+export function getProfiles(): Array<{name: string; items: ManifestItem[]}> {
+  return dirs(profileFolder).sort().map((name) => {
+    const manifest = readManifest(path.join(getProfileFolderPath(name), 'manifest.json'));
     return { name, items: manifest.items };
   });
 }
 
-export function deleteConfig(name: string): void {
-  if (name.toLowerCase() === VANILLA_CONFIG_NAME || name.toLowerCase() === MODDED_CONFIG_NAME || name.toLowerCase() === DEVELOPMENT_CONFIG_NAME) {
-    throw new InvalidConfigError(`Cannot delete ${name} config (it is part of the default set of configs)`);
+export function deleteProfile(name: string): void {
+  if (name.toLowerCase() === VANILLA_PROFILE_NAME || name.toLowerCase() === MODDED_PROFILE_NAME || name.toLowerCase() === DEVELOPMENT_PROFILE_NAME) {
+    throw new InvalidProfileError(`Cannot delete ${name} profile (it is part of the default set of profiles)`);
   }
-  if (configExists(name)) {
-    deleteFolderRecursive(getConfigFolderPath(name));
+  if (profileExists(name)) {
+    deleteFolderRecursive(getProfileFolderPath(name));
   }
 }
 
-export function createConfig(name: string, copyConfig = 'vanilla'): void {
-  if (configExists(name)) {
-    throw new InvalidConfigError(`Config ${name} already exists`);
+export function createProfile(name: string, copyProfile = 'vanilla'): void {
+  if (profileExists(name)) {
+    throw new InvalidProfileError(`Profile ${name} already exists`);
   }
-  if (!configExists(copyConfig)) {
-    throw new InvalidConfigError(`Config ${copyConfig} does not exist`);
+  if (!profileExists(copyProfile)) {
+    throw new InvalidProfileError(`Profile ${copyProfile} does not exist`);
   }
-  writeManifest(path.join(getConfigFolderPath(name), 'manifest.json'), readManifest(path.join(getConfigFolderPath(copyConfig), 'manifest.json')));
+  writeManifest(path.join(getProfileFolderPath(name), 'manifest.json'), readManifest(path.join(getProfileFolderPath(copyProfile), 'manifest.json')));
 }
 
-if (!fs.existsSync(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'manifest.json'))) {
-  writeManifest(path.join(getConfigFolderPath(VANILLA_CONFIG_NAME), 'manifest.json'), { items: new Array<ManifestItem>(), manifestVersion: ManifestVersion.Latest });
+if (!fs.existsSync(path.join(getProfileFolderPath(VANILLA_PROFILE_NAME), 'manifest.json'))) {
+  writeManifest(path.join(getProfileFolderPath(VANILLA_PROFILE_NAME), 'manifest.json'), { items: new Array<ManifestItem>(), manifestVersion: ManifestVersion.Latest });
 }
 
-if (!fs.existsSync(path.join(getConfigFolderPath(MODDED_CONFIG_NAME), 'manifest.json'))) {
-  writeManifest(path.join(getConfigFolderPath(MODDED_CONFIG_NAME), 'manifest.json'), { items: new Array<ManifestItem>(), manifestVersion: ManifestVersion.Latest });
+if (!fs.existsSync(path.join(getProfileFolderPath(MODDED_PROFILE_NAME), 'manifest.json'))) {
+  writeManifest(path.join(getProfileFolderPath(MODDED_PROFILE_NAME), 'manifest.json'), { items: new Array<ManifestItem>(), manifestVersion: ManifestVersion.Latest });
 }
 
-if (!fs.existsSync(path.join(getConfigFolderPath(DEVELOPMENT_CONFIG_NAME), 'manifest.json'))) {
-  writeManifest(path.join(getConfigFolderPath(DEVELOPMENT_CONFIG_NAME), 'manifest.json'), { items: [{ id: SH.SMLID }], manifestVersion: ManifestVersion.Latest });
+if (!fs.existsSync(path.join(getProfileFolderPath(DEVELOPMENT_PROFILE_NAME), 'manifest.json'))) {
+  writeManifest(path.join(getProfileFolderPath(DEVELOPMENT_PROFILE_NAME), 'manifest.json'), { items: [{ id: SH.SMLID }], manifestVersion: ManifestVersion.Latest });
 }

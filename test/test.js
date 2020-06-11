@@ -5,10 +5,10 @@ const path = require('path');
 const fs = require('fs');
 const assert = require('assert');
 const semver = require('semver');
-const { SatisfactoryInstall, getManifestFolderPath, UnsolvableDependencyError, DependencyManifestMismatchError, InvalidConfigError, ModNotFoundError } = require('../');
+const { SatisfactoryInstall, getManifestFolderPath, UnsolvableDependencyError, DependencyManifestMismatchError, InvalidProfileError, ModNotFoundError } = require('../');
 const { modCacheDir, forEachAsync, clearCache } = require('../lib/utils');
 const { addTempMod, addTempModVersion, removeTempMod, removeTempModVersion, setUseTempMods, setTempModReference } = require('../lib/ficsitApp');
-const { getConfigFolderPath } = require('../lib/satisfactoryInstall');
+const { getProfileFolderPath } = require('../lib/satisfactoryInstall');
 const JSZip = require('jszip');
 
 const dummySfName = 'DummySF';
@@ -165,12 +165,12 @@ async function main() {
 
   let success = true;
 
-  deleteFolderRecursive(getConfigFolderPath('testConfig'));
+  deleteFolderRecursive(getProfileFolderPath('testProfile'));
 
   try {
     // TODO: maybe better testing
-    const sfInstall = new SatisfactoryInstall(dummySfName, dummySfVersion, dummySfPath, dummySfExecutable);
-    await sfInstall.setConfig('testConfig');
+    const sfInstall = new SatisfactoryInstall(dummySfName, dummySfVersion, 'Early Access', dummySfPath, dummySfExecutable);
+    await sfInstall.setProfile('testProfile');
     let installedMods;
 
     fs.mkdirSync(sfInstall.modsDir, { recursive: true });
@@ -248,11 +248,11 @@ async function main() {
       assert.fail(`Unexpected error: ${e}`);
     }
 
-    const testConfigInstalledMods = installedMods;
+    const testProfileInstalledMods = installedMods;
 
     try {
-      await sfInstall.setConfig('vanilla');
-      assert.strictEqual(sfInstall.config, 'vanilla', 'Failed to set config to vanilla');
+      await sfInstall.setProfile('vanilla');
+      assert.strictEqual(sfInstall.profile, 'vanilla', 'Failed to set profile to vanilla');
     } catch (e) {
       if (e instanceof assert.AssertionError) {
         throw e;
@@ -262,21 +262,21 @@ async function main() {
 
     try {
       await sfInstall.installMod('dummyMod1');
-      assert.fail('Installed a mod in vanilla config');
+      assert.fail('Installed a mod in vanilla profile');
     } catch (e) {
       if (e instanceof assert.AssertionError) {
         throw e;
       }
-      if (!(e instanceof InvalidConfigError)) {
+      if (!(e instanceof InvalidProfileError)) {
         assert.fail(`Unexpected error: ${e}`);
       }
     }
 
     try {
-      await sfInstall.setConfig('testConfig');
-      assert.strictEqual(sfInstall.config, 'testConfig', 'Failed to set config to testConfig');
+      await sfInstall.setProfile('testProfile');
+      assert.strictEqual(sfInstall.profile, 'testProfile', 'Failed to set profile to testProfile');
       installedMods = await sfInstall._getInstalledMods();
-      assert.deepStrictEqual(testConfigInstalledMods, installedMods, 'Config was not loaded correctly');
+      assert.deepStrictEqual(testProfileInstalledMods, installedMods, 'Profile was not loaded correctly');
     } catch (e) {
       if (e instanceof assert.AssertionError) {
         throw e;
@@ -322,7 +322,7 @@ async function main() {
     }
 
     try {
-      await sfInstall.setConfig('vanilla');
+      await sfInstall.setProfile('vanilla');
       installedMods = await sfInstall._getInstalledMods();
       assert.strictEqual(installedMods.length, 0, 'Vanilla is not clean');
       assert.strictEqual(sfInstall.smlVersion, undefined, 'Vanilla is not clean');
@@ -334,7 +334,7 @@ async function main() {
       assert.fail(`Unexpected error: ${e}`);
     }
 
-    await sfInstall.setConfig('testConfig');
+    await sfInstall.setProfile('testProfile');
 
     await sfInstall.installMod('dummyMod3', '1.0.0');
 
@@ -402,7 +402,7 @@ async function main() {
     success = false;
   } finally {
     deleteFolderRecursive(dummySfPath);
-    deleteFolderRecursive(getConfigFolderPath('testConfig'));
+    deleteFolderRecursive(getProfileFolderPath('testProfile'));
     await removeDummyMods();
   }
   if (!success) {

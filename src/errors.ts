@@ -24,7 +24,7 @@ export class ValidationError extends Error {
 }
 export class InvalidModFileError extends Error {}
 export class GameRunningError extends Error {}
-export class InvalidConfigError extends Error {}
+export class InvalidProfileError extends Error {}
 export class ImcompatibleGameVersion extends Error {}
 export class NetworkError extends Error {
   statusCode: number;

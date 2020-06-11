@@ -60,8 +60,11 @@ ensureExists(bootstrapperCacheDir);
 export const logsDir = path.join(cacheDir, 'logs');
 ensureExists(logsDir);
 
-export const configFolder = path.join(appDataDir, 'configs');
-ensureExists(configFolder);
+export const profileFolder = path.join(appDataDir, 'profiles');
+if (fs.existsSync(path.join(appDataDir, 'configs')) && !fs.existsSync(profileFolder)) {
+  fs.renameSync(path.join(appDataDir, 'configs'), profileFolder);
+}
+ensureExists(profileFolder);
 
 
 export function deleteFolderRecursive(deletePath: string): void {

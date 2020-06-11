@@ -2,9 +2,9 @@ import './utils';
 
 export {
   SatisfactoryInstall,
-  getConfigs,
-  createConfig,
-  deleteConfig,
+  getProfiles,
+  createProfile,
+  deleteProfile,
 } from './satisfactoryInstall';
 export {
   getInstalls,
