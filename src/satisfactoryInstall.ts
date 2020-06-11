@@ -1,6 +1,7 @@
 import path from 'path';
 import fs from 'fs';
 import { eq } from 'semver';
+import JSZip from 'jszip';
 import * as MH from './modHandler';
 import * as SH from './smlHandler';
 import * as BH from './bootstrapperHandler';
@@ -9,14 +10,14 @@ import {
   getModReferenceFromId, getModVersions, getAvailableSMLVersions, getAvailableBootstrapperVersions,
 } from './ficsitApp';
 import {
-  ManifestItem, mutateManifest, readManifest, readLockfile, getItemsList, writeManifest, writeLockfile, ManifestVersion,
+  ManifestItem, mutateManifest, readManifest, readLockfile, getItemsList, writeManifest, writeLockfile, ManifestVersion, Manifest,
 } from './manifest';
-import { ItemVersionList } from './lockfile';
+import { ItemVersionList, Lockfile } from './lockfile';
 import {
   filterObject, mergeArrays, isRunning, ensureExists, configFolder, dirs, deleteFolderRecursive, validAndGreater, hashString,
 } from './utils';
 import {
-  debug, info, error,
+  debug, info, error, warn,
 } from './logging';
 import {
   GameRunningError, InvalidConfigError,
@@ -44,6 +45,10 @@ export interface ItemUpdate {
   currentVersion: string;
   version: string;
   releases: Array<FicsitAppVersion | FicsitAppSMLVersion | FicsitAppBootstrapperVersion>;
+}
+
+export interface ConfigMetadata {
+  gameVersion: string;
 }
 
 export class SatisfactoryInstall {
@@ -309,6 +314,56 @@ export class SatisfactoryInstall {
           item, currentVersion, version: newVersion, releases: versions.filter((ver) => validAndGreater(ver.version, currentVersion)),
         } as ItemUpdate;
       }));
+  }
+
+  async importConfig(filePath: string, configName: string, includeVersions = false): Promise<void> {
+    if (configExists(configName)) {
+      throw new InvalidConfigError(`Config ${configName} already exists. Delete it, or choose another name for the config`);
+    }
+    ensureExists(getConfigFolderPath(configName));
+
+    let lockfile: Lockfile;
+    let manifest: Manifest;
+    let metadata: ConfigMetadata;
+
+    try {
+      const configFile = await JSZip.loadAsync(fs.readFileSync(filePath));
+      lockfile = JSON.parse(await configFile.file('lockfile.json').async('text')) as Lockfile;
+      manifest = JSON.parse(await configFile.file('manifest.json').async('text')) as Manifest;
+      metadata = JSON.parse(await configFile.file('metadata.json').async('text')) as ConfigMetadata;
+    } catch (e) {
+      throw new Error('File is invalid');
+    }
+    if (validAndGreater(metadata.gameVersion, this.version)) {
+      warn(`The config you're importing is made for game version ${metadata.gameVersion}, but you're using ${this.version}. Things might not work as expected. ${includeVersions ? 'Including versions.' : 'No versions.'}`);
+    }
+
+    writeManifest(path.join(getConfigFolderPath(configName), 'manifest.json'), manifest);
+    if (includeVersions) {
+      writeLockfile(path.join(getConfigFolderPath(configName), this.lockfileName), lockfile);
+    }
+
+    try {
+      await this.setConfig(configName);
+    } catch (e) {
+      deleteFolderRecursive(getConfigFolderPath(configName));
+      throw e;
+    }
+  }
+
+  async exportConfig(filePath: string): Promise<void> {
+    const manifest = readManifest(this.configManifest);
+    const lockfile = readLockfile(this.configLockfile);
+    const metadata = { gameVersion: this.version } as ConfigMetadata;
+
+    const configFile = new JSZip();
+    configFile.file('manifest.json', JSON.stringify(manifest));
+    configFile.file('lockfile.json', JSON.stringify(lockfile));
+    configFile.file('metadata.json', JSON.stringify(metadata));
+
+    return new Promise((resolve, reject) => {
+      configFile.generateNodeStream().pipe(fs.createWriteStream(filePath)).on('finish', resolve).on('error', reject);
+    });
   }
 
   static isGameRunning(): Promise<boolean> {

@@ -26,4 +26,5 @@ export {
 export {
   clearCache, setDebug, toggleDebug, isDebug,
   addDownloadProgressCallback,
+  validAndGreater,
 } from './utils';
