@@ -243,10 +243,9 @@ export class SatisfactoryInstall {
     return filterObject(this._itemsList, (id) => id !== SH.SMLID && id !== BH.BootstrapperID);
   }
 
-  get manifestMods(): string[] {
+  get manifestMods(): ManifestItem[] {
     return readManifest(this.profileManifest).items
-      .filter((item) => item.id !== SH.SMLID && item.id !== BH.BootstrapperID)
-      .map((item) => item.id);
+      .filter((item) => item.id !== SH.SMLID && item.id !== BH.BootstrapperID);
   }
 
   async installSML(version?: string): Promise<void> {
