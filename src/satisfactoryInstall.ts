@@ -205,12 +205,8 @@ export class SatisfactoryInstall {
   }
 
   async installMod(modReference: string, version?: string): Promise<void> {
-    if (!(await this._getInstalledMods()).some((mod) => mod.mod_reference === modReference)) {
-      info(`Installing ${modReference}${version ? `@${version}` : ''}`);
-      await this._installItem(modReference, version);
-    } else {
-      info(`${modReference} is already installed with version ${(await this._getInstalledMods()).find((mod) => mod.mod_reference === modReference)?.version}`);
-    }
+    info(`Installing ${modReference}${version ? `@${version}` : ''}`);
+    await this._installItem(modReference, version);
   }
 
   async installFicsitAppMod(modVersion: FicsitAppVersion): Promise<void> {
