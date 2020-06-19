@@ -61,7 +61,6 @@ async function getBootstrapperVersionCache(version: string): Promise<string> {
   return bootstrapperVersionCacheDir;
 }
 
-
 export async function installBootstrapper(version: string, satisfactoryPath: string): Promise<void> {
   if (!getBootstrapperVersion(satisfactoryPath)) {
     let bootstrapperVersionCache = await getBootstrapperVersionCache(version);

@@ -132,7 +132,6 @@ export interface Mod {
 export interface ModObject {
   path: string;
   type: string;
-  metadata?: object;
 }
 
 export async function installMod(modReference: string, version: string, modsDir: string): Promise<void> {

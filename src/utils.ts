@@ -66,7 +66,6 @@ if (fs.existsSync(path.join(appDataDir, 'configs')) && !fs.existsSync(profileFol
 }
 ensureExists(profileFolder);
 
-
 export function deleteFolderRecursive(deletePath: string): void {
   if (fs.existsSync(deletePath)) {
     fs.readdirSync(deletePath).forEach((file) => {

@@ -55,7 +55,8 @@ module.exports = {
       ignoreTemplateLiterals: true,
       ignoreRegExpLiterals: true
     }],
-    '@typescript-eslint/camelcase': 0
+    '@typescript-eslint/camelcase': 0,
+    'camelcase': 0,
   },
   settings: {
     'import/extensions': ['.js', '.jsx', '.json', '.ts', '.tsx'],

@@ -323,11 +323,17 @@ export class SatisfactoryInstall {
 
     try {
       const profileFile = await JSZip.loadAsync(fs.readFileSync(filePath));
-      lockfile = JSON.parse(await profileFile.file('lockfile.json').async('text')) as Lockfile;
-      manifest = JSON.parse(await profileFile.file('manifest.json').async('text')) as Manifest;
-      metadata = JSON.parse(await profileFile.file('metadata.json').async('text')) as ProfileMetadata;
+      const lockfileFile = profileFile.file('lockfile.json');
+      const manifestFile = profileFile.file('manifest.json');
+      const metadataFile = profileFile.file('metadata.json');
+      if (!lockfileFile || !manifestFile || !metadataFile) {
+        throw new Error('Profile file is invalid');
+      }
+      lockfile = JSON.parse(await lockfileFile.async('text')) as Lockfile;
+      manifest = JSON.parse(await manifestFile.async('text')) as Manifest;
+      metadata = JSON.parse(await metadataFile.async('text')) as ProfileMetadata;
     } catch (e) {
-      throw new Error('Profile file is invalid');
+      throw new Error('Error while reading profile');
     }
     if (validAndGreater(metadata.gameVersion, this.version)) {
       warn(`The profile you're importing is made for game version ${metadata.gameVersion}, but you're using ${this.version}. Things might not work as expected. ${includeVersions ? 'Including versions.' : 'No versions.'}`);

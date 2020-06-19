@@ -520,7 +520,6 @@ export async function getModVersion(modReference: string, version: string): Prom
   }
 }
 
-
 export async function getModLatestVersion(modReference: string): Promise<FicsitAppVersion> {
   const versions = await getModVersions(modReference);
   versions.sort((a, b) => -compare(a.version, b.version));
@@ -540,7 +539,6 @@ export async function findVersionMatchingAll(modReference: string,
   });
   return found ? finalVersion : undefined;
 }
-
 
 export interface FicsitAppSMLVersion {
   id: string;

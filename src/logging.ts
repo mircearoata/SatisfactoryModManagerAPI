@@ -73,7 +73,7 @@ function checkRoll(): void {
   }
 }
 
-function write(level: LogLevel, message: string | object): void {
+function write(level: LogLevel, message: string | unknown): void {
   if (level >= minLogLevel) {
     const formattedMessage = formatMessage(level, typeof message === 'string' ? message : JSON.stringify(message));
     switch (level) {
@@ -99,19 +99,19 @@ function write(level: LogLevel, message: string | object): void {
   }
 }
 
-export function debug(message: string | object): void {
+export function debug(message: string | unknown): void {
   return write(LogLevel.DEBUG, message);
 }
 
-export function info(message: string | object): void {
+export function info(message: string | unknown): void {
   return write(LogLevel.INFO, message);
 }
 
-export function warn(message: string | object): void {
+export function warn(message: string | unknown): void {
   return write(LogLevel.WARN, message);
 }
 
-export function error(message: string | Error | object): void {
+export function error(message: string | Error | unknown): void {
   if (message instanceof Error) {
     return write(LogLevel.ERROR, `${message.message}\nTrace\n${message.stack}`);
   }
