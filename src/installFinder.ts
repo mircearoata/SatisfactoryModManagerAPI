@@ -6,7 +6,9 @@ import vdf from 'vdf';
 import Registry from 'winreg';
 import { exiftool } from 'exiftool-vendored';
 import { SatisfactoryInstall } from './satisfactoryInstall';
-import { warn, info } from './logging';
+import {
+  warn, info, error, debug,
+} from './logging';
 
 const EpicManifestsFolder = path.join(getDataFolders()[0], 'Epic', 'EpicGamesLauncher', 'Data', 'Manifests'); // TODO: other platforms
 const UEInstalledManifest = path.join(getDataFolders()[0], 'Epic', 'UnrealEngineLauncher', 'LauncherInstalled.dat'); // TODO: other platforms
@@ -69,6 +71,9 @@ function getInstallsEpicWindows(): InstallFindResult {
         }
       }
     });
+  } else {
+    debug('Epic Games Launcher is not installed');
+    return { installs: [], invalidInstalls: [] };
   }
   let installedManifest: UEInstalledManifest = { InstallationList: [] };
   if (fs.existsSync(UEInstalledManifest)) {
@@ -135,27 +140,39 @@ async function getRegValue(hive: string, key: string, valueName: string): Promis
 }
 
 async function getInstallsSteamWindows(): Promise<InstallFindResult> {
-  const steamPath = (await getRegValue(Registry.HKCU, '\\Software\\Valve\\Steam', 'SteamPath')).value;
-  const steamAppsPath = path.join(steamPath, 'steamapps');
-  const libraryfoldersManifest = vdf.parse(fs.readFileSync(path.join(steamAppsPath, 'libraryfolders.vdf'), 'utf8')) as SteamLibraryFoldersManifest;
-  const libraryfolders = Object.entries(libraryfoldersManifest.LibraryFolders).filter(([key]) => /^\d+$/.test(key)).map((entry) => entry[1]);
-  const installs: Array<SatisfactoryInstall> = [];
-  await libraryfolders.forEachAsync(async (libraryFolder) => {
-    const sfManifestPath = path.join(libraryFolder, 'steamapps', 'appmanifest_526870.acf');
-    if (fs.existsSync(sfManifestPath)) {
-      const manifest = vdf.parse(fs.readFileSync(sfManifestPath, 'utf8')) as SteamManifest;
-      const fullInstallPath = path.join(libraryFolder, 'steamapps', 'common', manifest.AppState.installdir);
-      const gameVersion = await getGameVersionFromExe(path.join(fullInstallPath, 'FactoryGame', 'Binaries', 'Win64', 'FactoryGame-Win64-Shipping.exe'));
-      installs.push(new SatisfactoryInstall(
-        `${manifest.AppState.name} ${manifest.AppState.UserConfig.betakey?.toLowerCase() === 'experimental' ? 'Experimental' : 'Early Access'} (Steam)`,
-        gameVersion,
-        manifest.AppState.UserConfig.betakey || 'EA',
-        fullInstallPath,
-        'steam://rungameid/526870',
-      ));
+  try {
+    const steamPath = (await getRegValue(Registry.HKCU, '\\Software\\Valve\\Steam', 'SteamPath')).value;
+    const steamAppsPath = path.join(steamPath, 'steamapps');
+    const libraryfoldersManifest = vdf.parse(fs.readFileSync(path.join(steamAppsPath, 'libraryfolders.vdf'), 'utf8')) as SteamLibraryFoldersManifest;
+    const libraryfolders = Object.entries(libraryfoldersManifest.LibraryFolders).filter(([key]) => /^\d+$/.test(key)).map((entry) => entry[1]);
+    libraryfolders.push(steamPath);
+    const installs: Array<SatisfactoryInstall> = [];
+    await Promise.all(libraryfolders.map(async (libraryFolder) => {
+      const sfManifestPath = path.join(libraryFolder, 'steamapps', 'appmanifest_526870.acf');
+      if (fs.existsSync(sfManifestPath)) {
+        const manifest = vdf.parse(fs.readFileSync(sfManifestPath, 'utf8')) as SteamManifest;
+        const fullInstallPath = path.join(libraryFolder, 'steamapps', 'common', manifest.AppState.installdir);
+        const gameVersion = await getGameVersionFromExe(path.join(fullInstallPath, 'FactoryGame', 'Binaries', 'Win64', 'FactoryGame-Win64-Shipping.exe'));
+        installs.push(new SatisfactoryInstall(
+          `${manifest.AppState.name} ${manifest.AppState.UserConfig.betakey?.toLowerCase() === 'experimental' ? 'Experimental' : 'Early Access'} (Steam)`,
+          gameVersion,
+          manifest.AppState.UserConfig.betakey || 'EA',
+          fullInstallPath,
+          'steam://rungameid/526870',
+        ));
+      }
+    }));
+    exiftool.end();
+    return { installs, invalidInstalls: [] };
+  } catch (e) {
+    if ((e as Error).message.includes('unable to find')) {
+      debug('Steam is not installed');
+    } else {
+      error(e);
     }
-  });
-  return { installs, invalidInstalls: [] };
+    exiftool.end();
+    return { installs: [], invalidInstalls: [] };
+  }
 }
 
 async function getInstallsWindows(): Promise<InstallFindResult> {
