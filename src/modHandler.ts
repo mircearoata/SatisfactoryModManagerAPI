@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import StreamZip from 'node-stream-zip';
 import {
-  modCacheDir, copyFile, downloadFile,
+  modCacheDir, copyFile, downloadFile, hashFile,
 } from './utils';
 import { getModDownloadLink, getModVersion, getModName } from './ficsitApp';
 import { InvalidModFileError } from './errors';
@@ -87,6 +87,9 @@ export async function getCachedMod(modReference: string, version: string): Promi
   if (!mod || !isModFileLatest || !isFlieHashMatching) {
     if (mod && !isModFileLatest) {
       debug(`${modReference}@${version} was changed by the author. Redownloading.`);
+      cachedMods.remove(mod);
+    } else if (mod && !isFlieHashMatching) {
+      debug(`${modReference}@${version} is corrupted. Redownloading.`);
       cachedMods.remove(mod);
     } else {
       debug(`${modReference}@${version} is not downloaded. Downloading now.`);

@@ -159,6 +159,8 @@ export interface FicsitAppVersion {
   stability: 'alpha' | 'beta' | 'release';
   created_at: Date;
   link: string;
+  size: number;
+  hash: string;
   dependencies: FicsitAppModVersionDependency[];
 }
 
@@ -274,6 +276,8 @@ export async function getAvailableMods(page: number): Promise<Array<FicsitAppMod
             stability,
             created_at,
             link,
+            size,
+            hash,
             dependencies
             {
               mod_id,
@@ -365,6 +369,8 @@ export async function getMod(modReference: string): Promise<FicsitAppMod> {
           stability,
           created_at,
           link,
+          size,
+          hash,
           dependencies
           {
             mod_id,
@@ -442,6 +448,8 @@ export async function getModVersions(modReference: string): Promise<Array<Ficsit
           stability,
           created_at,
           link,
+          size,
+          hash,
           dependencies
           {
             mod_id,
@@ -486,6 +494,8 @@ export async function getModVersion(modReference: string, version: string): Prom
           stability,
           created_at,
           link,
+          size,
+          hash,
           dependencies
           {
             mod_id,

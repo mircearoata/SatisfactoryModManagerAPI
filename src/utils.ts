@@ -279,6 +279,10 @@ export function hashString(s: string): string {
   return createHash('sha256').update(s, 'utf8').digest('hex');
 }
 
+export function hashFile(filePath: string): string {
+  return createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
 const regexIso8601 = /^(\d{4}|\+\d{6})(?:-(\d{2})(?:-(\d{2})(?:T(\d{2}):(\d{2}):(\d{2})\.(\d{1,})(Z|([-+])(\d{2}):(\d{2}))?)?)?)?$/;
 
 function reviveDates(key: unknown, value: unknown): unknown {
