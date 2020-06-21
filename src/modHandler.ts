@@ -16,30 +16,30 @@ const modExtensions = ['.zip', '.smod'];
 export async function getModFromFile(modPath: string): Promise<Mod | undefined> {
   if (modExtensions.includes(path.extname(modPath))) {
     const zipData = new StreamZip({ file: modPath });
-    try {
-      await new Promise((resolve) => zipData.on('ready', resolve));
-      const mod = JSON.parse(zipData.entryDataSync('data.json').toString('utf8')) as Mod;
-      zipData.close();
-      if (!mod.mod_id || !mod.mod_reference) {
-        return undefined;
-      }
-      mod.path = modPath;
-      return mod;
-    } catch (e) {
-      zipData.close();
-      error(e);
+    await new Promise((resolve, reject) => { zipData.on('ready', resolve); zipData.on('error', (e) => { zipData.close(); reject(e); }); });
+    const mod = JSON.parse(zipData.entryDataSync('data.json').toString('utf8')) as Mod;
+    zipData.close();
+    if (!mod.mod_id || !mod.mod_reference) {
       return undefined;
     }
+    mod.path = modPath;
+    return mod;
   }
   throw new InvalidModFileError(`Invalid mod file ${modPath}. Extension is ${path.extname(modPath)}, required ${modExtensions.join(', ')}`);
 }
 
 export async function addModToCache(modFile: string): Promise<Mod | undefined> {
-  const mod = await getModFromFile(modFile);
-  if (mod) {
-    cachedMods.push(mod);
+  try {
+    const mod = await getModFromFile(modFile);
+    if (mod) {
+      cachedMods.push(mod);
+    }
+    return mod;
+  } catch (e) {
+    fs.unlinkSync(modFile);
+    error(`Removing corrupt cached mod ${modFile}`);
+    return undefined;
   }
-  return mod;
 }
 
 export async function loadCache(): Promise<void> {
@@ -81,9 +81,10 @@ export async function getCachedMods(): Promise<Array<Mod>> {
 export async function getCachedMod(modReference: string, version: string): Promise<Mod | undefined> {
   const mod = (await getCachedMods())
     .find((cachedMod) => (cachedMod.mod_reference === modReference || cachedMod.mod_id === modReference) && cachedMod.version === version);
-  const ficsitAppModVersionDate = (await getModVersion(modReference, version)).created_at;
-  const isModFileLatest = mod && (!mod.path || fs.statSync(mod.path).mtime >= ficsitAppModVersionDate);
-  if (!mod || !isModFileLatest) {
+  const ficsitAppModVersion = await getModVersion(modReference, version);
+  const isModFileLatest = mod && (!mod.path || fs.statSync(mod.path).mtime >= ficsitAppModVersion.created_at);
+  const isFlieHashMatching = mod && mod.path && hashFile(mod.path) === ficsitAppModVersion.hash;
+  if (!mod || !isModFileLatest || !isFlieHashMatching) {
     if (mod && !isModFileLatest) {
       debug(`${modReference}@${version} was changed by the author. Redownloading.`);
       cachedMods.remove(mod);
@@ -146,11 +147,15 @@ export async function uninstallMods(modReferences: Array<string>, modsDir: strin
     await Promise.all(fs.readdirSync(modsDir).map(async (file) => {
       const fullPath = path.join(modsDir, file);
       if (modExtensions.includes(path.extname(fullPath))) {
-        const mod = await getModFromFile(fullPath);
-        if (mod && (modReferences.includes(mod.mod_reference) || modReferences.includes(mod.mod_id))) {
-          if (fs.existsSync(fullPath)) {
-            fs.unlinkSync(fullPath);
+        try {
+          const mod = await getModFromFile(fullPath);
+          if (mod && (modReferences.includes(mod.mod_reference) || modReferences.includes(mod.mod_id))) {
+            if (fs.existsSync(fullPath)) {
+              fs.unlinkSync(fullPath);
+            }
           }
+        } catch (e) {
+          error(`Corrupt installed mod found ${fullPath}`);
         }
       }
     }));
@@ -166,7 +171,14 @@ export async function getInstalledMods(modsDir: string | undefined): Promise<Arr
     fs.readdirSync(modsDir).forEach((file) => {
       const fullPath = path.join(modsDir, file);
       if (modExtensions.includes(path.extname(fullPath))) {
-        installedModsPromises.push(getModFromFile(fullPath));
+        installedModsPromises.push((async () => {
+          try {
+            return await getModFromFile(fullPath);
+          } catch (e) {
+            error(`Corrupt installed mod found ${fullPath}`);
+          }
+          return undefined;
+        })());
       }
     });
   }
