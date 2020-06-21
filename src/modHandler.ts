@@ -57,17 +57,33 @@ export async function loadCache(): Promise<void> {
   await Promise.all(cacheAddPromises);
 }
 
-export async function downloadMod(modReference: string, version: string): Promise<string> {
+const DOWNLOAD_MOD_ATTEMPTS = 3;
+
+export async function downloadMod(modReference: string, version: string, attempt = 0): Promise<string> {
+  if (attempt > DOWNLOAD_MOD_ATTEMPTS) {
+    throw new Error(`${DOWNLOAD_MOD_ATTEMPTS} attempts to download the mod failed`);
+  }
   const downloadURL = await getModDownloadLink(modReference, version);
   const filePath = path.join(modCacheDir, `${modReference}_${version}.smod`);
-  await downloadFile(downloadURL, filePath, await getModName(modReference), version);
-  const modInfo = await getModFromFile(filePath);
-  if (modInfo) {
-    const modReferenceFilePath = path.join(modCacheDir, `${modInfo.mod_reference}_${version}.smod`);
-    fs.renameSync(filePath, modReferenceFilePath);
-    return modReferenceFilePath;
+  try {
+    await downloadFile(downloadURL, filePath, await getModName(modReference), version);
+    await getModFromFile(filePath);
+    const ficsitAppModVersion = await getModVersion(modReference, version);
+    const isFlieHashMatching = hashFile(filePath) === ficsitAppModVersion.hash;
+    if (isFlieHashMatching) {
+      return filePath;
+    }
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+    return downloadMod(modReference, version, attempt + 1);
+  } catch (e) {
+    error(`Error downloading mod: ${e.message}`);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+    return downloadMod(modReference, version, attempt + 1);
   }
-  return '';
 }
 
 export async function getCachedMods(): Promise<Array<Mod>> {
