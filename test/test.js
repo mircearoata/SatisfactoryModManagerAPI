@@ -6,7 +6,7 @@ const fs = require('fs');
 const assert = require('assert');
 const semver = require('semver');
 const { SatisfactoryInstall, getInstalls, getManifestFolderPath, UnsolvableDependencyError, DependencyManifestMismatchError, InvalidProfileError, ModNotFoundError } = require('../');
-const { modCacheDir, forEachAsync, clearCache } = require('../lib/utils');
+const { modCacheDir, forEachAsync, clearCache, hashFile } = require('../lib/utils');
 const { addTempMod, addTempModVersion, removeTempMod, removeTempModVersion, setUseTempMods, setTempModReference } = require('../lib/ficsitApp');
 const { getProfileFolderPath } = require('../lib/satisfactoryInstall');
 const JSZip = require('jszip');
@@ -125,7 +125,8 @@ async function createDummyMods() {
       version: mod.version,
       sml_version: smlVersion,
       link: path.join(modCacheDir, `${mod.mod_id}_${mod.version}.smod`),
-      dependencies: Object.entries(mod.dependencies).map(([depId, depConstraint]) => ({ mod_id: depId, condition: depConstraint, optional: false }))
+      dependencies: Object.entries(mod.dependencies).map(([depId, depConstraint]) => ({ mod_id: depId, condition: depConstraint, optional: false })),
+      hash: hashFile(path.join(modCacheDir, `${mod.mod_id}_${mod.version}.smod`)),
     });
   });
   dummyFicsitAppMods.forEach((mod) => {
