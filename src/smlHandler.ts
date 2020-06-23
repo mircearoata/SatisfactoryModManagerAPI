@@ -1,27 +1,29 @@
 import path from 'path';
 import fs from 'fs';
 import bindings from 'bindings';
-import { satisfies, valid, coerce } from 'semver';
-import glob from 'glob';
+import { valid, coerce } from 'semver';
 import {
-  downloadFile, deleteFolderRecursive, smlCacheDir, ensureExists, fileURLExists,
+  downloadFile, smlCacheDir, ensureExists, fileURLExists,
 } from './utils';
 import { ModNotFoundError } from './errors';
 import { debug } from './logging';
 
 const smlVersionNative = bindings('smlVersion');
 
-const oldSMLFiles = ['FactoryGame/Binaries/Win64/mods', 'FactoryGame/Binaries/Win64/configs', 'FactoryGame/Content/Paks/!(FactoryGame-WindowsNoEditor).*', 'FactoryGame/Binaries/Win64/xinput1_3.dll'];
-
 export const minSMLVersion = '2.0.0';
 export const SMLID = 'SML';
 
-const SMLFileName = 'UE4-SML-Win64-Shipping.dll';
+const SMLDLLFileName = 'UE4-SML-Win64-Shipping.dll';
+const SMLPakFileName = 'SML.pak';
 
-export const SMLRelativePath = path.join('loaders', SMLFileName); // TODO: other platforms
+export const SMLDLLRelativePath = path.join('loaders', SMLDLLFileName); // TODO: other platforms
+export const SMLPakRelativePath = path.join('loaders', SMLPakFileName);
 
-export function getSMLDownloadLink(version: string): string {
+export function getSMLDLLDownloadLink(version: string): string {
   return `https://github.com/satisfactorymodding/SatisfactoryModLoader/releases/download/${version}/UE4-SML-Win64-Shipping.dll`;
+}
+export function getSMLPakDownloadLink(version: string): string {
+  return `https://github.com/satisfactorymodding/SatisfactoryModLoader/releases/download/${version}/SML.pak`;
 }
 
 export function getSMLVersion(satisfactoryPath: string): string | undefined {
@@ -38,16 +40,27 @@ async function getSMLVersionCache(version: string): Promise<string> {
     throw new ModNotFoundError(`SML@${version} not found.`, 'SML', version);
   }
   const smlVersionCacheDir = path.join(smlCacheDir, validVersion);
-  const smlVerionCacheFile = path.join(smlVersionCacheDir, SMLFileName);
+  const smlDLLVerionCacheFile = path.join(smlVersionCacheDir, SMLDLLFileName);
+  const smlPakVerionCacheFile = path.join(smlVersionCacheDir, SMLPakFileName);
   if (!fs.existsSync(smlVersionCacheDir)) {
     debug(`SML@${version} is not cached. Downloading`);
-    const smlDownloadLink = getSMLDownloadLink(validVersion);
-    if (await fileURLExists(smlDownloadLink)) {
-      await downloadFile(smlDownloadLink, smlVerionCacheFile, 'SML', validVersion);
+    const smlDLLDownloadLink = getSMLDLLDownloadLink(validVersion);
+    const smlPakDownloadLink = getSMLPakDownloadLink(validVersion);
+    if (await fileURLExists(smlDLLDownloadLink)) {
+      const hasPak = await fileURLExists(smlPakDownloadLink);
+      await downloadFile(smlDLLDownloadLink, smlDLLVerionCacheFile, `SML ${hasPak ? '(1/2)' : '(1/1)'}`, validVersion);
+      if (hasPak) {
+        await downloadFile(smlPakDownloadLink, smlPakVerionCacheFile, 'SML (2/2)', validVersion);
+      }
     } else {
-      const smlDownloadLinkWithV = getSMLDownloadLink(`v${validVersion}`);
-      if (await fileURLExists(smlDownloadLinkWithV)) {
-        await downloadFile(smlDownloadLinkWithV, smlVerionCacheFile, 'SML', validVersion);
+      const smlDLLDownloadLinkWithV = getSMLDLLDownloadLink(`v${validVersion}`);
+      const smlPakDownloadLinkWithV = getSMLDLLDownloadLink(`v${validVersion}`);
+      if (await fileURLExists(smlDLLDownloadLinkWithV)) {
+        const hasPak = await fileURLExists(smlPakDownloadLinkWithV);
+        await downloadFile(smlDLLDownloadLinkWithV, smlDLLVerionCacheFile, `SML ${hasPak ? '(1/2)' : '(1/1)'}`, validVersion);
+        if (hasPak) {
+          await downloadFile(smlPakDownloadLinkWithV, smlPakVerionCacheFile, 'SML (2/2)', validVersion);
+        }
       } else {
         throw new ModNotFoundError(`SML@${version} not found.`, 'SML', version);
       }
@@ -59,8 +72,12 @@ async function getSMLVersionCache(version: string): Promise<string> {
 export async function installSML(version: string, satisfactoryPath: string): Promise<void> {
   if (!getSMLVersion(satisfactoryPath)) {
     const smlVersionCache = await getSMLVersionCache(version);
-    ensureExists(path.dirname(path.join(satisfactoryPath, SMLRelativePath)));
-    fs.copyFileSync(path.join(smlVersionCache, SMLFileName), path.join(satisfactoryPath, SMLRelativePath));
+    ensureExists(path.dirname(path.join(satisfactoryPath, SMLDLLRelativePath)));
+    ensureExists(path.dirname(path.join(satisfactoryPath, SMLPakRelativePath)));
+    fs.copyFileSync(path.join(smlVersionCache, SMLDLLFileName), path.join(satisfactoryPath, SMLDLLRelativePath));
+    if (fs.existsSync(path.join(smlVersionCache, SMLPakFileName))) {
+      fs.copyFileSync(path.join(smlVersionCache, SMLPakFileName), path.join(satisfactoryPath, SMLPakRelativePath));
+    }
   }
 }
 
@@ -69,26 +86,10 @@ export async function uninstallSML(satisfactoryPath: string): Promise<void> {
   if (!smlVersion) {
     return;
   }
-  if (satisfies(smlVersion, '<2.0.0')) {
-    // Cleanup old files
-    oldSMLFiles.forEach((fileRelativePath) => {
-      const oldFilePath = path.join(satisfactoryPath, fileRelativePath);
-      if (fs.existsSync(oldFilePath)) {
-        if (fs.lstatSync(oldFilePath).isFile()) {
-          fs.unlinkSync(oldFilePath);
-        } else {
-          deleteFolderRecursive(oldFilePath);
-        }
-      } else {
-        glob(oldFilePath, (er, files) => {
-          files.forEach((file) => {
-            fs.unlinkSync(file);
-          });
-        });
-      }
-    });
+  if (fs.existsSync(path.join(satisfactoryPath, SMLDLLRelativePath))) {
+    fs.unlinkSync(path.join(satisfactoryPath, SMLDLLRelativePath));
   }
-  if (fs.existsSync(path.join(satisfactoryPath, SMLRelativePath))) {
-    fs.unlinkSync(path.join(satisfactoryPath, SMLRelativePath));
+  if (fs.existsSync(path.join(satisfactoryPath, SMLPakRelativePath))) {
+    fs.unlinkSync(path.join(satisfactoryPath, SMLPakRelativePath));
   }
 }

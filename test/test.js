@@ -179,16 +179,6 @@ async function main() {
     fs.mkdirSync(sfInstall.modsDir, { recursive: true });
     fs.writeFileSync(path.join(sfInstall.modsDir, 'someFile.randomExt'), '');
     fs.writeFileSync(path.join(sfInstall.modsDir, 'data.json'), '');
-    /*fs.mkdirSync(path.join(dummySfPath, 'FactoryGame', 'Binaries', 'Win64', 'mods'), { recursive: true });
-    fs.writeFileSync(path.join(dummySfPath, 'FactoryGame', 'Binaries', 'Win64', 'xinput1_3.dll'), '');
-    fs.mkdirSync(path.join(dummySfPath, 'FactoryGame', 'Binaries', 'Win64', 'config'), { recursive: true });
-    fs.mkdirSync(path.join(dummySfPath, 'FactoryGame', 'Content', 'Paks'), { recursive: true });
-    fs.writeFileSync(path.join(dummySfPath, 'FactoryGame', 'Content', 'Paks', 'Test.pak'), '');
-    fs.writeFileSync(path.join(dummySfPath, 'FactoryGame', 'Content', 'Paks', 'Test.sig'), '');
-    fs.writeFileSync(path.join(dummySfPath, 'FactoryGame', 'Content', 'Paks', 'FactoryGame-WindowsNoEditor.pak'), '');
-    fs.writeFileSync(path.join(dummySfPath, 'FactoryGame', 'Content', 'Paks', 'FactoryGame-WindowsNoEditor.sig'), '');*/
-    // TODO: This cannot be tested yet
-
 
     try {
       await sfInstall.installMod('dummyMod4', '1.0.0');
@@ -212,14 +202,6 @@ async function main() {
       }
       assert.fail(`Unexpected error: ${e}`);
     }
-
-    /*assert.strictEqual(fs.existsSync(path.join(dummySfPath, 'FactoryGame', 'Binaries', 'Win64', 'mods')), false, 'Old mods folder still exists');
-    assert.strictEqual(fs.existsSync(path.join(dummySfPath, 'FactoryGame', 'Binaries', 'Win64', 'config')), false, 'Old config folder still exists');
-    assert.strictEqual(fs.existsSync(path.join(dummySfPath, 'FactoryGame', 'Content', 'Paks', 'Test.pak')), false, 'Old mod pak still exists');
-    assert.strictEqual(fs.existsSync(path.join(dummySfPath, 'FactoryGame', 'Content', 'Paks', 'Test.sig')), false, 'Old mod sig still exists');
-    assert.strictEqual(fs.existsSync(path.join(dummySfPath, 'FactoryGame', 'Content', 'Paks', 'FactoryGame-WindowsNoEditor.pak')), true, 'FG pak does not exist');
-    assert.strictEqual(fs.existsSync(path.join(dummySfPath, 'FactoryGame', 'Content', 'Paks', 'FactoryGame-WindowsNoEditor.sig')), true, 'FG sig does not exist');*/
-    // TODO: This cannot be tested yet
 
     try {
       await sfInstall.installMod('dummyMod2', '1.0.0');
