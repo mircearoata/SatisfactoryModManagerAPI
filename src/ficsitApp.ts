@@ -9,7 +9,7 @@ import { createHttpLink } from 'apollo-link-http';
 import { createPersistedQueryLink } from 'apollo-link-persisted-queries';
 import { InMemoryCache } from 'apollo-cache-inmemory';
 import { ApolloLink } from 'apollo-link';
-import { versionSatisfiesAll } from './utils';
+import { versionSatisfiesAll, UserAgent } from './utils';
 import { ModNotFoundError, NetworkError } from './errors';
 import { minSMLVersion, SMLID } from './smlHandler';
 import { BootstrapperID } from './bootstrapperHandler';
@@ -27,7 +27,7 @@ const link = ApolloLink.from([
     uri: GRAPHQL_API_URL,
     fetch: global.fetch,
     headers: {
-      'User-Agent': `${process.env.SMM_API_USERAGENT?.replace(' ', '') || 'SatisfactoryModManagerAPI'}/${process.env.SMM_API_USERAGENT_VERSION || 'unknown'}`, // TODO: allow apps to set this
+      'User-Agent': UserAgent,
     },
   }),
 ]);

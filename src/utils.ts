@@ -115,9 +115,11 @@ export function copyFile(file: string, toDir: string): void {
 setLogsDir(logsDir);
 setLogFileNameFormat(`${appName}-%DATE%.log`);
 
+export const UserAgent = `${process.env.SMM_API_USERAGENT?.replace(' ', '') || 'SatisfactoryModManagerAPI'}/${process.env.SMM_API_USERAGENT_VERSION || 'unknown'}`;
+
 const DOWNLOAD_ATTEMPTS = 3;
 
-type ProgressCallback = (url: string, progress: Progress, name: string, version: string) => void;
+type ProgressCallback = (url: string, progress: Progress, name: string, version: string, elapsedTime: number) => void;
 const progressCallbacks: Array<ProgressCallback> = [];
 
 export function addDownloadProgressCallback(cb: ProgressCallback): void {
@@ -130,6 +132,9 @@ export async function fileURLExists(url: string): Promise<boolean> {
   try {
     const req = got(url, {
       dnsCache: false,
+      headers: {
+        'User-Agent': UserAgent,
+      },
     });
     req.on('downloadProgress', (progress) => {
       if (progress.total) {
@@ -147,12 +152,16 @@ export async function fileURLExists(url: string): Promise<boolean> {
 
 export async function downloadFile(url: string, file: string, name: string, version: string): Promise<void> {
   try {
+    const startTime = Date.now();
     const buffer: Buffer = (await got(url, {
       retry: {
         limit: DOWNLOAD_ATTEMPTS,
       },
       dnsCache: false,
-    }).on('downloadProgress', (progress) => { if (progress.total) progressCallbacks.forEach(async (cb) => cb(url, progress, name, version)); }).buffer());
+      headers: {
+        'User-Agent': UserAgent,
+      },
+    }).on('downloadProgress', (progress) => { if (progress.total) progressCallbacks.forEach(async (cb) => cb(url, progress, name, version, Date.now() - startTime)); }).buffer());
     ensureExists(path.dirname(file));
     fs.writeFileSync(file, buffer);
     return;
