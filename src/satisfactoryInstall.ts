@@ -2,6 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import { eq } from 'semver';
 import JSZip from 'jszip';
+import filenamify from 'filenamify';
 import * as MH from './modHandler';
 import * as SH from './smlHandler';
 import * as BH from './bootstrapperHandler';
@@ -410,8 +411,13 @@ export class SatisfactoryInstall {
 
 export function getProfiles(): Array<{name: string; items: ManifestItem[]}> {
   return dirs(profileFolder).sort().map((name) => {
-    const manifest = readManifest(path.join(getProfileFolderPath(name), 'manifest.json'));
-    return { name, items: manifest.items };
+    try {
+      const manifest = readManifest(path.join(getProfileFolderPath(name), 'manifest.json'));
+      return { name, items: manifest.items };
+    } catch (e) {
+      error(`Error while reading profile manifest ${name}: ${e.message}`);
+      return { name, items: [] };
+    }
   });
 }
 
@@ -425,13 +431,14 @@ export function deleteProfile(name: string): void {
 }
 
 export function createProfile(name: string, copyProfile = 'vanilla'): void {
-  if (profileExists(name)) {
-    throw new InvalidProfileError(`Profile ${name} already exists`);
+  const validName = filenamify(name, { replacement: '_' });
+  if (profileExists(validName)) {
+    throw new InvalidProfileError(`Profile ${validName} already exists`);
   }
   if (!profileExists(copyProfile)) {
     throw new InvalidProfileError(`Profile ${copyProfile} does not exist`);
   }
-  writeManifest(path.join(getProfileFolderPath(name), 'manifest.json'), readManifest(path.join(getProfileFolderPath(copyProfile), 'manifest.json')));
+  writeManifest(path.join(getProfileFolderPath(validName), 'manifest.json'), readManifest(path.join(getProfileFolderPath(copyProfile), 'manifest.json')));
 }
 
 if (!fs.existsSync(path.join(getProfileFolderPath(VANILLA_PROFILE_NAME), 'manifest.json'))) {
