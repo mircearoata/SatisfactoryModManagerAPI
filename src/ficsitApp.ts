@@ -145,6 +145,7 @@ export interface FicsitAppMod {
   downloads: number;
   hotness: number;
   popularity: number;
+  created_at: Date;
   last_version_date: Date;
   authors: Array<FicsitAppAuthor>;
   versions: Array<FicsitAppVersion>;
@@ -253,6 +254,7 @@ export async function getAvailableMods(page: number): Promise<Array<FicsitAppMod
           downloads,
           hotness,
           popularity,
+          created_at,
           last_version_date,
           authors
           {
@@ -346,6 +348,7 @@ export async function getMod(modReference: string): Promise<FicsitAppMod> {
         downloads,
         hotness,
         popularity,
+        created_at,
         last_version_date,
         authors
         {
