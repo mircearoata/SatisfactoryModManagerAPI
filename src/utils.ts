@@ -157,6 +157,7 @@ export async function downloadFile(url: string, file: string, name: string, vers
       retry: {
         limit: DOWNLOAD_ATTEMPTS,
       },
+      timeout: 5 * 1000,
       dnsCache: false,
       headers: {
         'User-Agent': UserAgent,
