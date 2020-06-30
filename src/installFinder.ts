@@ -141,7 +141,7 @@ async function getRegValue(hive: string, key: string, valueName: string): Promis
 
 async function getInstallsSteamWindows(): Promise<InstallFindResult> {
   try {
-    const steamPath = (await getRegValue(Registry.HKCU, '\\Software\\Valve\\Steam', 'SteamPath')).value;
+    const steamPath = path.dirname((await getRegValue(Registry.HKCU, '\\Software\\Valve\\Steam', 'SteamExe')).value);
     const steamAppsPath = path.join(steamPath, 'steamapps');
     const libraryfoldersManifest = vdf.parse(fs.readFileSync(path.join(steamAppsPath, 'libraryfolders.vdf'), 'utf8')) as SteamLibraryFoldersManifest;
     const libraryfolders = Object.entries(libraryfoldersManifest.LibraryFolders).filter(([key]) => /^\d+$/.test(key)).map((entry) => entry[1]);
