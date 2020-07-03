@@ -345,6 +345,7 @@ export async function getMod(modReference: string): Promise<FicsitAppMod> {
         short_description,
         full_description,
         logo,
+        views,
         downloads,
         hotness,
         popularity,
