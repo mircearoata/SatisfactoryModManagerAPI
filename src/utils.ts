@@ -118,6 +118,7 @@ setLogFileNameFormat(`${appName}-%DATE%.log`);
 export const UserAgent = `${process.env.SMM_API_USERAGENT?.replace(' ', '') || 'SatisfactoryModManagerAPI'}/${process.env.SMM_API_USERAGENT_VERSION || 'unknown'}`;
 
 const DOWNLOAD_ATTEMPTS = 3;
+const DOWNLOAD_TIMEOUT = 5 * 1000;
 
 type ProgressCallback = (url: string, progress: Progress, name: string, version: string, elapsedTime: number) => void;
 const progressCallbacks: Array<ProgressCallback> = [];
@@ -151,22 +152,43 @@ export async function fileURLExists(url: string): Promise<boolean> {
 }
 
 export async function downloadFile(url: string, file: string, name: string, version: string): Promise<void> {
+  let interval: NodeJS.Timeout | undefined;
   try {
     const startTime = Date.now();
-    const buffer: Buffer = (await got(url, {
+    let lastProgressTime = Date.now();
+    const req = got(url, {
       retry: {
         limit: DOWNLOAD_ATTEMPTS,
       },
-      timeout: 5 * 1000,
       dnsCache: false,
       headers: {
         'User-Agent': UserAgent,
       },
-    }).on('downloadProgress', (progress) => { if (progress.total) progressCallbacks.forEach(async (cb) => cb(url, progress, name, version, Date.now() - startTime)); }).buffer());
+    });
+    req.on('downloadProgress', (progress) => {
+      if (progress.total) {
+        progressCallbacks.forEach(async (cb) => cb(url, progress, name, version, Date.now() - startTime));
+      }
+      lastProgressTime = Date.now();
+    });
+    interval = setInterval(() => {
+      if (Date.now() - lastProgressTime >= DOWNLOAD_TIMEOUT) {
+        req.cancel();
+      }
+    }, 100);
+    const buffer: Buffer = (await req.buffer());
+    clearInterval(interval);
     ensureExists(path.dirname(file));
     fs.writeFileSync(file, buffer);
     return;
   } catch (e) {
+    if (interval) {
+      clearInterval(interval);
+    }
+    if (e instanceof got.CancelError) {
+      debug(`Timed out downloading ${url}.`);
+      throw new NetworkError(`Timed out downloading ${url}.`, 408);
+    }
     if (e.name === 'HTTPError') {
       debug(`Network error while downloading file ${url}: ${e.message}. Trace:\n${e.stack}`);
       throw new NetworkError(`Could not download file (${e.message}). Please try again later.`, (e as HTTPError).response.statusCode);
