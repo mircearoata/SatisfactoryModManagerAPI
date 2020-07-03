@@ -147,12 +147,18 @@ async function getInstallsSteamWindows(): Promise<InstallFindResult> {
     const libraryfolders = Object.entries(libraryfoldersManifest.LibraryFolders).filter(([key]) => /^\d+$/.test(key)).map((entry) => entry[1]);
     libraryfolders.push(steamPath);
     const installs: Array<SatisfactoryInstall> = [];
+    const invalidInstalls: Array<string> = [];
     await Promise.all(libraryfolders.map(async (libraryFolder) => {
       const sfManifestPath = path.join(libraryFolder, 'steamapps', 'appmanifest_526870.acf');
       if (fs.existsSync(sfManifestPath)) {
         const manifest = vdf.parse(fs.readFileSync(sfManifestPath, 'utf8')) as SteamManifest;
         const fullInstallPath = path.join(libraryFolder, 'steamapps', 'common', manifest.AppState.installdir);
-        const gameVersion = await getGameVersionFromExe(path.join(fullInstallPath, 'FactoryGame', 'Binaries', 'Win64', 'FactoryGame-Win64-Shipping.exe'));
+        const gameExe = path.join(fullInstallPath, 'FactoryGame', 'Binaries', 'Win64', 'FactoryGame-Win64-Shipping.exe');
+        if (!fs.existsSync(gameExe)) {
+          invalidInstalls.push(fullInstallPath);
+          return;
+        }
+        const gameVersion = await getGameVersionFromExe(gameExe);
         installs.push(new SatisfactoryInstall(
           `${manifest.AppState.name} ${manifest.AppState.UserConfig.betakey?.toLowerCase() === 'experimental' ? 'Experimental' : 'Early Access'} (Steam)`,
           gameVersion,
@@ -163,7 +169,7 @@ async function getInstallsSteamWindows(): Promise<InstallFindResult> {
       }
     }));
     exiftool.end();
-    return { installs, invalidInstalls: [] };
+    return { installs, invalidInstalls };
   } catch (e) {
     if ((e as Error).message.includes('unable to find')) {
       debug('Steam is not installed');
