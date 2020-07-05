@@ -232,7 +232,7 @@ export async function getModsCount(): Promise<number> {
   }
 }
 
-export const MODS_PER_PAGE = 20;
+export const MODS_PER_PAGE = 50;
 
 export async function getAvailableMods(page: number): Promise<Array<FicsitAppMod>> {
   const res = await fiscitApiQuery<{ getMods: { mods: Array<FicsitAppMod> } }>(gql`
