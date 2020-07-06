@@ -19,7 +19,7 @@ export async function getModFromFile(modPath: string): Promise<Mod | undefined> 
     await new Promise((resolve, reject) => { zipData.on('ready', resolve); zipData.on('error', (e) => { zipData.close(); reject(e); }); });
     const mod = JSON.parse(zipData.entryDataSync('data.json').toString('utf8')) as Mod;
     zipData.close();
-    if (!mod.mod_id || !mod.mod_reference) {
+    if (!mod.mod_id && !mod.mod_reference) {
       return undefined;
     }
     mod.path = modPath;
