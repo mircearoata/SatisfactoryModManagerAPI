@@ -266,8 +266,8 @@ export class SatisfactoryInstall {
     return this._itemsList[SH.SMLID];
   }
 
-  get isSMLInstalledDev(): boolean {
-    return readManifest(this.profileManifest).items.some((item) => item.id === SH.SMLID);
+  get manifestSML(): ManifestItem | undefined {
+    return readManifest(this.profileManifest).items.find((item) => item.id === SH.SMLID);
   }
 
   async updateBootstrapper(): Promise<void> {
