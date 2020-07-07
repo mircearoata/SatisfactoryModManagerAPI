@@ -1,6 +1,6 @@
 {
   "name": "satisfactory-mod-manager-api",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "API to manage installed Satisfactory mods",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
