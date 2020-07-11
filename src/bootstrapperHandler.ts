@@ -3,14 +3,13 @@ import fs from 'fs';
 import bindings from 'bindings';
 import { valid, coerce } from 'semver';
 import {
-  downloadFile, bootstrapperCacheDir, ensureExists, deleteFolderRecursive, fileURLExists,
+  downloadFile, bootstrapperCacheDir, ensureExists, deleteFolderRecursive,
 } from './utils';
 import { ModNotFoundError } from './errors';
 import { debug } from './logging';
+import { getBootstrapperVersionInfo } from './ficsitApp';
 
 const bootstrapperVersionNative = bindings('bootstrapperVersion');
-
-export const BootstrapperID = 'bootstrapper';
 
 const bootstrapperFileName = 'xinput1_3.dll';
 const bootstrapperDIAFileName = 'msdia140.dll';
@@ -42,21 +41,14 @@ async function getBootstrapperVersionCache(version: string): Promise<string> {
   const bootstrapperCacheDIAFile = path.join(bootstrapperVersionCacheDir, bootstrapperDIAFileName);
   if (!fs.existsSync(bootstrapperVersionCacheDir)) {
     debug(`Bootstrapper@${version} is not cached. Downloading`);
-    const bootstrapperDownloadLink = getBootstrapperDownloadLink(validVersion);
-    const bootstrapperDIADownloadLink = getBootstrapperDIADownloadLink(validVersion);
-    if (await fileURLExists(bootstrapperDownloadLink)) {
-      await downloadFile(bootstrapperDownloadLink, bootstrapperCacheFile, 'Bootstrappper (1/2)', validVersion);
-      await downloadFile(bootstrapperDIADownloadLink, bootstrapperCacheDIAFile, 'Bootstrappper (2/2)', validVersion);
-    } else {
-      const bootstrapperDownloadLinkWithV = getBootstrapperDownloadLink(`v${validVersion}`);
-      const bootstrapperDIADownloadLinkWithV = getBootstrapperDIADownloadLink(`v${validVersion}`);
-      if (await fileURLExists(bootstrapperDownloadLinkWithV)) {
-        await downloadFile(bootstrapperDownloadLinkWithV, bootstrapperCacheFile, 'Bootstrappper (1/2)', validVersion);
-        await downloadFile(bootstrapperDIADownloadLinkWithV, bootstrapperCacheDIAFile, 'Bootstrappper (2/2)', validVersion);
-      } else {
-        throw new ModNotFoundError(`bootstrapper@${version} not found.`, 'bootstrapper', version);
-      }
+    const bootstrapperReleaseURL = (await getBootstrapperVersionInfo(version))?.link;
+    if (!bootstrapperReleaseURL) {
+      throw new ModNotFoundError(`bootstrapper@${version} not found.`, 'bootstrapper', version);
     }
+    const bootstrapperDownloadLink = `${bootstrapperReleaseURL.replace('/tag/', '/download/')}/${bootstrapperFileName}`;
+    const bootstrapperDIADownloadLink = `${bootstrapperReleaseURL.replace('/tag/', '/download/')}/${bootstrapperDIAFileName}`;
+    await downloadFile(bootstrapperDownloadLink, bootstrapperCacheFile, 'Bootstrapper (1/2)', validVersion);
+    await downloadFile(bootstrapperDIADownloadLink, bootstrapperCacheDIAFile, 'Bootstrapper (2/2)', validVersion);
   }
   return bootstrapperVersionCacheDir;
 }

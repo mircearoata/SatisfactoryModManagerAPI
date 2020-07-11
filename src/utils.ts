@@ -7,9 +7,13 @@ import { execSync } from 'child_process';
 import got, { HTTPError, Progress } from 'got';
 import { createHash } from 'crypto';
 import {
-  setLogsDir, setLogFileNameFormat, setLogDebug, debug,
+  setLogsDir, setLogFileNameFormat, setLogDebug, debug, error,
 } from './logging';
 import { NetworkError } from './errors';
+
+export const SMLID = 'SML';
+export const BootstrapperID = 'bootstrapper';
+export const minSMLVersion = '2.0.0';
 
 const oldAppName = 'SatisfactoryModLauncher';
 export const appName = 'SatisfactoryModManager';
@@ -147,6 +151,10 @@ export async function fileURLExists(url: string): Promise<boolean> {
     await req;
     return true;
   } catch (e) {
+    if (e.message !== 'success' && e.message !== 'fail') {
+      error(e);
+      throw new Error(`Network error on URL ${url}`);
+    }
     return e.message === 'success';
   }
 }

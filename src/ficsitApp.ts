@@ -9,11 +9,11 @@ import { createHttpLink } from 'apollo-link-http';
 import { createPersistedQueryLink } from 'apollo-link-persisted-queries';
 import { InMemoryCache } from 'apollo-cache-inmemory';
 import { ApolloLink } from 'apollo-link';
-import { versionSatisfiesAll, UserAgent } from './utils';
+import {
+  versionSatisfiesAll, UserAgent, minSMLVersion, SMLID, BootstrapperID,
+} from './utils';
 import { ModNotFoundError, NetworkError } from './errors';
-import { minSMLVersion, SMLID } from './smlHandler';
-import { BootstrapperID } from './bootstrapperHandler';
-import { warn, error } from './logging';
+import { error, warn } from './logging';
 
 if (typeof fetch === 'undefined') {
   global.fetch = crossFetch;
@@ -596,6 +596,29 @@ export async function getAvailableSMLVersions(): Promise<Array<FicsitAppSMLVersi
       if (validVersion) smlVersionIDMap[validVersion] = ver.id;
     });
     return smlVersionsCompatible;
+  }
+}
+
+export async function getSMLVersion(): Promise<FicsitAppSMLVersion> {
+  const res = await fiscitApiQuery<{ getSMLVersion: FicsitAppSMLVersion }>(gql`
+    query($versionID: SMLVersionID!){
+      getSMLVersion(smlVersionID: $versionID)
+      {
+        id,
+        version,
+        satisfactory_version
+        stability,
+        link,
+        changelog,
+        date,
+        bootstrap_version
+      }
+    }
+  `);
+  if (res.errors) {
+    throw res.errors;
+  } else {
+    return res.data.getSMLVersion;
   }
 }
 

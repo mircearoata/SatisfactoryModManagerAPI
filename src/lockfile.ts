@@ -13,10 +13,8 @@ import {
   ModNotFoundError,
   ValidationError,
 } from './errors';
-import { SMLID } from './smlHandler';
-import { BootstrapperID } from './bootstrapperHandler';
 import { debug } from './logging';
-import { versionSatisfiesAll } from './utils';
+import { versionSatisfiesAll, SMLID, BootstrapperID } from './utils';
 
 export interface ItemVersionList {
   [id: string]: string;

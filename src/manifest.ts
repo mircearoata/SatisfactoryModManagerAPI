@@ -1,14 +1,12 @@
 import fs from 'fs';
 import { valid, coerce } from 'semver';
 import {
-  mapObject, unique,
+  mapObject, unique, SMLID, BootstrapperID,
 } from './utils';
 import {
   LockfileGraph, Lockfile, LockfileGraphNode, ItemVersionList,
 } from './lockfile';
 import { info, debug } from './logging';
-import { SMLID } from './smlHandler';
-import { BootstrapperID } from './bootstrapperHandler';
 import {
   getSMLVersionInfo, getBootstrapperVersionInfo, getModVersion, getModName, getModReferenceFromId,
 } from './ficsitApp';

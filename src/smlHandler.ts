@@ -7,24 +7,15 @@ import {
 } from './utils';
 import { ModNotFoundError } from './errors';
 import { debug } from './logging';
+import { getSMLVersionInfo } from './ficsitApp';
 
 const smlVersionNative = bindings('smlVersion');
-
-export const minSMLVersion = '2.0.0';
-export const SMLID = 'SML';
 
 const SMLDLLFileName = 'UE4-SML-Win64-Shipping.dll';
 const SMLPakFileName = 'SML.pak';
 
 export const SMLDLLRelativePath = path.join('loaders', SMLDLLFileName); // TODO: other platforms
 export const SMLPakRelativePath = path.join('loaders', SMLPakFileName);
-
-export function getSMLDLLDownloadLink(version: string): string {
-  return `https://github.com/satisfactorymodding/SatisfactoryModLoader/releases/download/${version}/UE4-SML-Win64-Shipping.dll`;
-}
-export function getSMLPakDownloadLink(version: string): string {
-  return `https://github.com/satisfactorymodding/SatisfactoryModLoader/releases/download/${version}/SML.pak`;
-}
 
 export function getSMLVersion(satisfactoryPath: string): string | undefined {
   return smlVersionNative.getSMLVersion(satisfactoryPath);
@@ -44,26 +35,16 @@ async function getSMLVersionCache(version: string): Promise<string> {
   const smlPakVerionCacheFile = path.join(smlVersionCacheDir, SMLPakFileName);
   if (!fs.existsSync(smlVersionCacheDir)) {
     debug(`SML@${version} is not cached. Downloading`);
-    const smlDLLDownloadLink = getSMLDLLDownloadLink(validVersion);
-    const smlPakDownloadLink = getSMLPakDownloadLink(validVersion);
-    if (await fileURLExists(smlDLLDownloadLink)) {
-      const hasPak = await fileURLExists(smlPakDownloadLink);
-      await downloadFile(smlDLLDownloadLink, smlDLLVerionCacheFile, `SML ${hasPak ? '(1/2)' : '(1/1)'}`, validVersion);
-      if (hasPak) {
-        await downloadFile(smlPakDownloadLink, smlPakVerionCacheFile, 'SML (2/2)', validVersion);
-      }
-    } else {
-      const smlDLLDownloadLinkWithV = getSMLDLLDownloadLink(`v${validVersion}`);
-      const smlPakDownloadLinkWithV = getSMLDLLDownloadLink(`v${validVersion}`);
-      if (await fileURLExists(smlDLLDownloadLinkWithV)) {
-        const hasPak = await fileURLExists(smlPakDownloadLinkWithV);
-        await downloadFile(smlDLLDownloadLinkWithV, smlDLLVerionCacheFile, `SML ${hasPak ? '(1/2)' : '(1/1)'}`, validVersion);
-        if (hasPak) {
-          await downloadFile(smlPakDownloadLinkWithV, smlPakVerionCacheFile, 'SML (2/2)', validVersion);
-        }
-      } else {
-        throw new ModNotFoundError(`SML@${version} not found.`, 'SML', version);
-      }
+    const smlReleaseURL = (await getSMLVersionInfo(version))?.link;
+    if (!smlReleaseURL) {
+      throw new ModNotFoundError(`SML@${version} not found.`, 'SML', version);
+    }
+    const smlDLLDownloadLink = `${smlReleaseURL.replace('/tag/', '/download/')}/${SMLDLLFileName}`;
+    const smlPakDownloadLink = `${smlReleaseURL.replace('/tag/', '/download/')}/${SMLPakFileName}`;
+    const hasPak = await fileURLExists(smlPakDownloadLink);
+    await downloadFile(smlDLLDownloadLink, smlDLLVerionCacheFile, `SML ${hasPak ? '(1/2)' : '(1/1)'}`, validVersion);
+    if (hasPak) {
+      await downloadFile(smlPakDownloadLink, smlPakVerionCacheFile, 'SML (2/2)', validVersion);
     }
   }
   return smlVersionCacheDir;
