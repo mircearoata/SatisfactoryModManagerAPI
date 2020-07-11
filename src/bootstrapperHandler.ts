@@ -17,17 +17,9 @@ const bootstrapperDIAFileName = 'msdia140.dll';
 export const bootstrapperRelativePath = path.join('FactoryGame', 'Binaries', 'Win64', bootstrapperFileName); // TODO: support other platforms
 export const bootstrapperDIARelativePath = path.join('FactoryGame', 'Binaries', 'Win64', bootstrapperDIAFileName); // TODO: support other platforms
 
-export function getBootstrapperDownloadLink(version: string): string {
-  return `https://github.com/satisfactorymodding/SatisfactoryModBootstrapper/releases/download/${version}/xinput1_3.dll`;
-}
-
-export function getBootstrapperDIADownloadLink(version: string): string {
-  return `https://github.com/satisfactorymodding/SatisfactoryModBootstrapper/releases/download/${version}/msdia140.dll`;
-}
-
 export function getBootstrapperVersion(satisfactoryPath: string): string | undefined {
   return fs.existsSync(path.join(satisfactoryPath, bootstrapperDIARelativePath))
-    ? bootstrapperVersionNative.getBootstrapperVersion(satisfactoryPath)
+    ? bootstrapperVersionNative.getBootstrapperVersion(path.join(satisfactoryPath, bootstrapperRelativePath))
     : undefined;
 }
 

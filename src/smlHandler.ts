@@ -18,7 +18,7 @@ export const SMLDLLRelativePath = path.join('loaders', SMLDLLFileName); // TODO:
 export const SMLPakRelativePath = path.join('loaders', SMLPakFileName);
 
 export function getSMLVersion(satisfactoryPath: string): string | undefined {
-  return smlVersionNative.getSMLVersion(satisfactoryPath);
+  return smlVersionNative.getSMLVersion(path.join(satisfactoryPath, SMLDLLRelativePath));
 }
 
 export function getModsDir(satisfactoryPath: string): string {
