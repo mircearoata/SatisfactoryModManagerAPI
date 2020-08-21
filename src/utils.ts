@@ -122,7 +122,7 @@ setLogFileNameFormat(`${appName}-%DATE%.log`);
 export const UserAgent = `${process.env.SMM_API_USERAGENT?.replace(' ', '') || 'SatisfactoryModManagerAPI'}/${process.env.SMM_API_USERAGENT_VERSION || 'unknown'}`;
 
 const DOWNLOAD_ATTEMPTS = 3;
-const DOWNLOAD_TIMEOUT = 5 * 1000;
+const DOWNLOAD_TIMEOUT = 30 * 1000;
 
 type ProgressCallback = (url: string, progress: Progress, name: string, version: string, elapsedTime: number) => void;
 const progressCallbacks: Array<ProgressCallback> = [];
