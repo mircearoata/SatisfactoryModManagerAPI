@@ -57,6 +57,20 @@
     "iterator": "cpp",
     "sstream": "cpp",
     "cctype": "cpp",
-    "concepts": "cpp"
+    "concepts": "cpp",
+    "clocale": "cpp",
+    "cwctype": "cpp",
+    "array": "cpp",
+    "atomic": "cpp",
+    "strstream": "cpp",
+    "*.tcc": "cpp",
+    "unordered_map": "cpp",
+    "functional": "cpp",
+    "numeric": "cpp",
+    "memory_resource": "cpp",
+    "random": "cpp",
+    "bit": "cpp",
+    "set": "cpp",
+    "xhash": "cpp"
   }
 }
