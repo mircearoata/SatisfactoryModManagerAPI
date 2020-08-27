@@ -114,7 +114,7 @@ export async function mutateManifest(original: {manifest: Manifest; lockfile: Lo
     }
   });
 
-  manifest.items.removeWhereAsync(async (item) => !(await itemExistsOnFicsitApp(item.id)));
+  await manifest.items.removeWhereAsync(async (item) => !(await itemExistsOnFicsitApp(item.id)));
 
   const graph = new LockfileGraph();
   await graph.fromLockfile(original.lockfile);
