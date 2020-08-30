@@ -4,7 +4,7 @@ import vdf from 'vdf';
 import { exiftool } from 'exiftool-vendored';
 import { SatisfactoryInstall } from '../../satisfactoryInstall';
 import {
-  error, debug,
+  error, debug, info,
 } from '../../logging';
 import { InstallFindResult } from '../baseInstallFinder';
 
@@ -17,7 +17,7 @@ interface SteamLibraryFoldersManifest {
 }
 
 interface SteamManifest {
-  AppState: {
+  AppState?: {
     name: string;
     installdir: string;
     UserConfig: {
@@ -62,6 +62,10 @@ export async function getInstalls(): Promise<InstallFindResult> {
         const sfManifestPath = path.join(libraryFolder, 'steamapps', 'appmanifest_526870.acf');
         if (fs.existsSync(sfManifestPath)) {
           const manifest = vdf.parse(fs.readFileSync(sfManifestPath, 'utf8')) as SteamManifest;
+          if (!manifest || !manifest.AppState) {
+            info(`Invalid steam manifest ${sfManifestPath}`);
+            return;
+          }
           const fullInstallPath = path.join(libraryFolder, 'steamapps', 'common', manifest.AppState.installdir);
           const gameExe = path.join(fullInstallPath, 'FactoryGame', 'Binaries', 'Win64', 'FactoryGame-Win64-Shipping.exe');
           if (!fs.existsSync(gameExe)) {
