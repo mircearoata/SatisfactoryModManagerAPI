@@ -14,8 +14,8 @@ const bootstrapperVersionNative = bindings('bootstrapperVersion');
 const bootstrapperFileName = 'xinput1_3.dll';
 const bootstrapperDIAFileName = 'msdia140.dll';
 
-export const bootstrapperRelativePath = path.join('FactoryGame', 'Binaries', 'Win64', bootstrapperFileName); // TODO: support other platforms
-export const bootstrapperDIARelativePath = path.join('FactoryGame', 'Binaries', 'Win64', bootstrapperDIAFileName); // TODO: support other platforms
+export const bootstrapperRelativePath = path.join('FactoryGame', 'Binaries', 'Win64', bootstrapperFileName);
+export const bootstrapperDIARelativePath = path.join('FactoryGame', 'Binaries', 'Win64', bootstrapperDIAFileName);
 
 export function getBootstrapperVersion(satisfactoryPath: string): string | undefined {
   return fs.existsSync(path.join(satisfactoryPath, bootstrapperDIARelativePath))

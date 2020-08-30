@@ -109,7 +109,7 @@ async function createDummyMods() {
   const dummyFicsitAppMods = [];
   dummyMods.forEach((mod) => {
     let existingMod = dummyFicsitAppMods.find((faMod) => faMod.id === mod.mod_id);
-    if(!existingMod) {
+    if (!existingMod) {
       existingMod = {
         id: mod.mod_id,
         versions: [],
@@ -117,7 +117,7 @@ async function createDummyMods() {
       dummyFicsitAppMods.push(existingMod);
     }
     let smlVersion = mod.dependencies['SML'];
-    while(!('0' <= smlVersion[0] && smlVersion[0] <= '9')) {
+    while (!('0' <= smlVersion[0] && smlVersion[0] <= '9')) {
       smlVersion = smlVersion.substring(1);
     }
     existingMod.versions.push({
@@ -137,7 +137,7 @@ async function createDummyMods() {
 async function removeDummyMods() {
   await dummyMods.forEachAsync(async (mod) => {
     const filePath = path.join(modCacheDir, `${mod.mod_id}_${mod.version}.smod`);
-    if(fs.existsSync(filePath)) {
+    if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
   });
@@ -162,7 +162,7 @@ async function main() {
 
   clearCache();
   setUseTempMods(true);
-  
+
   fs.mkdirSync(dummySfPath, { recursive: true });
   await createDummyMods();
 

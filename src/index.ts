@@ -8,7 +8,7 @@ export {
 } from './satisfactoryInstall';
 export {
   getInstalls,
-} from './installFinder';
+} from './installfinders';
 export {
   Mod, ModObject,
   loadCache,

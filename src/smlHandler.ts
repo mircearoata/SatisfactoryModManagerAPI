@@ -14,7 +14,7 @@ const smlVersionNative = bindings('smlVersion');
 const SMLDLLFileName = 'UE4-SML-Win64-Shipping.dll';
 const SMLPakFileName = 'SML.pak';
 
-export const SMLDLLRelativePath = path.join('loaders', SMLDLLFileName); // TODO: other platforms
+export const SMLDLLRelativePath = path.join('loaders', SMLDLLFileName);
 export const SMLPakRelativePath = path.join('loaders', SMLPakFileName);
 
 export function getSMLVersion(satisfactoryPath: string): string | undefined {

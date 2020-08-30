@@ -1,17 +1,18 @@
 {
   "compilerOptions": {
-    "target": "es2018",
+    "target": "es2019",
     "module": "commonjs",
     "outDir": "./lib",
     "rootDir": "./src",
+    "baseUrl": ".",
     "strict": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "declaration": true,
     "sourceMap": true,
-    "declarationMap": true,
+    "declarationMap": true
   },
   "include": [
     "src/**/*.ts"
-  ],
+  ]
 }

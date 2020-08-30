@@ -57,11 +57,11 @@ export class SatisfactoryInstall {
   version: string;
   branch: string;
   installLocation: string;
-  launchPath: string;
+  launchPath?: string;
 
   private _profile = MODDED_PROFILE_NAME;
 
-  constructor(name: string, version: string, branch: string, installLocation: string, launchPath: string) {
+  constructor(name: string, version: string, branch: string, installLocation: string, launchPath?: string) {
     this.name = name;
     this.version = version;
     this.branch = branch;
@@ -369,7 +369,7 @@ export class SatisfactoryInstall {
   }
 
   static isGameRunning(): Promise<boolean> {
-    return isRunning('FactoryGame-Win64-Shipping.exe'); // TODO: cross platform
+    return isRunning('FactoryGame-Win64-Shipping.exe');
   }
 
   get bootstrapperVersion(): string | undefined {
@@ -385,7 +385,7 @@ export class SatisfactoryInstall {
   }
 
   get binariesDir(): string {
-    return path.join(this.installLocation, 'FactoryGame', 'Binaries', 'Win64'); // TODO: other platforms
+    return path.join(this.installLocation, 'FactoryGame', 'Binaries', 'Win64');
   }
 
   get displayName(): string {

@@ -59,12 +59,12 @@ module.exports = {
     'camelcase': 0,
   },
   settings: {
-    'import/extensions': ['.js', '.jsx', '.json', '.ts', '.tsx'],
+    'import/extensions': ['.js', '.ts', '.json'],
     'import/resolver': {
       node: [
         '.ts',
         '.tsx'
-      ]
-    }
+      ],
+    },
   }
 };

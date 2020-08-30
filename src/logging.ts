@@ -68,7 +68,7 @@ function checkRoll(): void {
     if (logFileWriter) {
       logFileWriter.end('\n');
     }
-    logFileWriter = fs.createWriteStream(logFilePath, { flags: 'a', encoding: 'utf-8', autoClose: true });
+    logFileWriter = fs.createWriteStream(logFilePath, { flags: 'a', encoding: 'utf8', autoClose: true });
     logFileWriter.write('\n');
   }
 }

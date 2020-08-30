@@ -2,7 +2,7 @@ import { getDataHome, getCacheFolder } from 'platform-folders';
 import path from 'path';
 import fs from 'fs';
 import { satisfies, coerce, gt } from 'semver';
-import processExists from 'process-exists';
+import psList from 'ps-list';
 import { execSync } from 'child_process';
 import got, { HTTPError, Progress } from 'got';
 import { createHash } from 'crypto';
@@ -300,7 +300,9 @@ export function mergeArrays<T>(...arrays: Array<Array<T>>): Array<T> {
 
 export async function isRunning(command: string): Promise<boolean> {
   try {
-    return await processExists(command);
+    const runningInstances = (await psList()).filter((process) => process.cmd?.includes(command) || process.name?.includes(command));
+    debug(`Running instances of "${command}": ${JSON.stringify(runningInstances)}`); // debug for game found as running even after being closed
+    return runningInstances.length > 0;
   } catch (e) {
     // fallback to tasklist
     const { platform } = process;
