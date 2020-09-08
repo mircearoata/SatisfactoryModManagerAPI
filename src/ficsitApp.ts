@@ -133,6 +133,10 @@ export async function fiscitApiQuery<T>(query: DocumentNode<unknown, unknown>,
   }
 }
 
+export async function resetFicsitAppCache(): Promise<void> {
+  return client.cache.reset();
+}
+
 export interface FicsitAppMod {
   id: string;
   name: string;
