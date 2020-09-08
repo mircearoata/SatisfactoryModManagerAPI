@@ -15,7 +15,7 @@ import {
 } from './manifest';
 import { ItemVersionList, Lockfile } from './lockfile';
 import {
-  filterObject, mergeArrays, isRunning, ensureExists, profileFolder, dirs, deleteFolderRecursive, validAndGreater, hashString, SMLID, BootstrapperID,
+  filterObject, mergeArrays, isRunning, dirs, deleteFolderRecursive, validAndGreater, hashString, SMLID, BootstrapperID,
 } from './utils';
 import {
   debug, info, error, warn,
@@ -23,6 +23,7 @@ import {
 import {
   GameRunningError, InvalidProfileError,
 } from './errors';
+import { profileFolder, ensureExists } from './paths';
 
 export function getProfileFolderPath(profileName: string): string {
   const profilePath = path.join(profileFolder, profileName);
@@ -182,6 +183,7 @@ export class SatisfactoryInstall {
     const currentProfile = this._profile;
     this._profile = profileName;
     try {
+      debug(`Setting profile to ${profileName}`);
       await this.manifestMutate([], [], []);
     } catch (e) {
       this._profile = currentProfile;

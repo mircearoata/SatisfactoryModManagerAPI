@@ -2,11 +2,12 @@ import fs from 'fs';
 import path from 'path';
 import StreamZip from 'node-stream-zip';
 import {
-  modCacheDir, copyFile, downloadFile, hashFile,
+  copyFile, downloadFile, hashFile,
 } from './utils';
 import { getModDownloadLink, getModVersion, getModName } from './ficsitApp';
 import { InvalidModFileError } from './errors';
 import { error, debug } from './logging';
+import { modCacheDir } from './paths';
 
 let cachedMods = new Array<Mod>();
 let cacheLoaded = false;

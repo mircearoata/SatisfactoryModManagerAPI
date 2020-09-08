@@ -3,11 +3,12 @@ import fs from 'fs';
 import bindings from 'bindings';
 import { valid, coerce } from 'semver';
 import {
-  downloadFile, bootstrapperCacheDir, ensureExists, deleteFolderRecursive,
+  downloadFile, deleteFolderRecursive,
 } from './utils';
 import { ModNotFoundError } from './errors';
 import { debug } from './logging';
 import { getBootstrapperVersionInfo } from './ficsitApp';
+import { bootstrapperCacheDir, ensureExists } from './paths';
 
 const bootstrapperVersionNative = bindings('bootstrapperVersion');
 
@@ -47,6 +48,7 @@ async function getBootstrapperVersionCache(version: string): Promise<string> {
 
 export async function installBootstrapper(version: string, satisfactoryPath: string): Promise<void> {
   if (!getBootstrapperVersion(satisfactoryPath)) {
+    debug('Installing bootstrapper');
     let bootstrapperVersionCache = await getBootstrapperVersionCache(version);
     if (!fs.existsSync(path.join(bootstrapperVersionCache, bootstrapperFileName))
     || !fs.existsSync(path.join(bootstrapperVersionCache, bootstrapperDIAFileName))) {
@@ -57,14 +59,18 @@ export async function installBootstrapper(version: string, satisfactoryPath: str
     ensureExists(path.dirname(path.join(satisfactoryPath, bootstrapperDIARelativePath)));
     fs.copyFileSync(path.join(bootstrapperVersionCache, bootstrapperFileName), path.join(satisfactoryPath, bootstrapperRelativePath));
     fs.copyFileSync(path.join(bootstrapperVersionCache, bootstrapperDIAFileName), path.join(satisfactoryPath, bootstrapperDIARelativePath));
+  } else {
+    debug('Bootstrapper is already installed');
   }
 }
 
 export async function uninstallBootstrapper(satisfactoryPath: string): Promise<void> {
   const bootstrapperVersion = getBootstrapperVersion(satisfactoryPath);
   if (!bootstrapperVersion) {
+    debug('No bootstrapper to uninstall');
     return;
   }
+  debug('Uninstalling bootstrapper');
   if (fs.existsSync(path.join(satisfactoryPath, bootstrapperRelativePath))) {
     fs.unlinkSync(path.join(satisfactoryPath, bootstrapperRelativePath));
   }

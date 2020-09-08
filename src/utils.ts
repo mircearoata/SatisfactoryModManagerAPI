@@ -1,4 +1,3 @@
-import { getDataHome, getCacheFolder } from 'platform-folders';
 import path from 'path';
 import fs from 'fs';
 import { satisfies, coerce, gt } from 'semver';
@@ -7,16 +6,16 @@ import { execSync } from 'child_process';
 import got, { HTTPError, Progress } from 'got';
 import { createHash } from 'crypto';
 import {
-  setLogsDir, setLogFileNameFormat, setLogDebug, debug, error,
+  setLogDebug, debug, error,
 } from './logging';
 import { NetworkError } from './errors';
+import {
+  ensureExists, bootstrapperCacheDir, smlCacheDir, modCacheDir,
+} from './paths';
 
 export const SMLID = 'SML';
 export const BootstrapperID = 'bootstrapper';
 export const minSMLVersion = '2.0.0';
-
-const oldAppName = 'SatisfactoryModLauncher';
-export const appName = 'SatisfactoryModManager';
 
 let isDebugMode = process.env.NODE_DEBUG?.includes('SMManagerAPI') || false;
 
@@ -35,40 +34,12 @@ export function toggleDebug(): void {
   setDebug(!isDebugMode);
 }
 
-export function ensureExists(folder: string): void {
-  fs.mkdirSync(folder, { recursive: true });
-}
-
 export function dirs(p: string): Array<string> {
   if (fs.existsSync(p)) {
     return fs.readdirSync(p).filter((f) => fs.statSync(path.join(p, f)).isDirectory());
   }
   return [];
 }
-
-export const oldAppDataDir = path.join(getDataHome(), oldAppName);
-
-export const appDataDir = path.join(getDataHome(), appName);
-ensureExists(appDataDir);
-export const cacheDir = path.join(getCacheFolder(), appName);
-ensureExists(cacheDir);
-export const downloadCacheDir = path.join(cacheDir, 'downloadCache');
-ensureExists(downloadCacheDir);
-export const modCacheDir = path.join(downloadCacheDir, 'mods');
-ensureExists(modCacheDir);
-export const smlCacheDir = path.join(downloadCacheDir, 'smlVersions');
-ensureExists(smlCacheDir);
-export const bootstrapperCacheDir = path.join(downloadCacheDir, 'bootstrapperVersions');
-ensureExists(bootstrapperCacheDir);
-
-export const logsDir = path.join(cacheDir, 'logs');
-ensureExists(logsDir);
-
-export const profileFolder = path.join(appDataDir, 'profiles');
-if (fs.existsSync(path.join(appDataDir, 'configs')) && !fs.existsSync(profileFolder)) {
-  fs.renameSync(path.join(appDataDir, 'configs'), profileFolder);
-}
-ensureExists(profileFolder);
 
 export function deleteFolderRecursive(deletePath: string): void {
   if (fs.existsSync(deletePath)) {
@@ -115,9 +86,6 @@ export function copyFile(file: string, toDir: string): void {
   ensureExists(toDir);
   fs.copyFileSync(file, path.join(toDir, path.basename(file)));
 }
-
-setLogsDir(logsDir);
-setLogFileNameFormat(`${appName}-%DATE%.log`);
 
 export const UserAgent = `${process.env.SMM_API_USERAGENT?.replace(' ', '') || 'SatisfactoryModManagerAPI'}/${process.env.SMM_API_USERAGENT_VERSION || 'unknown'}`;
 

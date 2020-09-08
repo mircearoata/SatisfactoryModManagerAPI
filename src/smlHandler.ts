@@ -3,11 +3,12 @@ import fs from 'fs';
 import bindings from 'bindings';
 import { valid, coerce } from 'semver';
 import {
-  downloadFile, smlCacheDir, ensureExists, fileURLExists,
+  downloadFile, fileURLExists,
 } from './utils';
 import { ModNotFoundError } from './errors';
 import { debug } from './logging';
 import { getSMLVersionInfo } from './ficsitApp';
+import { smlCacheDir, ensureExists } from './paths';
 
 const smlVersionNative = bindings('smlVersion');
 
@@ -52,6 +53,7 @@ async function getSMLVersionCache(version: string): Promise<string> {
 
 export async function installSML(version: string, satisfactoryPath: string): Promise<void> {
   if (!getSMLVersion(satisfactoryPath)) {
+    debug('Installing SML');
     const smlVersionCache = await getSMLVersionCache(version);
     ensureExists(path.dirname(path.join(satisfactoryPath, SMLDLLRelativePath)));
     ensureExists(path.dirname(path.join(satisfactoryPath, SMLPakRelativePath)));
@@ -59,14 +61,18 @@ export async function installSML(version: string, satisfactoryPath: string): Pro
     if (fs.existsSync(path.join(smlVersionCache, SMLPakFileName))) {
       fs.copyFileSync(path.join(smlVersionCache, SMLPakFileName), path.join(satisfactoryPath, SMLPakRelativePath));
     }
+  } else {
+    debug('SML is already installed');
   }
 }
 
 export async function uninstallSML(satisfactoryPath: string): Promise<void> {
   const smlVersion = getSMLVersion(satisfactoryPath);
   if (!smlVersion) {
+    debug('No SML to uninstall');
     return;
   }
+  debug('Uninstalling SML');
   if (fs.existsSync(path.join(satisfactoryPath, SMLDLLRelativePath))) {
     fs.unlinkSync(path.join(satisfactoryPath, SMLDLLRelativePath));
   }

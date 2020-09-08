@@ -3,6 +3,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { logsDir, appName } from './paths';
 
 export enum LogLevel {
   DEBUG,
@@ -11,21 +12,78 @@ export enum LogLevel {
   ERROR
 }
 
-let minLogLevel = LogLevel.INFO;
-
-let logsDir = '.';
-let logFileNameFormat = 'logging.log';
-
-export function setLogsDir(dir: string): void {
-  logsDir = dir;
+abstract class Logger {
+  minLevel: LogLevel = LogLevel.INFO;
+  abstract write(level: LogLevel, message: string): void;
 }
 
-export function setLogFileNameFormat(fileNameFormat: string): void {
-  logFileNameFormat = fileNameFormat;
+class ConsoleLogger extends Logger {
+  constructor(minLevel?: LogLevel) {
+    super();
+    this.minLevel = minLevel || LogLevel.INFO;
+  }
+
+  // eslint-disable-next-line class-methods-use-this
+  write(level: LogLevel, message: string): void {
+    switch (level) {
+      case LogLevel.DEBUG:
+        console.log(message);
+        break;
+      case LogLevel.WARN:
+        console.warn(message);
+        break;
+      case LogLevel.ERROR:
+        console.error(message);
+        break;
+      case LogLevel.INFO:
+      default:
+        console.info(message);
+        break;
+    }
+  }
 }
 
 export function formatDate(date: Date): string {
   return `${date.getFullYear().toString().padStart(4, '0')}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+}
+
+class RollingFileLogger extends Logger {
+  dir: string;
+  fileNameFormat: string;
+  private logFileWriter: fs.WriteStream;
+
+  constructor(dir: string, fileNameFormat: string, minLevel?: LogLevel) {
+    super();
+    this.dir = dir;
+    this.fileNameFormat = fileNameFormat;
+    this.minLevel = minLevel || LogLevel.DEBUG;
+    this.logFileWriter = fs.createWriteStream(this.getLogFilePath(), { flags: 'a', encoding: 'utf8', autoClose: true });
+  }
+
+  static formatLogFileName(fileName: string): string {
+    return fileName.replace('%DATE%', formatDate(new Date()));
+  }
+
+  getLogFilePath(): string {
+    return path.join(this.dir, RollingFileLogger.formatLogFileName(this.fileNameFormat));
+  }
+
+  checkRoll(): void {
+    if (this.logFileWriter.path !== this.getLogFilePath()) {
+      this.logFileWriter.end('\n');
+      this.logFileWriter = fs.createWriteStream(this.getLogFilePath(), { flags: 'a', encoding: 'utf8', autoClose: true });
+      this.logFileWriter.write('\n');
+    }
+  }
+
+  // eslint-disable-next-line class-methods-use-this
+  write(level: LogLevel, message: string): void {
+    this.checkRoll();
+    if (this.logFileWriter && this.logFileWriter.writable) {
+      this.logFileWriter.write(message);
+      this.logFileWriter.write('\n');
+    }
+  }
 }
 
 export function formatDateTime(date: Date): string {
@@ -51,52 +109,15 @@ function formatMessage(level: LogLevel, message: string): string {
   return `${formatDateTime(new Date())}\t[${levelToString(level)}]\t${message}`;
 }
 
-function formatLogFileName(fileName: string): string {
-  return fileName.replace('%DATE%', formatDate(new Date()));
-}
+const loggers: Array<Logger> = [new ConsoleLogger(), new RollingFileLogger(logsDir, `${appName}-%DATE%.log`)];
 
-export function getLogFilePath(): string {
-  return path.join(logsDir, formatLogFileName(logFileNameFormat));
-}
-
-let logFilePath = '';
-let logFileWriter: fs.WriteStream;
-
-function checkRoll(): void {
-  if (logFilePath !== getLogFilePath()) {
-    logFilePath = getLogFilePath();
-    if (logFileWriter) {
-      logFileWriter.end('\n');
+export function write(level: LogLevel, message: string | unknown): void {
+  const formattedMessage = formatMessage(level, typeof message === 'string' ? message : JSON.stringify(message));
+  loggers.forEach((logger) => {
+    if (level >= logger.minLevel) {
+      logger.write(level, formattedMessage);
     }
-    logFileWriter = fs.createWriteStream(logFilePath, { flags: 'a', encoding: 'utf8', autoClose: true });
-    logFileWriter.write('\n');
-  }
-}
-
-function write(level: LogLevel, message: string | unknown): void {
-  if (level >= minLogLevel) {
-    const formattedMessage = formatMessage(level, typeof message === 'string' ? message : JSON.stringify(message));
-    switch (level) {
-      case LogLevel.DEBUG:
-        console.log(formattedMessage);
-        break;
-      case LogLevel.WARN:
-        console.warn(formattedMessage);
-        break;
-      case LogLevel.ERROR:
-        console.error(formattedMessage);
-        break;
-      case LogLevel.INFO:
-      default:
-        console.info(formattedMessage);
-        break;
-    }
-    checkRoll();
-    if (logFileWriter && logFileWriter.writable) {
-      logFileWriter.write(formattedMessage);
-      logFileWriter.write('\n');
-    }
-  }
+  });
 }
 
 export function debug(message: string | unknown): void {
@@ -119,14 +140,18 @@ export function error(message: string | Error | unknown): void {
 }
 
 export function setLogDebug(d: boolean): void {
-  minLogLevel = d ? LogLevel.DEBUG : LogLevel.INFO;
+  loggers[0].minLevel = d ? LogLevel.DEBUG : LogLevel.INFO; // Only change for console logger, file logger should have all debug currently
   info(`Set debug mode to ${d}`);
 }
 
 export function toggleLogDebug(): void {
-  if (minLogLevel === LogLevel.DEBUG) {
+  if (loggers[0].minLevel === LogLevel.DEBUG) {
     setLogDebug(false);
   } else {
     setLogDebug(true);
   }
+}
+
+export function getLogFilePath(): string {
+  return (loggers[1] as RollingFileLogger).getLogFilePath();
 }
