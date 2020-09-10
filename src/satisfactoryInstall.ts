@@ -158,8 +158,8 @@ export class SatisfactoryInstall {
     }
     if (!await SatisfactoryInstall.isGameRunning()) {
       debug(`install: [${install.map((item) => (item.version ? `${item.id}@${item.version}` : item.id)).join(', ')}], uninstall: [${uninstall.join(', ')}], update: [${update.join(', ')}]`);
-      const currentManifest = readManifest(this.profileManifest);
-      const currentLockfile = readLockfile(this.profileLockfile);
+      const currentManifest = this.readManifest();
+      const currentLockfile = this.readLockfile();
       try {
         const {
           manifest: newManifest,
@@ -243,7 +243,7 @@ export class SatisfactoryInstall {
   }
 
   get manifestMods(): ManifestItem[] {
-    return readManifest(this.profileManifest).items
+    return this.readManifest().items
       .filter((item) => item.id !== SMLID && item.id !== BootstrapperID);
   }
 
@@ -269,7 +269,7 @@ export class SatisfactoryInstall {
   }
 
   get manifestSML(): ManifestItem | undefined {
-    return readManifest(this.profileManifest).items.find((item) => item.id === SMLID);
+    return this.readManifest().items.find((item) => item.id === SMLID);
   }
 
   async updateBootstrapper(): Promise<void> {
@@ -287,8 +287,8 @@ export class SatisfactoryInstall {
   }
 
   async checkForUpdates(): Promise<Array<ItemUpdate>> {
-    const currentManifest = readManifest(this.profileManifest);
-    const currentLockfile = readLockfile(this.profileLockfile);
+    const currentManifest = this.readManifest();
+    const currentLockfile = this.readLockfile();
     await resetFicsitAppCache(); // Should only clear the versions from cache, but it was enough headache for one day
     const {
       lockfile: newLockfile,
@@ -357,8 +357,8 @@ export class SatisfactoryInstall {
   }
 
   async exportProfile(filePath: string): Promise<void> {
-    const manifest = readManifest(this.profileManifest);
-    const lockfile = readLockfile(this.profileLockfile);
+    const manifest = this.readManifest();
+    const lockfile = this.readLockfile();
     const metadata = { gameVersion: this.version } as ProfileMetadata;
 
     const profileFile = new JSZip();
@@ -384,7 +384,7 @@ export class SatisfactoryInstall {
   }
 
   private get _itemsList(): ItemVersionList {
-    return getItemsList(readLockfile(this.profileLockfile));
+    return getItemsList(this.readLockfile());
   }
 
   get binariesDir(): string {
@@ -409,6 +409,14 @@ export class SatisfactoryInstall {
 
   get lockfileName(): string {
     return `lock-${hashString(`${this.installLocation}|${this.branch}`)}.json`;
+  }
+
+  readManifest(): Manifest {
+    return readManifest(this.profileManifest);
+  }
+
+  readLockfile(): Lockfile {
+    return readLockfile(this.profileLockfile);
   }
 }
 
