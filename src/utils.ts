@@ -131,7 +131,7 @@ export async function downloadFile(url: string, file: string, name: string, vers
   let interval: NodeJS.Timeout | undefined;
   try {
     const startTime = Date.now();
-    let lastProgressTime = Date.now();
+    let lastProgressTime = Date.now() + DOWNLOAD_TIMEOUT; // give some time to resolve the url and stuff
     const req = got(url, {
       retry: {
         limit: DOWNLOAD_ATTEMPTS,
