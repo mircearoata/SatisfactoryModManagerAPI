@@ -5,6 +5,7 @@ export {
   getProfiles,
   createProfile,
   deleteProfile,
+  renameProfile,
 } from './satisfactoryInstall';
 export {
   getInstalls,

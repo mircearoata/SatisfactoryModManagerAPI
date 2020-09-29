@@ -432,8 +432,12 @@ export function getProfiles(): Array<{name: string; items: ManifestItem[]}> {
   });
 }
 
+function isBuiltinProfile(name: string): boolean {
+  return name.toLowerCase() === VANILLA_PROFILE_NAME || name.toLowerCase() === MODDED_PROFILE_NAME || name.toLowerCase() === DEVELOPMENT_PROFILE_NAME;
+}
+
 export function deleteProfile(name: string): void {
-  if (name.toLowerCase() === VANILLA_PROFILE_NAME || name.toLowerCase() === MODDED_PROFILE_NAME || name.toLowerCase() === DEVELOPMENT_PROFILE_NAME) {
+  if (isBuiltinProfile(name)) {
     throw new InvalidProfileError(`Cannot delete ${name} profile (it is part of the default set of profiles)`);
   }
   if (profileExists(name)) {
@@ -450,6 +454,21 @@ export function createProfile(name: string, copyProfile = 'vanilla'): void {
     throw new InvalidProfileError(`Profile ${copyProfile} does not exist`);
   }
   writeManifest(path.join(getProfileFolderPath(validName), 'manifest.json'), readManifest(path.join(getProfileFolderPath(copyProfile), 'manifest.json')));
+}
+
+export function renameProfile(oldName: string, newName: string): void {
+  if (isBuiltinProfile(oldName)) {
+    throw new InvalidProfileError(`Cannot rename ${oldName} profile (it is part of the default set of profiles)`);
+  }
+  const validName = filenamify(oldName, { replacement: '_' });
+  const validNewName = filenamify(newName, { replacement: '_' });
+  if (!profileExists(validName)) {
+    throw new InvalidProfileError(`Profile ${validName} does not exist.`);
+  }
+  if (profileExists(validNewName)) {
+    throw new InvalidProfileError(`Profile ${validNewName} already exists.`);
+  }
+  fs.renameSync(getProfileFolderPath(validName), path.join(profileFolder, validNewName));
 }
 
 if (!fs.existsSync(path.join(getProfileFolderPath(VANILLA_PROFILE_NAME), 'manifest.json'))) {
