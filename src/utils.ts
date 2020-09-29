@@ -102,6 +102,7 @@ export function addDownloadProgressCallback(cb: ProgressCallback): void {
 }
 
 export async function fileURLExists(url: string): Promise<boolean> {
+  let exists: boolean | undefined;
   try {
     const req = got(url, {
       dnsCache: false,
@@ -111,19 +112,21 @@ export async function fileURLExists(url: string): Promise<boolean> {
     });
     req.on('downloadProgress', (progress) => {
       if (progress.total) {
-        req.cancel('success');
+        exists = true;
+        req.cancel();
       } else {
-        req.cancel('fail');
+        exists = false;
+        req.cancel();
       }
     });
     await req;
     return true;
   } catch (e) {
-    if (e.message !== 'success' && e.message !== 'fail') {
-      error(e);
-      throw new Error(`Network error on URL ${url}`);
+    if (exists !== null && exists !== undefined) {
+      return exists;
     }
-    return e.message === 'success';
+    error(e);
+    throw new Error(`Network error on URL ${url}`);
   }
 }
 
