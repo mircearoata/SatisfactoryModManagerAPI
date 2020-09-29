@@ -6,7 +6,9 @@ import {
 import {
   LockfileGraph, Lockfile, LockfileGraphNode, ItemVersionList,
 } from './lockfile';
-import { info, debug } from './logging';
+import {
+  info, debug,
+} from './logging';
 import {
   getSMLVersionInfo, getBootstrapperVersionInfo, getModVersion, getModName, getModReferenceFromId,
 } from './ficsitApp';
@@ -99,7 +101,7 @@ export async function mutateManifest(original: {manifest: Manifest; lockfile: Lo
     }
   });
 
-  await manifest.items.forEachAsync(async (item, idx) => {
+  await Promise.all(manifest.items.map(async (item, idx) => {
     const isOnFicsitApp = await itemExistsOnFicsitApp(item.id);
     if (!isOnFicsitApp) {
       try {
@@ -112,14 +114,14 @@ export async function mutateManifest(original: {manifest: Manifest; lockfile: Lo
         }
       }
     }
-  });
+  }));
 
   await manifest.items.removeWhereAsync(async (item) => !(await itemExistsOnFicsitApp(item.id)));
 
   const graph = new LockfileGraph();
   await graph.fromLockfile(original.lockfile);
 
-  await graph.nodes.forEachAsync(async (node, idx) => {
+  await Promise.all(graph.nodes.map(async (node, idx) => {
     const isOnFicsitApp = await versionExistsOnFicsitApp(node.id, node.version);
     if (!isOnFicsitApp) {
       try {
@@ -132,7 +134,7 @@ export async function mutateManifest(original: {manifest: Manifest; lockfile: Lo
         }
       }
     }
-  });
+  }));
 
   graph.roots().forEach((root) => {
     if (!manifest.items.some((manifestItem) => manifestItem.id === root.id)) {

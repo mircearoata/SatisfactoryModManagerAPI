@@ -209,11 +209,11 @@ Array.prototype.removeWhere = function removeWhere<T>(predicate: (value: T, inde
 // eslint-disable-next-line no-extend-native, max-len
 Array.prototype.removeWhereAsync = async function removeWhereAsync<T>(predicate: (value: T, index: number, array: Array<T>) => Promise<boolean>): Promise<void> {
   const toRemove = new Array<T>();
-  await this.forEachAsync(async (value, index, array) => {
+  await Promise.all(this.map(async (value, index, array) => {
     if (await predicate(value, index, array)) {
       toRemove.push(value);
     }
-  });
+  }));
   toRemove.forEach((element) => {
     this.remove(element);
   });
