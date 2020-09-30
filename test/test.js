@@ -6,9 +6,10 @@ const fs = require('fs');
 const assert = require('assert');
 const semver = require('semver');
 const { SatisfactoryInstall, getInstalls, getManifestFolderPath, UnsolvableDependencyError, DependencyManifestMismatchError, InvalidProfileError, ModNotFoundError } = require('../');
-const { modCacheDir, forEachAsync, clearCache, hashFile } = require('../lib/utils');
+const { forEachAsync, clearCache, hashFile } = require('../lib/utils');
 const { addTempMod, addTempModVersion, removeTempMod, removeTempModVersion, setUseTempMods, setTempModReference } = require('../lib/ficsitApp');
 const { getProfileFolderPath } = require('../lib/satisfactoryInstall');
+const { modCacheDir } = require('../lib/paths');
 const JSZip = require('jszip');
 
 const dummySfName = 'DummySF';
