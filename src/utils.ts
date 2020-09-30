@@ -279,12 +279,14 @@ export async function isRunning(command: string): Promise<boolean> {
     const { platform } = process;
     let cmd = '';
     switch (platform) {
-      case 'win32': cmd = `wmic process where caption="${command}" get commandline`; break;
+      case 'win32': cmd = `wmic process where caption="${command}" get commandline,processid,parentprocessid`; break;
       case 'darwin': cmd = `ps -ax | grep ${command}`; break;
       case 'linux': cmd = 'ps -A'; break;
       default: break;
     }
-    return execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).toLowerCase().indexOf(command.toLowerCase()) > -1;
+    const runningInstances = execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    debug(`(fallback) Running instances of "${command}": ${runningInstances}`); // debug for game found as running even after being closed
+    return runningInstances.toLowerCase().indexOf(command.toLowerCase()) > -1;
   }
 }
 
