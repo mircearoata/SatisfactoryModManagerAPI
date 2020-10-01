@@ -31,7 +31,12 @@ interface UserConfig {
     Software: {
       Valve: {
         Steam: {
-          apps: {
+          apps?: {
+            [game: string]: {
+              LaunchOptions?: string,
+            }
+          },
+          Apps?: {
             [game: string]: {
               LaunchOptions?: string,
             }
@@ -84,6 +89,13 @@ export async function getInstalls(): Promise<InstallFindResult> {
             try {
               const configFilePath = path.join(STEAM_DATA_LOCATION, 'userdata', user, 'config', 'localconfig.vdf');
               const configFile = vdf.parse(fs.readFileSync(configFilePath, 'utf8')) as UserConfig;
+              if (!configFile.UserLocalConfigStore.Software.Valve.Steam.apps) {
+                if (!configFile.UserLocalConfigStore.Software.Valve.Steam.Apps) {
+                  error(`Apps key not found in steam user config file ${configFilePath}`);
+                  return;
+                }
+                configFile.UserLocalConfigStore.Software.Valve.Steam.apps = configFile.UserLocalConfigStore.Software.Valve.Steam.Apps;
+              }
               let launchOptions = configFile.UserLocalConfigStore.Software.Valve.Steam.apps['526870'].LaunchOptions;
               if (launchOptions) {
                 const wineDllOverrides = (/WINEDLLOVERRIDES=\\"(.*?)\\"/g).exec(launchOptions);
