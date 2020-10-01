@@ -41,7 +41,7 @@ bool GetDLLSymbolWchar(std::filesystem::path dllPath, const std::string symbol, 
     return false;
   std::ifstream fileStream(dllPath.string(), std::ios_base::binary);
   fileStream.seekg(offset, std::ios_base::beg);
-  wchar_t ch;
+  char16_t ch;
   value = "";
   while (fileStream.read(reinterpret_cast<char *>(&ch), sizeof(ch)) && ch)
     value += ch;
