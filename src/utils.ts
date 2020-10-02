@@ -281,7 +281,7 @@ export async function isRunning(command: string): Promise<boolean> {
     switch (platform) {
       case 'win32': cmd = `wmic process where caption="${command}" get commandline,processid,parentprocessid`; break;
       case 'darwin': cmd = `ps -ax | grep ${command}`; break;
-      case 'linux': cmd = 'ps -A'; break;
+      case 'linux': cmd = `ps -A | grep ${command}`; break;
       default: break;
     }
     const runningInstances = execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
