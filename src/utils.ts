@@ -271,22 +271,20 @@ export function mergeArrays<T>(...arrays: Array<Array<T>>): Array<T> {
 
 export async function isRunning(command: string): Promise<boolean> {
   try {
-    const runningInstances = (await psList()).filter((process) => process.cmd?.includes(command) || process.name?.includes(command));
-    debug(`Running instances of "${command}": ${JSON.stringify(runningInstances)}`); // debug for game found as running even after being closed
-    return runningInstances.length > 0;
-  } catch (e) {
-    // fallback to tasklist
-    const { platform } = process;
+    // manual is now main to handle ghost instances
     let cmd = '';
-    switch (platform) {
-      case 'win32': cmd = `wmic process where caption="${command}" get commandline,processid,parentprocessid`; break;
+    switch (process.platform) {
+      case 'win32': cmd = `wmic process where caption="${command}" and handlecount!="0" get commandline`; break;
       case 'darwin': cmd = `ps -ax | grep ${command}`; break;
       case 'linux': cmd = `ps -A | grep ${command}`; break;
       default: break;
     }
     const runningInstances = execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-    debug(`(fallback) Running instances of "${command}": ${runningInstances}`); // debug for game found as running even after being closed
     return runningInstances.toLowerCase().indexOf(command.toLowerCase()) > -1;
+  } catch (e) {
+    // fallback to psList
+    const runningInstances = (await psList()).filter((process) => process.cmd?.includes(command) || process.name?.includes(command));
+    return runningInstances.length > 0;
   }
 }
 
