@@ -133,10 +133,6 @@ export async function fiscitApiQuery<T>(query: DocumentNode<unknown, unknown>,
   }
 }
 
-export async function resetFicsitAppCache(): Promise<void> {
-  return client.cache.reset();
-}
-
 export interface FicsitAppMod {
   id: string;
   name: string;
@@ -221,10 +217,8 @@ export async function getModDownloadLink(modReference: string, version: string):
 
 export async function getModsCount(): Promise<number> {
   const res = await fiscitApiQuery<{ getMods: { count: number} }>(gql`
-  query
-  {
-    getMods
-    {
+  query {
+    getMods {
       count
     }
   }
@@ -437,6 +431,158 @@ export async function getModName(modReference: string): Promise<string> {
   }
 }
 
+export async function getManyModVersions(modReferences: Array<string>): Promise<{id: string, mod_reference: string, versions: FicsitAppVersion[]}[]> {
+  const res = await fiscitApiQuery<{ getMods: { mods: { id: string, mod_reference: string, versions: FicsitAppVersion[] }[] } }>(gql`
+    query($references: [String!]) {
+      getMods(filter: { limit: 100, references: $references }) {
+        mods {
+          id,
+          mod_reference,
+          versions(filter: {
+              limit: 100
+            })
+          {
+            id,
+            mod_id,
+            version,
+            sml_version,
+            changelog,
+            downloads,
+            stability,
+            created_at,
+            link,
+            size,
+            hash,
+            dependencies
+            {
+              mod_id,
+              condition,
+              optional
+            }
+          }
+        }
+      }
+    }
+    `, {
+    references: modReferences,
+  });
+  if (res.errors) {
+    throw res.errors;
+  } else if (res.data.getMods) {
+    return res.data.getMods.mods;
+  } else {
+    return [];
+  }
+}
+
+export async function refetchVersions(): Promise<void> {
+  const modCount = await getModsCount();
+  const modPages = Math.ceil(modCount / MODS_PER_PAGE);
+  const mods = (await Promise.all(Array.from({ length: modPages }).map(async (_, i) => getAvailableMods(i))))
+    .flat(1);
+  mods.forEach((mod) => {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    Object.keys((client.cache as InMemoryCache).data.data[`Mod:${mod.id}`]).forEach((key) => {
+      if (key.startsWith('version(') || key.startsWith('versions(') || key === 'versions') {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        delete (client.cache as InMemoryCache).data.data[`Mod:${mod.id}`][key];
+      }
+    });
+  }); // replace with evict after upgrading to Apollo Client 3
+  (await Promise.all(Array.from({ length: modPages })
+    .map(async (_, i) => getManyModVersions(mods.slice(i * MODS_PER_PAGE, (i + 1) * MODS_PER_PAGE).map((mod) => mod.mod_reference)))))
+    .flat(1)
+    .forEach((mod) => {
+      client.cache.writeQuery({
+        query: gql`
+        query($modReference: ModReference!){
+          getModByReference(modReference: $modReference)
+          {
+            id,
+            versions(filter: {
+                limit: 100
+              })
+            {
+              id,
+              mod_id,
+              version,
+              sml_version,
+              changelog,
+              downloads,
+              stability,
+              created_at,
+              link,
+              size,
+              hash,
+              dependencies
+              {
+                mod_id,
+                condition,
+                optional
+              }
+            }
+          }
+        }
+        `,
+        variables: {
+          modReference: mod.mod_reference,
+        },
+        data: {
+          getModByReference: {
+            __typename: 'Mod',
+            id: mod.id,
+            versions: mod.versions,
+          },
+        },
+      });
+      mod.versions.forEach((version) => {
+        client.cache.writeQuery({
+          query: gql`
+          query($modReference: ModReference!, $version: String!){
+            getModByReference(modReference: $modReference)
+            {
+              id,
+              version(version: $version)
+              {
+                id,
+                mod_id,
+                version,
+                sml_version,
+                changelog,
+                downloads,
+                stability,
+                created_at,
+                link,
+                size,
+                hash,
+                dependencies
+                {
+                  mod_id,
+                  condition,
+                  optional
+                }
+              }
+            }
+          }
+          `,
+          variables: {
+            modReference: mod.mod_reference,
+            version: version.version,
+          },
+          data: {
+            getModByReference: {
+              __typename: 'Mod',
+              id: mod.id,
+              version,
+            },
+          },
+        });
+      });
+    });
+}
+
 export async function getModVersions(modReference: string): Promise<Array<FicsitAppVersion>> {
   const res = await fiscitApiQuery<{ getModByReference: FicsitAppMod }>(gql`
     query($modReference: ModReference!){
@@ -640,7 +786,7 @@ const bootstrapperVersionIDMap: {[version: string]: string} = {};
 
 export async function getAvailableBootstrapperVersions(): Promise<Array<FicsitAppBootstrapperVersion>> {
   const res = await fiscitApiQuery<{ getBootstrapVersions: { bootstrap_versions: Array<FicsitAppBootstrapperVersion> } }>(gql`
-    {
+    query {
       getBootstrapVersions(filter: {limit: 100})
       {
         bootstrap_versions

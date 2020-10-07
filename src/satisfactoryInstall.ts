@@ -8,7 +8,7 @@ import * as SH from './smlHandler';
 import * as BH from './bootstrapperHandler';
 import {
   FicsitAppVersion, FicsitAppMod, FicsitAppSMLVersion, FicsitAppBootstrapperVersion,
-  getModReferenceFromId, getModVersions, getAvailableSMLVersions, getAvailableBootstrapperVersions, resetFicsitAppCache,
+  getModReferenceFromId, getModVersions, getAvailableSMLVersions, getAvailableBootstrapperVersions, refetchVersions,
 } from './ficsitApp';
 import {
   ManifestItem, mutateManifest, readManifest, readLockfile, getItemsList, writeManifest, writeLockfile, ManifestVersion, Manifest,
@@ -289,7 +289,7 @@ export class SatisfactoryInstall {
   async checkForUpdates(): Promise<Array<ItemUpdate>> {
     const currentManifest = this.readManifest();
     const currentLockfile = this.readLockfile();
-    await resetFicsitAppCache(); // Should only clear the versions from cache, but it was enough headache for one day
+    await refetchVersions();
     const {
       lockfile: newLockfile,
     } = await mutateManifest({ manifest: currentManifest, lockfile: currentLockfile }, this.version, [], [], Object.keys(this._itemsList));
