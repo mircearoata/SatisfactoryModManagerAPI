@@ -55,6 +55,10 @@ export function getInstalls(): InstallFindResult {
   try {
     const lutrisGames = JSON.parse(execSync('lutris -lj', { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' })) as LutrisGame[];
     lutrisGames.forEach((lutrisGame) => {
+      if (!lutrisGame.directory) {
+        debug(`Lutris game ${lutrisGame.name} has null directory.`);
+        return;
+      }
       const programData = path.join(lutrisGame.directory, 'drive_c', 'ProgramData');
       const EpicManifestsFolder = path.join(programData, EpicManifestsFolderRelative);
       const UEInstalledManifest = path.join(programData, UEInstalledManifestRelative);
