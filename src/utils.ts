@@ -114,13 +114,10 @@ export async function fileURLExists(url: string): Promise<boolean> {
       if (progress.total) {
         exists = true;
         req.cancel();
-      } else {
-        exists = false;
-        req.cancel();
       }
     });
     await req;
-    return true;
+    return !!exists;
   } catch (e) {
     if (exists !== null && exists !== undefined) {
       return exists;
