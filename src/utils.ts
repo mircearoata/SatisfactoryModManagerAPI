@@ -271,7 +271,7 @@ export async function isRunning(command: string): Promise<boolean> {
     // manual is now main to handle ghost instances
     let cmd = '';
     switch (process.platform) {
-      case 'win32': cmd = `wmic process where caption="${command}" and handlecount!="0" get commandline`; break;
+      case 'win32': cmd = `wmic process where (caption="${command}" and handlecount!="0") get commandline`; break;
       case 'darwin': cmd = `ps -ax | grep ${command}`; break;
       case 'linux': cmd = `ps -A | grep ${command}`; break;
       default: break;
