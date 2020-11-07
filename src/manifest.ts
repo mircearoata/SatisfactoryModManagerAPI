@@ -52,7 +52,7 @@ async function versionExistsOnFicsitApp(id: string, version: string): Promise<bo
   if (id === BootstrapperID) {
     return !!(await getBootstrapperVersionInfo(version));
   }
-  if (id === 'SatisfactoryGame') {
+  if (id === 'FactoryGame') {
     return true;
   }
   try {
@@ -121,6 +121,13 @@ export async function mutateManifest(original: {manifest: Manifest; lockfile: Lo
   const graph = new LockfileGraph();
   await graph.fromLockfile(original.lockfile);
 
+  await Promise.all(graph.nodes.map(async (node) => {
+    if (node.dependencies['SatisfactoryGame']) {
+      node.dependencies['FactoryGame'] = node.dependencies['SatisfactoryGame'];
+      delete node.dependencies['SatisfactoryGame'];
+    }
+  }));
+
   await Promise.all(graph.nodes.map(async (node, idx) => {
     const isOnFicsitApp = await versionExistsOnFicsitApp(node.id, node.version);
     if (!isOnFicsitApp) {
@@ -150,7 +157,7 @@ export async function mutateManifest(original: {manifest: Manifest; lockfile: Lo
   });
 
   const satisfactoryNode = {
-    id: 'SatisfactoryGame',
+    id: 'FactoryGame',
     version: valid(coerce(satisfactoryVersion)),
     dependencies: {},
   } as LockfileGraphNode;

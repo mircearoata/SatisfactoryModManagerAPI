@@ -57,6 +57,12 @@ module.exports = {
     }],
     '@typescript-eslint/camelcase': 0,
     'camelcase': 0,
+    'no-param-reassign': [
+      'error',
+      {
+        props: false,
+      }
+    ]
   },
   settings: {
     'import/extensions': ['.js', '.ts', '.json'],

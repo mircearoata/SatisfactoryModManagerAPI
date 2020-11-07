@@ -41,16 +41,16 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
     if (smlVersionInfo === undefined) {
       throw new ModNotFoundError(`SML@${version} not found`, 'SML', version);
     }
-    return { id, version, dependencies: { SatisfactoryGame: `>=${valid(coerce(smlVersionInfo.satisfactory_version.toString()))}`, [BootstrapperID]: `>=${smlVersionInfo.bootstrap_version}` } };
+    return { id, version, dependencies: { FactoryGame: `>=${valid(coerce(smlVersionInfo.satisfactory_version.toString()))}`, [BootstrapperID]: `>=${smlVersionInfo.bootstrap_version}` } };
   }
   if (id === BootstrapperID) {
     const bootstrapperVersionInfo = await getBootstrapperVersionInfo(version);
     if (bootstrapperVersionInfo === undefined) {
       throw new ModNotFoundError(`bootstrapper@${version} not found`, 'bootstrapper', version);
     }
-    return { id, version, dependencies: { SatisfactoryGame: `>=${valid(coerce(bootstrapperVersionInfo.satisfactory_version.toString()))}` } };
+    return { id, version, dependencies: { FactoryGame: `>=${valid(coerce(bootstrapperVersionInfo.satisfactory_version.toString()))}` } };
   }
-  if (id === 'SatisfactoryGame') {
+  if (id === 'FactoryGame') {
     throw new InvalidLockfileOperation('Cannot modify Satisfactory Game version. This should never happen, unless Satisfactory was not temporarily added to the lockfile as a manifest entry');
   }
   const modData = await getModVersion(id, version);
@@ -71,7 +71,7 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
 }
 
 export async function getFriendlyItemName(id: string): Promise<string> {
-  if (id === SMLID || id === BootstrapperID || id === 'SatisfactoryGame') return id;
+  if (id === SMLID || id === BootstrapperID || id === 'FactoryGame') return id;
   if (id.startsWith('manifest_')) {
     try {
       return `installing ${(await getModName(id.substring('manifest_'.length)))}`;
@@ -114,7 +114,7 @@ export class LockfileGraph {
     if (!versionValid) {
       const friendlyItemName = await getFriendlyItemName(dependency);
       const dependantsString = (await Promise.all(dependants.map(async (dependant) => `${await getFriendlyItemName(dependant.id)} (requires ${dependant.dependencies[dependency]})`))).join(', ');
-      if (dependency === 'SatisfactoryGame') {
+      if (dependency === 'FactoryGame') {
         if (!dependencyNode) {
           throw new Error('This should never happen. It is here just for typescript null check');
         }
