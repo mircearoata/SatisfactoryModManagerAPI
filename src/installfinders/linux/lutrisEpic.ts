@@ -59,7 +59,7 @@ export function getInstalls(): InstallFindResult {
         debug(`Lutris game ${lutrisGame.name} has null directory.`);
         return;
       }
-      const programData = path.join(lutrisGame.directory, 'drive_c', 'ProgramData');
+      const programData = path.join(lutrisGame.directory, 'dosdevices', 'c:', 'ProgramData');
       const EpicManifestsFolder = path.join(programData, EpicManifestsFolderRelative);
       const UEInstalledManifest = path.join(programData, UEInstalledManifestRelative);
       if (fs.existsSync(EpicManifestsFolder)) {
@@ -71,9 +71,9 @@ export function getInstalls(): InstallFindResult {
               const jsonString = fs.readFileSync(filePath, 'utf8');
               const manifest = JSON.parse(jsonString) as EpicManifest;
               if (manifest.CatalogNamespace === 'crab') {
-                const realInstallLocation = path.join(lutrisGame.directory, `drive_${manifest.InstallLocation[0].toLowerCase()}`, manifest.InstallLocation.replace(/\\/g, '/').substr(2));
+                const realInstallLocation = path.join(lutrisGame.directory, 'dosdevices', `${manifest.InstallLocation[0].toLowerCase()}:`, manifest.InstallLocation.replace(/\\/g, '/').substr(2));
                 try {
-                  const realManifestLocation = path.join(lutrisGame.directory, `drive_${manifest.ManifestLocation[0].toLowerCase()}`, manifest.ManifestLocation.replace(/\\/g, '/').substr(2));
+                  const realManifestLocation = path.join(lutrisGame.directory, 'dosdevices', `${manifest.ManifestLocation[0].toLowerCase()}:`, manifest.ManifestLocation.replace(/\\/g, '/').substr(2));
                   const gameManifestString = fs.readFileSync(path.join(realManifestLocation, `${manifest.InstallationGuid}.mancpn`), 'utf8');
                   const gameManifest = JSON.parse(gameManifestString) as EpicGameManifest;
                   if (gameManifest.AppName === manifest.MainGameAppName
@@ -112,7 +112,7 @@ export function getInstalls(): InstallFindResult {
             if (foundInstalls.length > 0) {
               foundInstalls = foundInstalls.filter((install) => installedManifest.InstallationList.some(
                 (manifestInstall) => {
-                  const realManifestInstall = path.join(lutrisGame.directory, `drive_${manifestInstall.InstallLocation[0].toLowerCase()}`, manifestInstall.InstallLocation.replace(/\\/g, '/').substr(2));
+                  const realManifestInstall = path.join(lutrisGame.directory, 'dosdevices', `${manifestInstall.InstallLocation[0].toLowerCase()}:`, manifestInstall.InstallLocation.replace(/\\/g, '/').substr(2));
                   return realManifestInstall === install.installLocation;
                 },
               )); // Filter out old .items left over by Epic

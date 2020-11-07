@@ -72,5 +72,8 @@
     "bit": "cpp",
     "set": "cpp",
     "xhash": "cpp"
+  },
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true
   }
 }
