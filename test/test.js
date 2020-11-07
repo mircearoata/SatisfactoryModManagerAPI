@@ -183,7 +183,7 @@ async function main() {
 
     try {
       await sfInstall.installMod('dummyMod4', '1.0.0');
-      assert.fail('Install with non existend dependency succeded');
+      assert.fail('Install with non existent dependency succeded');
     } catch (e) {
       if (e instanceof assert.AssertionError) {
         throw e;
