@@ -1,5 +1,11 @@
 /* eslint-disable max-classes-per-file */
-export class UnsolvableDependencyError extends Error {}
+export class UnsolvableDependencyError extends Error {
+  modID: string;
+  constructor(message: string, modID: string) {
+    super(message);
+    this.modID = modID;
+  }
+}
 export class DependencyManifestMismatchError extends Error {}
 export class InvalidLockfileOperation extends Error {}
 export class ModNotFoundError extends Error {

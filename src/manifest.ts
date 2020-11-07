@@ -10,9 +10,9 @@ import {
   info, debug,
 } from './logging';
 import {
-  getSMLVersionInfo, getBootstrapperVersionInfo, getModVersion, getModName, getModReferenceFromId,
+  getSMLVersionInfo, getBootstrapperVersionInfo, getModVersion, getModName, getModReferenceFromId, getModVersions,
 } from './ficsitApp';
-import { ModNotFoundError, ValidationError } from './errors';
+import { ModNotFoundError, UnsolvableDependencyError, ValidationError } from './errors';
 
 export interface ManifestItem {
   id: string;
@@ -181,20 +181,26 @@ export async function mutateManifest(original: {manifest: Manifest; lockfile: Lo
             return;
           }
         } else if (e instanceof ValidationError) {
-          if (modsRemovedFromFicsitApp.some((rem) => rem.id === e.modID)) {
-            removedUninstall.push((e as ModNotFoundError).modID);
-            return;
-          }
-          let inner: Error = e.innerError;
+          let inner: Error = e;
           while (inner instanceof ValidationError) {
-            if (inner instanceof ModNotFoundError) {
-              const id = inner.modID;
-              if (modsRemovedFromFicsitApp.some((rem) => rem.id === id)) {
-                removedUninstall.push((inner as ModNotFoundError).modID);
-                return;
-              }
+            if (modsRemovedFromFicsitApp.some((rem) => rem.id === e.modID)) {
+              removedUninstall.push(inner.modID);
+              return;
             }
             inner = inner.innerError;
+          }
+          if (inner instanceof ModNotFoundError) {
+            const id = inner.modID;
+            if (modsRemovedFromFicsitApp.some((rem) => rem.id === id)) {
+              removedUninstall.push((inner as ModNotFoundError).modID);
+              return;
+            }
+          } else if (inner instanceof UnsolvableDependencyError) {
+            const id = inner.modID;
+            if (modsRemovedFromFicsitApp.some((rem) => rem.id === id) && (await getModVersions(id)).length === 0) {
+              removedUninstall.push((inner as ModNotFoundError).modID);
+              return;
+            }
           }
         }
         throw e;

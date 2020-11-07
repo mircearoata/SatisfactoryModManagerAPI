@@ -159,7 +159,7 @@ export class LockfileGraph {
         }
         throw new DependencyManifestMismatchError(`${friendlyItemName} is a dependency of other mods, but an incompatible version is installed by you. Please uninstall it to use a compatible version. Dependants: ${dependantsString}`);
       }
-      throw new UnsolvableDependencyError(`No version of ${friendlyItemName} is compatible with the other installed mods`);
+      throw new UnsolvableDependencyError(`No version of ${friendlyItemName} is compatible with the other installed mods`, dependency);
     }
   }
 
