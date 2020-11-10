@@ -59,15 +59,17 @@ export class SatisfactoryInstall {
   branch: string;
   installLocation: string;
   launchPath?: string;
+  setup?: () => Promise<void>;
 
   private _profile = MODDED_PROFILE_NAME;
 
-  constructor(name: string, version: string, branch: string, installLocation: string, launchPath?: string) {
+  constructor(name: string, version: string, branch: string, installLocation: string, launchPath?: string, setup?: () => Promise<void>) {
     this.name = name;
     this.version = version;
     this.branch = branch;
     this.installLocation = installLocation;
     this.launchPath = launchPath;
+    this.setup = setup;
   }
 
   private async _getInstalledMismatches(items: ItemVersionList):
