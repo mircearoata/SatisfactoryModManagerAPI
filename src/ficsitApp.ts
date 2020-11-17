@@ -4,7 +4,7 @@ import {
 import { DocumentNode } from 'graphql';
 import gql from 'graphql-tag';
 import crossFetch from 'cross-fetch';
-import { ApolloClient, ApolloQueryResult } from 'apollo-client';
+import { ApolloClient, ApolloQueryResult, FetchPolicy } from 'apollo-client';
 import { createHttpLink } from 'apollo-link-http';
 import { createPersistedQueryLink } from 'apollo-link-persisted-queries';
 import { InMemoryCache } from 'apollo-cache-inmemory';
@@ -119,12 +119,12 @@ export function removeTempModVersion(modReference: string, version: string): voi
 }
 
 export async function fiscitApiQuery<T>(query: DocumentNode<unknown, unknown>,
-  variables?: { [key: string]: unknown }): Promise<ApolloQueryResult<T>> {
+  variables?: { [key: string]: unknown }, options?: { fetchPolicy: FetchPolicy }): Promise<ApolloQueryResult<T>> {
   try {
     const response = await client.query<T>({
       query,
       variables,
-      fetchPolicy: 'cache-first',
+      fetchPolicy: options?.fetchPolicy || 'cache-first',
     });
     return response;
   } catch (e) {
@@ -465,6 +465,8 @@ export async function getManyModVersions(modReferences: Array<string>): Promise<
     }
     `, {
     references: modReferences,
+  }, {
+    fetchPolicy: 'network-only',
   });
   if (res.errors) {
     throw res.errors;
@@ -480,107 +482,8 @@ export async function refetchVersions(): Promise<void> {
   const modPages = Math.ceil(modCount / MODS_PER_PAGE);
   const mods = (await Promise.all(Array.from({ length: modPages }).map(async (_, i) => getAvailableMods(i))))
     .flat(1);
-  mods.forEach((mod) => {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    Object.keys((client.cache as InMemoryCache).data.data[`Mod:${mod.id}`]).forEach((key) => {
-      if (key.startsWith('version(') || key.startsWith('versions(') || key === 'versions') {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        delete (client.cache as InMemoryCache).data.data[`Mod:${mod.id}`][key];
-      }
-    });
-  }); // replace with evict after upgrading to Apollo Client 3
-  (await Promise.all(Array.from({ length: modPages })
-    .map(async (_, i) => getManyModVersions(mods.slice(i * MODS_PER_PAGE, (i + 1) * MODS_PER_PAGE).map((mod) => mod.mod_reference)))))
-    .flat(1)
-    .forEach((mod) => {
-      client.cache.writeQuery({
-        query: gql`
-        query($modReference: ModReference!){
-          getModByReference(modReference: $modReference)
-          {
-            id,
-            versions(filter: {
-                limit: 100
-              })
-            {
-              id,
-              mod_id,
-              version,
-              sml_version,
-              changelog,
-              downloads,
-              stability,
-              created_at,
-              link,
-              size,
-              hash,
-              dependencies
-              {
-                mod_id,
-                condition,
-                optional
-              }
-            }
-          }
-        }
-        `,
-        variables: {
-          modReference: mod.mod_reference,
-        },
-        data: {
-          getModByReference: {
-            __typename: 'Mod',
-            id: mod.id,
-            versions: mod.versions,
-          },
-        },
-      });
-      mod.versions.forEach((version) => {
-        client.cache.writeQuery({
-          query: gql`
-          query($modReference: ModReference!, $version: String!){
-            getModByReference(modReference: $modReference)
-            {
-              id,
-              version(version: $version)
-              {
-                id,
-                mod_id,
-                version,
-                sml_version,
-                changelog,
-                downloads,
-                stability,
-                created_at,
-                link,
-                size,
-                hash,
-                dependencies
-                {
-                  mod_id,
-                  condition,
-                  optional
-                }
-              }
-            }
-          }
-          `,
-          variables: {
-            modReference: mod.mod_reference,
-            version: version.version,
-          },
-          data: {
-            getModByReference: {
-              __typename: 'Mod',
-              id: mod.id,
-              version,
-            },
-          },
-        });
-      });
-    });
+  await Promise.all(Array.from({ length: modPages })
+    .map(async (_, i) => getManyModVersions(mods.slice(i * MODS_PER_PAGE, (i + 1) * MODS_PER_PAGE).map((mod) => mod.mod_reference))));
 }
 
 export async function getModVersions(modReference: string): Promise<Array<FicsitAppVersion>> {
