@@ -142,6 +142,9 @@ export class SatisfactoryInstall {
       debug('Copying Bootstrapper to Satisfactory install');
       await BH.installBootstrapper(mismatches.install[BootstrapperID], this.installLocation);
     }
+    if (Object.entries(mismatches.install).length > 0) {
+      await MH.getCachedMods(); // Make sure the cache is loaded
+    }
     await Promise.all(Object.entries(mismatches.install).map(async (modInstall) => {
       const modInstallID = modInstall[0];
       const modInstallVersion = modInstall[1];
