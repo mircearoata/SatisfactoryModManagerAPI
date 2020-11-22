@@ -12,7 +12,7 @@ import { modCacheDir } from './paths';
 let cachedMods = new Array<Mod>();
 let cacheLoaded = false;
 
-const modExtensions = ['.zip', '.smod'];
+const modExtensions = ['.smod'];
 
 export async function getModFromFile(modPath: string): Promise<Mod | undefined> {
   if (modExtensions.includes(path.extname(modPath))) {
