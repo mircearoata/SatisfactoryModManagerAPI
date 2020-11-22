@@ -8,6 +8,7 @@ import {
 } from '../../logging';
 import { InstallFindResult } from '../baseInstallFinder';
 import { isRunning } from '../../utils';
+import { SetupError } from '../../errors';
 
 interface SteamLibraryFoldersManifest {
   LibraryFolders: {
@@ -56,10 +57,7 @@ async function getGameVersionFromExe(exePath: string): Promise<string> {
 const STEAM_DATA_LOCATION = `${process.env.HOME}/.var/app/com.valvesoftware.Steam/.steam/steam`;
 
 async function setupSteam(): Promise<void> {
-  if (await isRunning('steam')) {
-    throw new Error('Could not set the WINEDLLOVERRIDES launch options because Steam is currently running. Please close Steam and retry.');
-  }
-  fs.readdirSync(path.join(STEAM_DATA_LOCATION, 'userdata')).forEach((user) => {
+  await fs.readdirSync(path.join(STEAM_DATA_LOCATION, 'userdata')).forEachAsync(async (user) => {
     try {
       const configFilePath = path.join(STEAM_DATA_LOCATION, 'userdata', user, 'config', 'localconfig.vdf');
       const configFile = vdf.parse(fs.readFileSync(configFilePath, 'utf8')) as UserConfig;
@@ -71,20 +69,41 @@ async function setupSteam(): Promise<void> {
         configFile.UserLocalConfigStore.Software.Valve.Steam.apps = configFile.UserLocalConfigStore.Software.Valve.Steam.Apps;
       }
       let launchOptions = configFile.UserLocalConfigStore.Software.Valve.Steam.apps['526870'].LaunchOptions;
+      let changed = false;
       if (launchOptions) {
         const wineDllOverrides = (/WINEDLLOVERRIDES=\\"(.*?)\\"/g).exec(launchOptions);
         if (!wineDllOverrides) {
           launchOptions = `WINEDLLOVERRIDES=\\"msdia140.dll,xinput1_3.dll=n,b\\" ${launchOptions}`;
+          changed = true;
         } else if (!wineDllOverrides[1].includes('msdia140.dll,xinput1_3.dll=n,b')) {
           const newWineDllOverrides = `WINEDLLOVERRIDES=\\"${wineDllOverrides[1]};msdia140.dll,xinput1_3.dll=n,b\\"`;
           launchOptions = launchOptions.replace(wineDllOverrides[0], newWineDllOverrides);
+          changed = true;
+        } else if (wineDllOverrides[1].includes('msdia140.dll,xinput1_3.dll=n,b;msdia140.dll,xinput1_3.dll=n,b')) {
+          let deduplicated = wineDllOverrides[1];
+          while (deduplicated.includes('msdia140.dll,xinput1_3.dll=n,b;msdia140.dll,xinput1_3.dll=n,b')) {
+            deduplicated = deduplicated.replace(';msdia140.dll,xinput1_3.dll=n,b', '');
+          }
+          const newWineDllOverrides = `WINEDLLOVERRIDES=\\"${deduplicated};msdia140.dll,xinput1_3.dll=n,b\\"`;
+          launchOptions = launchOptions.replace(wineDllOverrides[0], newWineDllOverrides);
+          changed = true;
         }
       } else {
         launchOptions = 'WINEDLLOVERRIDES=\\"msdia140.dll,xinput1_3.dll=n,b\\" %command%';
+        changed = true;
       }
-      configFile.UserLocalConfigStore.Software.Valve.Steam.apps['526870'].LaunchOptions = launchOptions;
-      fs.writeFileSync(configFilePath, vdf.dump(configFile));
+
+      if (changed) {
+        if (await isRunning('steam')) {
+          throw new SetupError('Could not set the WINEDLLOVERRIDES launch options because Steam is currently running. Please close Steam and retry.');
+        }
+        configFile.UserLocalConfigStore.Software.Valve.Steam.apps['526870'].LaunchOptions = launchOptions;
+        fs.writeFileSync(configFilePath, vdf.dump(configFile));
+      }
     } catch (e) {
+      if (e instanceof SetupError) {
+        throw e;
+      }
       error(e);
     }
   });

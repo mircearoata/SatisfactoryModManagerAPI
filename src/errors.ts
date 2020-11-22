@@ -48,3 +48,4 @@ export class ModRemovedByAuthor extends Error {
     this.version = version;
   }
 }
+export class SetupError extends Error {}
