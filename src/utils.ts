@@ -6,7 +6,7 @@ import { execSync } from 'child_process';
 import got, { HTTPError, Progress } from 'got';
 import { createHash } from 'crypto';
 import {
-  setLogDebug, debug, error,
+  setLogDebug, debug,
 } from './logging';
 import { NetworkError } from './errors';
 import {
@@ -98,25 +98,6 @@ const progressCallbacks: Array<ProgressCallback> = [];
 export function addDownloadProgressCallback(cb: ProgressCallback): void {
   if (!progressCallbacks.includes(cb)) {
     progressCallbacks.push(cb);
-  }
-}
-
-export async function fileURLExists(url: string): Promise<boolean> {
-  try {
-    const res = await got(url, {
-      method: 'HEAD',
-      dnsCache: false,
-      headers: {
-        'User-Agent': UserAgent,
-      },
-    });
-    return res.statusCode === 200;
-  } catch (e) {
-    if (e instanceof HTTPError) {
-      return false;
-    }
-    error(e);
-    throw new Error(`Error checking if ${url} exists.`);
   }
 }
 

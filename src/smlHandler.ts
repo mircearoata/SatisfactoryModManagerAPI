@@ -3,7 +3,7 @@ import fs from 'fs';
 import bindings from 'bindings';
 import { valid, coerce } from 'semver';
 import {
-  downloadFile, fileURLExists,
+  downloadFile,
 } from './utils';
 import { ModNotFoundError } from './errors';
 import { debug } from './logging';
@@ -42,11 +42,14 @@ async function getSMLVersionCache(version: string): Promise<string> {
     }
     const smlDLLDownloadLink = `${smlReleaseURL.replace('/tag/', '/download/')}/${SMLDLLFileName}`;
     const smlPakDownloadLink = `${smlReleaseURL.replace('/tag/', '/download/')}/${SMLPakFileName}`;
-    const hasPak = await fileURLExists(smlPakDownloadLink);
-    await downloadFile(smlDLLDownloadLink, smlDLLVerionCacheFile, `SML ${hasPak ? '(1/2)' : '(1/1)'}`, validVersion);
-    if (hasPak) {
-      await downloadFile(smlPakDownloadLink, smlPakVerionCacheFile, 'SML (2/2)', validVersion);
+    let hasPak = true;
+    try {
+      await downloadFile(smlPakDownloadLink, smlPakVerionCacheFile, 'SML (1/2)', validVersion);
+    } catch (e) {
+      hasPak = false;
+      debug(`Pak of SML version ${version} not found.`);
     }
+    await downloadFile(smlDLLDownloadLink, smlDLLVerionCacheFile, `SML ${hasPak ? '(2/2)' : '(1/1)'}`, validVersion);
   }
   return smlVersionCacheDir;
 }
