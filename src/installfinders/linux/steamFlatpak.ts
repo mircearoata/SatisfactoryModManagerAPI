@@ -33,12 +33,12 @@ interface UserConfig {
     Software: {
       Valve: {
         Steam: {
-          apps?: {
+          apps: {
             [game: string]: {
               LaunchOptions?: string,
             }
           },
-          Apps?: {
+          Apps: {
             [game: string]: {
               LaunchOptions?: string,
             }
@@ -61,14 +61,12 @@ async function setupSteam(): Promise<void> {
     try {
       const configFilePath = path.join(STEAM_DATA_LOCATION, 'userdata', user, 'config', 'localconfig.vdf');
       const configFile = vdf.parse(fs.readFileSync(configFilePath, 'utf8')) as UserConfig;
-      if (!configFile.UserLocalConfigStore.Software.Valve.Steam.apps) {
-        if (!configFile.UserLocalConfigStore.Software.Valve.Steam.Apps) {
-          error(`Apps key not found in steam user config file ${configFilePath}`);
-          return;
-        }
-        configFile.UserLocalConfigStore.Software.Valve.Steam.apps = configFile.UserLocalConfigStore.Software.Valve.Steam.Apps;
+      const isLowerCaseApps = !!configFile.UserLocalConfigStore.Software.Valve.Steam.apps;
+      if (!isLowerCaseApps && !configFile.UserLocalConfigStore.Software.Valve.Steam.Apps) {
+        error(`Apps key not found in steam user config file ${configFilePath}`);
+        return;
       }
-      let launchOptions = configFile.UserLocalConfigStore.Software.Valve.Steam.apps['526870'].LaunchOptions;
+      let launchOptions = configFile.UserLocalConfigStore.Software.Valve.Steam[isLowerCaseApps ? 'apps' : 'Apps']['526870'].LaunchOptions;
       let changed = false;
       if (launchOptions) {
         const wineDllOverrides = (/WINEDLLOVERRIDES=\\"(.*?)\\"/g).exec(launchOptions);
@@ -97,7 +95,7 @@ async function setupSteam(): Promise<void> {
         if (await isRunning('steam')) {
           throw new SetupError('Could not set the WINEDLLOVERRIDES launch options because Steam is currently running. Please close Steam and retry.');
         }
-        configFile.UserLocalConfigStore.Software.Valve.Steam.apps['526870'].LaunchOptions = launchOptions;
+        configFile.UserLocalConfigStore.Software.Valve.Steam[isLowerCaseApps ? 'apps' : 'Apps']['526870'].LaunchOptions = launchOptions;
         fs.writeFileSync(configFilePath, vdf.dump(configFile));
       }
     } catch (e) {
