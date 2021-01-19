@@ -35,7 +35,7 @@ async function getGameVersionFromExe(exePath: string): Promise<string> {
 
 async function getRegValue(hive: string, key: string, valueName: string): Promise<string> {
   try {
-    return new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
       const reg = new Registry({
         hive,
         key,
