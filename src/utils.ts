@@ -5,6 +5,8 @@ import psList from 'ps-list';
 import { execSync } from 'child_process';
 import got, { HTTPError, Progress } from 'got';
 import { createHash } from 'crypto';
+import stream from 'stream';
+import { promisify } from 'util';
 import {
   setLogDebug, debug,
 } from './logging';
@@ -12,6 +14,8 @@ import { NetworkError } from './errors';
 import {
   ensureExists, bootstrapperCacheDir, smlCacheDir, modCacheDir,
 } from './paths';
+
+const pipeline = promisify(stream.pipeline);
 
 export const SMLID = 'SML';
 export const BootstrapperID = 'bootstrapper';
@@ -104,9 +108,10 @@ export function addDownloadProgressCallback(cb: ProgressCallback): void {
 export async function downloadFile(url: string, file: string, name: string, version: string): Promise<void> {
   let interval: NodeJS.Timeout | undefined;
   try {
+    ensureExists(path.dirname(file));
     const startTime = Date.now();
     let lastProgressTime = Date.now() + DOWNLOAD_TIMEOUT; // give some time to resolve the url and stuff
-    const req = got(url, {
+    const req = got.stream(url, {
       retry: {
         limit: DOWNLOAD_ATTEMPTS,
       },
@@ -123,17 +128,18 @@ export async function downloadFile(url: string, file: string, name: string, vers
     });
     interval = setInterval(() => {
       if (Date.now() - lastProgressTime >= DOWNLOAD_TIMEOUT) {
-        req.cancel();
+        req.destroy();
       }
     }, 100);
-    const buffer: Buffer = (await req.buffer());
+    await pipeline(req, fs.createWriteStream(file));
     clearInterval(interval);
-    ensureExists(path.dirname(file));
-    fs.writeFileSync(file, buffer);
     return;
   } catch (e) {
     if (interval) {
       clearInterval(interval);
+    }
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
     }
     if (e instanceof got.CancelError) {
       debug(`Timed out downloading ${url}.`);
