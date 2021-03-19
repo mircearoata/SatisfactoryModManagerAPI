@@ -261,7 +261,13 @@ export async function isRunning(command: string): Promise<boolean> {
     return runningInstances.toLowerCase().indexOf(command.toLowerCase()) > -1;
   } catch (e) {
     // fallback to psList
-    const runningInstances = (await psList()).filter((process) => process.cmd?.includes(command) || process.name?.includes(command));
+    let runningInstances = [];
+    if (process.platform === 'win32') {
+      runningInstances = (await psList()).filter((process) => process.name?.includes(command));
+    } else {
+      runningInstances = (await psList()).filter((process) => process.cmd?.includes(command));
+    }
+
     return runningInstances.length > 0;
   }
 }
