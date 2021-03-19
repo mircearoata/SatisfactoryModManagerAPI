@@ -25,7 +25,7 @@ export {
   getLogFilePath, debug, info, warn, error,
 } from './logging';
 export {
-  clearCache, setDebug, toggleDebug, isDebug,
+  clearCache, clearOutdatedCache, setDebug, toggleDebug, isDebug,
   addDownloadProgressCallback,
   validAndGreater,
 } from './utils';

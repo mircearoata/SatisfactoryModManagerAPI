@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const assert = require('assert');
 const semver = require('semver');
-const { SatisfactoryInstall, getInstalls, getManifestFolderPath, UnsolvableDependencyError, DependencyManifestMismatchError, InvalidProfileError, ModNotFoundError } = require('../');
+const { SatisfactoryInstall, getInstalls, getManifestFolderPath, UnsolvableDependencyError, DependencyManifestMismatchError, InvalidProfileError, ModNotFoundError, clearOutdatedCache } = require('../');
 const { forEachAsync, clearCache, hashFile } = require('../lib/utils');
 const { addTempMod, addTempModVersion, removeTempMod, removeTempModVersion, setUseTempMods, setTempModReference } = require('../lib/ficsitApp');
 const { getProfileFolderPath } = require('../lib/satisfactoryInstall');
@@ -104,6 +104,7 @@ async function createDummyMods() {
       .generateNodeStream({ type: 'nodebuffer', streamFiles: true })
       .pipe(fs.createWriteStream(filePath))
       .on('finish', function () {
+        fs.utimesSync(filePath, new Date(2000, 0, 10, 10, 10, 10), new Date(2000, 0, 10, 10, 10, 10));
         resolve();
       });
   }));
@@ -378,6 +379,19 @@ async function main() {
       assert.strictEqual(!!installedMods['dummyMod5ModReference'], true, 'Mod installed with ID updated with mod reference not updated');
       assert.strictEqual(!!installedMods['dummyMod5'], false, 'Mod installed with ID updated with mod reference still installed by ID');
     } catch (e) {
+      if (e instanceof assert.AssertionError) {
+        throw e;
+      }
+      assert.fail(`Unexpected error: ${e}`);
+    }
+   
+    try {
+      clearOutdatedCache();
+      assert.strictEqual(dummyMods.some((mod) => {
+        const filePath = path.join(modCacheDir, `${mod.mod_id}_${mod.version}.smod`);
+        return fs.existsSync(filePath);
+      }), false, 'Some outdated cache files weren\'t removed');
+    } catch(e) {
       if (e instanceof assert.AssertionError) {
         throw e;
       }
