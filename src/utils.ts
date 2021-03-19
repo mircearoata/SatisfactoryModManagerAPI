@@ -14,6 +14,7 @@ import { NetworkError } from './errors';
 import {
   ensureExists, bootstrapperCacheDir, smlCacheDir, modCacheDir,
 } from './paths';
+import 'win-ca';
 
 const pipeline = promisify(stream.pipeline);
 
