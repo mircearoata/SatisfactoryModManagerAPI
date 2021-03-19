@@ -376,8 +376,8 @@ export class SatisfactoryInstall {
     });
   }
 
-  static isGameRunning(): Promise<boolean> {
-    return isRunning('FactoryGame-Win64-Shipping.exe');
+  static async isGameRunning(): Promise<boolean> {
+    return (await Promise.all([isRunning('FactoryGame-Win64-Shipping.exe'), await isRunning('UE4-Win64-Shipping.exe')])).some((running) => running);
   }
 
   get bootstrapperVersion(): string | undefined {

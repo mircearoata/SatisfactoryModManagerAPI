@@ -79,7 +79,7 @@ export async function getInstalls(): Promise<InstallFindResult> {
           return;
         }
         const fullInstallPath = path.join(libraryFolder, 'steamapps', 'common', manifest.AppState.installdir);
-        const gameExe = path.join(fullInstallPath, 'FactoryGame', 'Binaries', 'Win64', 'FactoryGame-Win64-Shipping.exe');
+        const gameExe = path.join(fullInstallPath, 'FactoryGame.exe');
         if (!fs.existsSync(gameExe)) {
           invalidInstalls.push(fullInstallPath);
           return;
