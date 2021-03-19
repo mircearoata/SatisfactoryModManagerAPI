@@ -76,7 +76,7 @@ export class SatisfactoryInstall {
   Promise<{ install: ItemVersionList; uninstall: Array<string>}> {
     const installedSML = SH.getSMLVersion(this.installLocation);
     const installedBootstrapper = BH.getBootstrapperVersion(this.installLocation);
-    const installedMods = await MH.getInstalledMods(SH.getModsDir(this.installLocation));
+    const installedMods = await MH.getInstalledMods(SH.getModsDir(this.installLocation), SH.getSMLVersionEnum(this.installLocation));
     const mismatches: { install: ItemVersionList; uninstall: Array<string>} = {
       install: {},
       uninstall: [],
@@ -123,9 +123,9 @@ export class SatisfactoryInstall {
     debug(`Items: ${JSON.stringify(items)}`);
     const mismatches = await this._getInstalledMismatches(items);
     debug(`Mismatches: ${JSON.stringify(mismatches)}`);
-    const modsDir = SH.getModsDir(this.installLocation);
+    let modsDir = SH.getModsDir(this.installLocation);
     mismatches.uninstall.forEach((id) => debug(`Removing ${id} from Satisfactory install`));
-    await MH.uninstallMods(mismatches.uninstall, modsDir);
+    await MH.uninstallMods(mismatches.uninstall, modsDir, SH.getSMLVersionEnum(this.installLocation));
     if (mismatches.uninstall.includes(SMLID)) {
       debug('Removing SML from Satisfactory install');
       await SH.uninstallSML(this.installLocation);
@@ -145,16 +145,33 @@ export class SatisfactoryInstall {
     if (Object.entries(mismatches.install).length > 0) {
       await MH.getCachedMods(); // Make sure the cache is loaded
     }
+    modsDir = SH.getModsDir(this.installLocation);
+    const smlVersionEnum = SH.getSMLVersionEnum(this.installLocation);
     await Promise.all(Object.entries(mismatches.install).map(async (modInstall) => {
       const modInstallID = modInstall[0];
       const modInstallVersion = modInstall[1];
       if (modInstallID !== SMLID && modInstallID !== BootstrapperID) {
         if (modsDir) {
           debug(`Copying ${modInstallID}@${modInstallVersion} to Satisfactory install`);
-          await MH.installMod(modInstallID, modInstallVersion, modsDir);
+          await MH.installMod(modInstallID, modInstallVersion, modsDir, smlVersionEnum);
         }
       }
     }));
+
+    if (smlVersionEnum === SH.SMLVersion.v3_x) {
+      // Refresh BuildId in .modules
+      // It looks like it always is equal to the CL. Please don't break anything.
+      const mods = await MH.getInstalledMods(SH.getModsDir(this.installLocation), smlVersionEnum);
+      mods.forEach((mod) => {
+        if (!mod.path) {
+          return;
+        }
+        const modulesPath = path.join(mod.path, 'Binaries', 'Win64', 'UE4-Win64-Shipping.modules');
+        const modules = JSON.parse(fs.readFileSync(modulesPath, { encoding: 'utf8' }));
+        modules.BuildId = this.version;
+        fs.writeFileSync(modulesPath, JSON.stringify(modules, null, 4));
+      });
+    }
   }
 
   async manifestMutate(install: Array<ManifestItem>, uninstall: Array<string>, update: Array<string>): Promise<void> {
@@ -240,7 +257,7 @@ export class SatisfactoryInstall {
   }
 
   private async _getInstalledMods(): Promise<Array<MH.Mod>> {
-    return MH.getInstalledMods(SH.getModsDir(this.installLocation));
+    return MH.getInstalledMods(SH.getModsDir(this.installLocation), SH.getSMLVersionEnum(this.installLocation));
   }
 
   get mods(): ItemVersionList {

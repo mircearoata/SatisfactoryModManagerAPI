@@ -1,30 +1,59 @@
 import fs from 'fs';
 import path from 'path';
 import StreamZip from 'node-stream-zip';
+import { valid } from 'semver';
 import {
   copyFile, downloadFile, hashFile,
 } from './utils';
 import { getModDownloadLink, getModVersion, getModName } from './ficsitApp';
 import { InvalidModFileError } from './errors';
 import { error, debug } from './logging';
-import { modCacheDir } from './paths';
+import { ensureExists, modCacheDir } from './paths';
+import { SMLVersion } from './smlHandler';
+import { UPlugin } from './uplugin';
 
 let cachedMods = new Array<Mod>();
 let cacheLoaded = false;
 
 const modExtensions = ['.smod'];
 
+function getModFromUPlugin(mod_reference: string, uplugin: UPlugin): Mod {
+  const mod = {
+    mod_id: mod_reference,
+    mod_reference,
+    name: uplugin.FriendlyName,
+    version: uplugin.SemVersion || valid(uplugin.VersionName) || `${uplugin.Version}.0.0`,
+    description: uplugin.Description,
+    authors: [...uplugin.CreatedBy.split(',').map((author) => author.trim()), uplugin.CreatedByURL.trim()].filter((str) => str && str.length > 0),
+    objects: [],
+    dependencies: Object.assign({}, ...uplugin.Plugins.filter((depPlugin) => !depPlugin.bOptional).map((depPlugin) => ({ [depPlugin.Name]: depPlugin.SemVersion || '>=0.0.0' }))),
+    optional_dependencies: Object.assign({}, ...uplugin.Plugins.filter((depPlugin) => depPlugin.bOptional).map((depPlugin) => ({ [depPlugin.Name]: depPlugin.SemVersion || '>=0.0.0' }))),
+  } as Mod;
+  return mod;
+}
+
 export async function getModFromFile(modPath: string): Promise<Mod | undefined> {
   if (modExtensions.includes(path.extname(modPath))) {
     const zipData = new StreamZip({ file: modPath });
     await new Promise((resolve, reject) => { zipData.on('ready', resolve); zipData.on('error', (e) => { zipData.close(); reject(e); }); });
-    const mod = JSON.parse(zipData.entryDataSync('data.json').toString('utf8')) as Mod;
-    zipData.close();
-    if (!mod.mod_id && !mod.mod_reference) {
-      return undefined;
+    if (zipData.entry('data.json')) {
+      // SML 2.x
+      const mod = JSON.parse(zipData.entryDataSync('data.json').toString('utf8')) as Mod;
+      zipData.close();
+      if (!mod.mod_id && !mod.mod_reference) {
+        return undefined;
+      }
+      mod.path = modPath;
+      return mod;
     }
-    mod.path = modPath;
-    return mod;
+    // SML 3.x
+    const uplugin = Object.entries(zipData.entries()).find(([name]) => name.endsWith('.uplugin'));
+    if (uplugin) {
+      const upluginContent = JSON.parse(zipData.entryDataSync(uplugin[0]).toString('utf8')) as UPlugin;
+      const mod = getModFromUPlugin(path.basename(uplugin[0], '.uplugin'), upluginContent);
+      mod.path = modPath;
+      return mod;
+    }
   }
   throw new InvalidModFileError(`Invalid mod file ${modPath}. Extension is ${path.extname(modPath)}, required ${modExtensions.join(', ')}`);
 }
@@ -155,52 +184,99 @@ export interface ModObject {
   type: string;
 }
 
-export async function installMod(modReference: string, version: string, modsDir: string): Promise<void> {
+export async function installMod(modReference: string, version: string, modsDir: string, smlVersion: SMLVersion): Promise<void> {
   const modPath = (await getCachedMod(modReference, version))?.path;
   if (modPath) {
-    copyFile(modPath, modsDir);
+    if (smlVersion === SMLVersion.v2_x) {
+      copyFile(modPath, modsDir);
+    } else if (smlVersion === SMLVersion.v3_x) {
+      // eslint-disable-next-line new-cap
+      const zipData = new StreamZip.async({ file: modPath });
+      const extractPath = path.join(modsDir, modReference);
+      ensureExists(extractPath);
+      await zipData.extract(null, extractPath);
+    } else {
+      throw new Error('Invalid smlVersion');
+    }
   }
 }
 
-export async function uninstallMods(modReferences: Array<string>, modsDir: string): Promise<void> {
+export async function uninstallMods(modReferences: Array<string>, modsDir: string, smlVersion: SMLVersion): Promise<void> {
   if (fs.existsSync(modsDir)) {
-    await Promise.all(fs.readdirSync(modsDir).map(async (file) => {
-      const fullPath = path.join(modsDir, file);
-      if (modExtensions.includes(path.extname(fullPath))) {
-        try {
-          const mod = await getModFromFile(fullPath);
-          if (mod && (modReferences.includes(mod.mod_reference) || modReferences.includes(mod.mod_id))) {
-            if (fs.existsSync(fullPath)) {
-              fs.unlinkSync(fullPath);
+    if (smlVersion === SMLVersion.v2_x) {
+      await Promise.all(fs.readdirSync(modsDir).map(async (file) => {
+        const fullPath = path.join(modsDir, file);
+        if (modExtensions.includes(path.extname(fullPath))) {
+          try {
+            const mod = await getModFromFile(fullPath);
+            if (mod && (modReferences.includes(mod.mod_reference) || modReferences.includes(mod.mod_id))) {
+              if (fs.existsSync(fullPath)) {
+                fs.unlinkSync(fullPath);
+              }
             }
+          } catch (e) {
+            error(`Corrupt installed mod found ${fullPath}`);
           }
-        } catch (e) {
-          error(`Corrupt installed mod found ${fullPath}`);
         }
-      }
-    }));
+      }));
+    } else if (smlVersion === SMLVersion.v3_x) {
+      await Promise.all(fs.readdirSync(modsDir).map(async (dir) => {
+        const fullPath = path.join(modsDir, dir);
+        const upluginPath = path.join(fullPath, `${dir}.uplugin`);
+        if (fs.existsSync(upluginPath)) {
+          try {
+            const mod = getModFromUPlugin(dir, JSON.parse(fs.readFileSync(upluginPath, { encoding: 'utf8' })) as UPlugin);
+            if (modReferences.includes(mod.mod_reference)) {
+              fs.rmdirSync(fullPath, { recursive: true });
+            }
+          } catch (e) {
+            error(`Error reading mod ${fullPath}`);
+          }
+        }
+      }));
+    } else {
+      throw new Error('Invalid smlVersion');
+    }
   }
 }
 
-export async function getInstalledMods(modsDir: string | undefined): Promise<Array<Mod>> {
+export async function getInstalledMods(modsDir: string | undefined, smlVersion: SMLVersion): Promise<Array<Mod>> {
   if (!modsDir) {
     return [];
   }
   const installedModsPromises = new Array<Promise<Mod | undefined>>();
   if (fs.existsSync(modsDir)) {
-    fs.readdirSync(modsDir).forEach((file) => {
-      const fullPath = path.join(modsDir, file);
-      if (modExtensions.includes(path.extname(fullPath))) {
-        installedModsPromises.push((async () => {
+    if (smlVersion === SMLVersion.v2_x) {
+      fs.readdirSync(modsDir).forEach((file) => {
+        const fullPath = path.join(modsDir, file);
+        if (modExtensions.includes(path.extname(fullPath))) {
+          installedModsPromises.push((async () => {
+            try {
+              return await getModFromFile(fullPath);
+            } catch (e) {
+              error(`Corrupt installed mod found ${fullPath}`);
+            }
+            return undefined;
+          })());
+        }
+      });
+    } else if (smlVersion === SMLVersion.v3_x) {
+      fs.readdirSync(modsDir).forEach((dir) => {
+        const fullPath = path.join(modsDir, dir);
+        const upluginPath = path.join(fullPath, `${dir}.uplugin`);
+        if (fs.existsSync(upluginPath)) {
           try {
-            return await getModFromFile(fullPath);
+            const mod = getModFromUPlugin(dir, JSON.parse(fs.readFileSync(upluginPath, { encoding: 'utf8' })) as UPlugin);
+            mod.path = fullPath;
+            installedModsPromises.push(Promise.resolve(mod));
           } catch (e) {
-            error(`Corrupt installed mod found ${fullPath}`);
+            error(`Error reading mod ${fullPath}`);
           }
-          return undefined;
-        })());
-      }
-    });
+        }
+      });
+    } else {
+      throw new Error('Invalid smlVersion');
+    }
   }
   const mods = new Array<Mod>();
   (await Promise.all(installedModsPromises)).forEach((mod) => {
