@@ -6,9 +6,9 @@ export interface UPlugin {
   Description: string;
   CreatedBy: string;
   CreatedByURL: string;
-  Plugins: {
+  Plugins?: {
     Name: string;
-    bOptional: boolean;
+    bOptional?: boolean;
     SemVersion?: string;
   }[];
 }

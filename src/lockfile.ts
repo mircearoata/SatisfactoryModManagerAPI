@@ -1,9 +1,9 @@
 /* eslint-disable no-await-in-loop */
 import {
-  compare, valid, coerce,
+  compare, valid, coerce, satisfies,
 } from 'semver';
 import {
-  findAllVersionsMatchingAll, getSMLVersionInfo, getBootstrapperVersionInfo, getModVersion, getModName,
+  findAllVersionsMatchingAll, getSMLVersionInfo, getBootstrapperVersionInfo, getModVersion,
 } from './ficsitApp';
 import {
   ImcompatibleGameVersion,
@@ -41,6 +41,9 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
     if (smlVersionInfo === undefined) {
       throw new ModNotFoundError(`SML@${version} not found`, 'SML', version);
     }
+    if (satisfies(version, '>=3.0.0')) {
+      return { id, version, dependencies: { FactoryGame: `>=${valid(coerce(smlVersionInfo.satisfactory_version.toString()))}` } };
+    }
     return { id, version, dependencies: { FactoryGame: `>=${valid(coerce(smlVersionInfo.satisfactory_version.toString()))}`, [BootstrapperID]: `>=${smlVersionInfo.bootstrap_version}` } };
   }
   if (id === BootstrapperID) {
@@ -71,19 +74,14 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
 }
 
 export async function getFriendlyItemName(id: string): Promise<string> {
-  if (id === SMLID || id === BootstrapperID || id === 'FactoryGame') return id;
   if (id.startsWith('manifest_')) {
     try {
-      return `installing ${(await getModName(id.substring('manifest_'.length)))}`;
+      return `installing ${id.substring('manifest_'.length)}`;
     } catch (e) {
       return id;
     }
   }
-  try {
-    return (await getModName(id));
-  } catch (e) {
-    return id;
-  }
+  return id;
 }
 
 function gameVersionFromSemver(constraint: string): string {
