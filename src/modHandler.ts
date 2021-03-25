@@ -3,7 +3,7 @@ import path from 'path';
 import StreamZip from 'node-stream-zip';
 import { valid } from 'semver';
 import {
-  copyFile, downloadFile, hashFile,
+  copyFile, downloadFile, hashFile, SMLID,
 } from './utils';
 import { getModDownloadLink, getModVersion, getModName } from './ficsitApp';
 import { InvalidModFileError } from './errors';
@@ -221,6 +221,7 @@ export async function uninstallMods(modReferences: Array<string>, modsDir: strin
       }));
     } else if (smlVersion === SMLVersion.v3_x) {
       await Promise.all(fs.readdirSync(modsDir).map(async (dir) => {
+        if (dir === SMLID) return;
         const fullPath = path.join(modsDir, dir);
         const upluginPath = path.join(fullPath, `${dir}.uplugin`);
         if (fs.existsSync(upluginPath)) {
@@ -262,6 +263,7 @@ export async function getInstalledMods(modsDir: string | undefined, smlVersion: 
       });
     } else if (smlVersion === SMLVersion.v3_x) {
       fs.readdirSync(modsDir).forEach((dir) => {
+        if (dir === SMLID) return;
         const fullPath = path.join(modsDir, dir);
         const upluginPath = path.join(fullPath, `${dir}.uplugin`);
         if (fs.existsSync(upluginPath)) {
