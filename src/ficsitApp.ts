@@ -15,17 +15,13 @@ import {
 import { ModNotFoundError, NetworkError } from './errors';
 import { error, warn } from './logging';
 
-if (typeof fetch === 'undefined') {
-  global.fetch = crossFetch;
-}
-
 const API_URL = 'https://api.ficsit.app';
 const GRAPHQL_API_URL = `${API_URL}/v2/query`;
 const link = ApolloLink.from([
   createPersistedQueryLink({ useGETForHashedQueries: true }),
   createHttpLink({
     uri: GRAPHQL_API_URL,
-    fetch: global.fetch,
+    fetch: fetch || crossFetch,
     headers: {
       'User-Agent': UserAgent,
     },
