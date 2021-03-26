@@ -6,7 +6,11 @@ export {
   createProfile,
   deleteProfile,
   renameProfile,
+  getProfileFolderPath,
 } from './satisfactoryInstall';
+export {
+  readManifest, readLockfile,
+} from './manifest';
 export {
   getInstalls,
 } from './installfinders';
