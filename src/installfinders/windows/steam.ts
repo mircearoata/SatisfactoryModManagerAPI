@@ -74,11 +74,15 @@ export async function getInstalls(): Promise<InstallFindResult> {
           return;
         }
         const fullInstallPath = path.join(libraryFolder, 'steamapps', 'common', manifest.AppState.installdir);
-        const gameExe = path.join(fullInstallPath, 'FactoryGame', 'Binaries', 'Win64', 'FactoryGame-Win64-Shipping.exe');
-        if (!fs.existsSync(gameExe)) {
+        const gameExeUpdate4 = path.join(fullInstallPath, 'FactoryGame.exe');
+        const oldGameExe = path.join(fullInstallPath, 'FactoryGame', 'Binaries', 'Win64', 'FactoryGame-Win64-Shipping.exe');
+        const gameExeUpdate4Exists = fs.existsSync(gameExeUpdate4);
+        const oldGameExeExists = fs.existsSync(oldGameExe);
+        const gameExe = oldGameExeExists ? oldGameExe : gameExeUpdate4;        
+        if (!gameExeUpdate4Exists && !oldGameExeExists) {
           invalidInstalls.push(fullInstallPath);
           return;
-        }
+        }        
         const gameVersion = await getGameVersionFromExe(gameExe);
         installs.push(new SatisfactoryInstall(
           `${manifest.AppState.name} ${manifest.AppState.UserConfig.betakey?.toLowerCase() === 'experimental' ? 'Experimental' : 'Early Access'} (Steam)`,
