@@ -1,6 +1,7 @@
 process.env.SMM_API_USERAGENT = 'SMMAPITest';
 process.env.SMM_API_USERAGENT_VERSION = '0.0';
 
+require('isomorphic-fetch');
 const path = require('path');
 const fs = require('fs');
 const assert = require('assert');

@@ -45,6 +45,7 @@
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-plugin-import": "^2.19.1",
     "husky": "^4.0.10",
+    "isomorphic-fetch": "^3.0.0",
     "typescript": "^3.7.4"
   },
   "dependencies": {
@@ -55,7 +56,6 @@
     "apollo-link-persisted-queries": "^0.2.2",
     "bindings": "^1.5.0",
     "child_process": "^1.0.2",
-    "cross-fetch": "^3.0.4",
     "exiftool-vendored": "^12.1.0",
     "filenamify": "^4.1.0",
     "got": "^11.0.2",

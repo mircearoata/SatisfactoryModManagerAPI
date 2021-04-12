@@ -3,7 +3,6 @@ import {
 } from 'semver';
 import { DocumentNode } from 'graphql';
 import gql from 'graphql-tag';
-import crossFetch from 'cross-fetch';
 import { ApolloClient, ApolloQueryResult, FetchPolicy } from 'apollo-client';
 import { createHttpLink } from 'apollo-link-http';
 import { createPersistedQueryLink } from 'apollo-link-persisted-queries';
@@ -21,7 +20,6 @@ const link = ApolloLink.from([
   createPersistedQueryLink({ useGETForHashedQueries: true }),
   createHttpLink({
     uri: GRAPHQL_API_URL,
-    fetch: fetch || crossFetch,
     headers: {
       'User-Agent': UserAgent,
     },
