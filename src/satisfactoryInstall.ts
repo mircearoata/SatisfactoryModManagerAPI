@@ -167,9 +167,11 @@ export class SatisfactoryInstall {
           return;
         }
         const modulesPath = path.join(mod.path, 'Binaries', 'Win64', 'UE4-Win64-Shipping.modules');
-        const modules = JSON.parse(fs.readFileSync(modulesPath, { encoding: 'utf8' }));
-        modules.BuildId = this.version;
-        fs.writeFileSync(modulesPath, JSON.stringify(modules, null, 4));
+        if (fs.existsSync(modulesPath)) {
+          const modules = JSON.parse(fs.readFileSync(modulesPath, { encoding: 'utf8' }));
+          modules.BuildId = this.version;
+          fs.writeFileSync(modulesPath, JSON.stringify(modules, null, 4));
+        }
       });
     }
   }
