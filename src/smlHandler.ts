@@ -4,7 +4,7 @@ import bindings from 'bindings';
 import { valid, coerce, satisfies } from 'semver';
 import StreamZip from 'node-stream-zip';
 import {
-  downloadFile,
+  downloadFile, isValidZip,
 } from './utils';
 import { ModNotFoundError } from './errors';
 import { debug } from './logging';
@@ -61,7 +61,7 @@ async function getSMLVersionCache(version: string): Promise<string> {
   const smlVersionCacheDir = path.join(smlCacheDir, validVersion);
   if (satisfies(validVersion, '>=3.0.0')) {
     const smlZipCacheFile = path.join(smlVersionCacheDir, SMLZipFileName);
-    if (!fs.existsSync(smlZipCacheFile)) {
+    if (!fs.existsSync(smlZipCacheFile) || !await isValidZip(smlZipCacheFile)) {
       debug(`SML@${version} is not cached. Downloading`);
       const smlReleaseURL = (await getSMLVersionInfo(version))?.link;
       if (!smlReleaseURL) {

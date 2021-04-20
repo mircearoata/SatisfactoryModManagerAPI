@@ -7,6 +7,7 @@ import got, { HTTPError, Progress } from 'got';
 import { createHash } from 'crypto';
 import stream from 'stream';
 import { promisify } from 'util';
+import StreamZip from 'node-stream-zip';
 import {
   setLogDebug, debug,
 } from './logging';
@@ -126,6 +127,17 @@ export function clearOutdatedCache(): void {
 export function copyFile(file: string, toDir: string): void {
   ensureExists(toDir);
   fs.copyFileSync(file, path.join(toDir, path.basename(file)));
+}
+
+export async function isValidZip(file: string): Promise<boolean> {
+  try {
+    // eslint-disable-next-line new-cap
+    const zipData = new StreamZip.async({ file });
+    await zipData.entries('/');
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 
 export const UserAgent = `${process.env.SMM_API_USERAGENT?.replace(' ', '') || 'SatisfactoryModManagerAPI'}/${process.env.SMM_API_USERAGENT_VERSION || 'unknown'}`;
