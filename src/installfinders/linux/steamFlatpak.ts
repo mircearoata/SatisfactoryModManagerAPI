@@ -92,7 +92,7 @@ async function setupSteam(): Promise<void> {
       }
 
       if (changed) {
-        if (await isRunning('steam')) {
+        if (await isRunning('steam', true)) {
           throw new SetupError('Could not set the WINEDLLOVERRIDES launch options because Steam is currently running. Please close Steam and retry.');
         }
         configFile.UserLocalConfigStore.Software.Valve.Steam[isLowerCaseApps ? 'apps' : 'Apps']['526870'].LaunchOptions = launchOptions;

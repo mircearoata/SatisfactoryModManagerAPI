@@ -283,7 +283,7 @@ export function mergeArrays<T>(...arrays: Array<Array<T>>): Array<T> {
   return uniqueArray;
 }
 
-export async function isRunning(command: string): Promise<boolean> {
+export async function isRunning(command: string, strict = false): Promise<boolean> {
   try {
     // manual is now main to handle ghost instances
     let cmd = '';
@@ -298,7 +298,7 @@ export async function isRunning(command: string): Promise<boolean> {
   } catch (e) {
     // fallback to psList
     let runningInstances = [];
-    if (process.platform === 'win32') {
+    if (process.platform === 'win32' || strict) {
       runningInstances = (await psList()).filter((process) => process.name?.includes(command));
     } else {
       runningInstances = (await psList()).filter((process) => process.cmd?.includes(command));
