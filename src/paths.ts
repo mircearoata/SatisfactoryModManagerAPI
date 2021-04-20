@@ -6,10 +6,7 @@ export function ensureExists(folder: string): void {
   fs.mkdirSync(folder, { recursive: true });
 }
 
-const oldAppName = 'SatisfactoryModLauncher';
 export const appName = 'SatisfactoryModManager';
-
-export const oldAppDataDir = path.join(getDataHome(), oldAppName);
 
 export const appDataDir = path.join(getDataHome(), appName);
 ensureExists(appDataDir);
