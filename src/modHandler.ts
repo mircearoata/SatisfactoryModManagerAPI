@@ -16,6 +16,7 @@ let cachedMods = new Array<Mod>();
 let cacheLoaded = false;
 
 const modExtensions = ['.smod'];
+const SMM_TRACKED_FILE = '.smm';
 
 function getModFromUPlugin(mod_reference: string, uplugin: UPlugin): Mod {
   const mod = {
@@ -195,6 +196,7 @@ export async function installMod(modReference: string, version: string, modsDir:
       const extractPath = path.join(modsDir, modReference);
       ensureExists(extractPath);
       await zipData.extract(null, extractPath);
+      fs.writeFileSync(path.join(extractPath, SMM_TRACKED_FILE), '');
     } else {
       throw new Error('Invalid smlVersion');
     }
@@ -265,6 +267,7 @@ export async function getInstalledMods(modsDir: string | undefined, smlVersion: 
       fs.readdirSync(modsDir).forEach((dir) => {
         if (dir === SMLID) return;
         const fullPath = path.join(modsDir, dir);
+        if (!fs.existsSync(path.join(fullPath, SMM_TRACKED_FILE))) return;
         const upluginPath = path.join(fullPath, `${dir}.uplugin`);
         if (fs.existsSync(upluginPath)) {
           try {
