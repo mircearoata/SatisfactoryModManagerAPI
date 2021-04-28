@@ -157,23 +157,6 @@ export class SatisfactoryInstall {
         }
       }
     }));
-
-    if (smlVersionEnum === SH.SMLVersion.v3_x) {
-      // Refresh BuildId in .modules
-      // It looks like it always is equal to the CL. Please don't break anything.
-      const mods = [{ path: path.join(SH.getModsDir(this.installLocation), 'SML') }, ...await MH.getInstalledMods(SH.getModsDir(this.installLocation), smlVersionEnum)];
-      mods.forEach((mod) => {
-        if (!mod.path) {
-          return;
-        }
-        const modulesPath = path.join(mod.path, 'Binaries', 'Win64', 'UE4-Win64-Shipping.modules');
-        if (fs.existsSync(modulesPath)) {
-          const modules = JSON.parse(fs.readFileSync(modulesPath, { encoding: 'utf8' }));
-          modules.BuildId = this.version;
-          fs.writeFileSync(modulesPath, JSON.stringify(modules, null, 4));
-        }
-      });
-    }
   }
 
   async manifestMutate(install: Array<ManifestItem>, uninstall: Array<string>, update: Array<string>): Promise<void> {
