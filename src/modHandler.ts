@@ -25,7 +25,7 @@ function getModFromUPlugin(mod_reference: string, uplugin: UPlugin): Mod {
     name: uplugin.FriendlyName,
     version: uplugin.SemVersion || valid(uplugin.VersionName) || `${uplugin.Version}.0.0`,
     description: uplugin.Description,
-    authors: [...uplugin.CreatedBy.split(',').map((author) => author.trim()), uplugin.CreatedByURL.trim()].filter((str) => str && str.length > 0),
+    authors: [...uplugin.CreatedBy.split(',').map((author) => author.trim()), uplugin.CreatedByURL?.trim()].filter((str) => str && str.length > 0),
     objects: [],
     dependencies: Object.assign({}, ...(uplugin.Plugins?.filter((depPlugin) => !depPlugin.bOptional).map((depPlugin) => ({ [depPlugin.Name]: depPlugin.SemVersion || '*' })) || [])),
     optional_dependencies: Object.assign({}, ...(uplugin.Plugins?.filter((depPlugin) => depPlugin.bOptional).map((depPlugin) => ({ [depPlugin.Name]: depPlugin.SemVersion || '*' })) || [])),

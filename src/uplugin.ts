@@ -5,7 +5,7 @@ export interface UPlugin {
   FriendlyName: string;
   Description: string;
   CreatedBy: string;
-  CreatedByURL: string;
+  CreatedByURL?: string;
   Plugins?: {
     Name: string;
     bOptional?: boolean;
