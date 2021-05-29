@@ -65,6 +65,10 @@ module.exports = {
     ]
   },
   settings: {
+    'import/core-modules': [
+      '@apollo/client/core',
+      '@apollo/client/link/persisted-queries'
+    ],
     'import/extensions': ['.js', '.ts', '.json'],
     'import/resolver': {
       node: [
