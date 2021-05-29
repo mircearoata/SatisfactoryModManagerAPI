@@ -13,13 +13,8 @@
     "test": "yarn build && node test/test.js",
     "test:debug": "yarn build && cross-env NODE_DEBUG=SMManagerAPI node test/test.js",
     "prepublishOnly": "yarn test",
-    "install": "node-gyp rebuild --silent"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "yarn lint",
-      "pre-push": "yarn test"
-    }
+    "install": "node-gyp rebuild --silent",
+    "prepare": "husky install"
   },
   "gypfile": true,
   "author": "Mircea Roata",
@@ -46,7 +41,7 @@
     "eslint": "^7.2.0",
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-plugin-import": "^2.19.1",
-    "husky": "^4.0.10",
+    "husky": "^6.0.0",
     "isomorphic-fetch": "^3.0.0",
     "typescript": "^3.7.4"
   },
@@ -58,10 +53,10 @@
     "exiftool-vendored": "^14.4.0",
     "filenamify": "^4.1.0",
     "got": "^11.0.2",
-    "graphql": "15.3.0",
+    "graphql": "15.5.0",
     "graphql-scalars": "^1.9.3",
     "graphql-tag": "^2.10.3",
-    "ini": "^1.3.5",
+    "ini": "^2.0.0",
     "jszip": "^3.4.0",
     "node-stream-zip": "^1.13.2",
     "platform-folders": "^0.5.1",
