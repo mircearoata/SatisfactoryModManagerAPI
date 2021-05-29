@@ -4,14 +4,19 @@ import vdf from 'vdf';
 import { exiftool } from 'exiftool-vendored';
 import { SatisfactoryInstall } from '../../satisfactoryInstall';
 import {
-  error, debug, info,
+  error, debug, info, warn,
 } from '../../logging';
 import { InstallFindResult } from '../baseInstallFinder';
 import { isRunning } from '../../utils';
 import { SetupError } from '../../errors';
 
 interface SteamLibraryFoldersManifest {
-  LibraryFolders: {
+  LibraryFolders?: {
+    TimeNextStatsReport: string;
+    ContentStatsID: string;
+    [idx: number]: string;
+  };
+  libraryfolders?: {
     TimeNextStatsReport: string;
     ContentStatsID: string;
     [idx: number]: string;
@@ -114,7 +119,12 @@ export async function getInstalls(): Promise<InstallFindResult> {
   if (fs.existsSync(steamAppsPath)) {
     try {
       const libraryfoldersManifest = vdf.parse(fs.readFileSync(path.join(steamAppsPath, 'libraryfolders.vdf'), 'utf8')) as SteamLibraryFoldersManifest;
-      const libraryfolders = Object.entries(libraryfoldersManifest.LibraryFolders).filter(([key]) => /^\d+$/.test(key)).map((entry) => entry[1]);
+      const libraryFolders = libraryfoldersManifest.LibraryFolders || libraryfoldersManifest.libraryfolders;
+      if (!libraryFolders) {
+        warn('Steam libraryfolders.vdf does not contain the LibraryFolders key. Cannot check for Steam installs of the game');
+        return { installs: [], invalidInstalls: [] };
+      }
+      const libraryfolders = Object.entries(libraryFolders).filter(([key]) => /^\d+$/.test(key)).map((entry) => entry[1]);
       libraryfolders.push(STEAM_DATA_LOCATION);
       await Promise.all(libraryfolders.map(async (libraryFolder) => {
         const sfManifestPath = path.join(libraryFolder, 'steamapps', 'appmanifest_526870.acf');

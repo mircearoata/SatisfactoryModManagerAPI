@@ -6,12 +6,17 @@ import { exiftool } from 'exiftool-vendored';
 import { execSync } from 'child_process';
 import { SatisfactoryInstall } from '../../satisfactoryInstall';
 import {
-  error, debug, info,
+  error, debug, info, warn,
 } from '../../logging';
 import { InstallFindResult } from '../baseInstallFinder';
 
 interface SteamLibraryFoldersManifest {
-  LibraryFolders: {
+  LibraryFolders?: {
+    TimeNextStatsReport: string;
+    ContentStatsID: string;
+    [idx: number]: string;
+  };
+  libraryfolders?: {
     TimeNextStatsReport: string;
     ContentStatsID: string;
     [idx: number]: string;
@@ -66,7 +71,12 @@ export async function getInstalls(): Promise<InstallFindResult> {
     const steamPath = path.dirname((await getRegValue(Registry.HKCU, '\\Software\\Valve\\Steam', 'SteamExe')) || 'C:\\Program Files (x86)\\Steam\\steam.exe');
     const steamAppsPath = path.join(steamPath, 'steamapps');
     const libraryfoldersManifest = vdf.parse(fs.readFileSync(path.join(steamAppsPath, 'libraryfolders.vdf'), 'utf8')) as SteamLibraryFoldersManifest;
-    const libraryfolders = Object.entries(libraryfoldersManifest.LibraryFolders).filter(([key]) => /^\d+$/.test(key)).map((entry) => entry[1]);
+    const libraryFolders = libraryfoldersManifest.LibraryFolders || libraryfoldersManifest.libraryfolders;
+    if (!libraryFolders) {
+      warn('Steam libraryfolders.vdf does not contain the LibraryFolders key. Cannot check for Steam installs of the game');
+      return { installs: [], invalidInstalls: [] };
+    }
+    const libraryfolders = Object.entries(libraryFolders).filter(([key]) => /^\d+$/.test(key)).map((entry) => entry[1]);
     libraryfolders.push(steamPath);
     const installs: Array<SatisfactoryInstall> = [];
     const invalidInstalls: Array<string> = [];
