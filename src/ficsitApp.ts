@@ -1,23 +1,52 @@
 import {
   compare, satisfies, valid, coerce,
 } from 'semver';
-import { DocumentNode } from 'graphql';
+import { buildClientSchema, DocumentNode, IntrospectionQuery } from 'graphql';
 import gql from 'graphql-tag';
-import { ApolloClient, ApolloQueryResult, FetchPolicy } from 'apollo-client';
-import { createHttpLink } from 'apollo-link-http';
-import { createPersistedQueryLink } from 'apollo-link-persisted-queries';
-import { InMemoryCache } from 'apollo-cache-inmemory';
-import { ApolloLink } from 'apollo-link';
+import {
+  ApolloClient, ApolloQueryResult, FetchPolicy, createHttpLink, ApolloLink, InMemoryCache,
+} from '@apollo/client/core';
+import { createPersistedQueryLink } from '@apollo/client/link/persisted-queries';
+import { withScalars } from 'apollo-link-scalars';
+import sha from 'sha.js';
+import { DateTimeResolver } from 'graphql-scalars';
 import {
   versionSatisfiesAll, UserAgent, minSMLVersion, SMLID, BootstrapperID,
 } from './utils';
 import { ModNotFoundError, NetworkError } from './errors';
 import { error, warn } from './logging';
+import schema from './__generated__/graphql.schema.json';
 
 const API_URL = 'https://api.ficsit.app';
 const GRAPHQL_API_URL = `${API_URL}/v2/query`;
 const link = ApolloLink.from([
-  createPersistedQueryLink({ useGETForHashedQueries: true }),
+  withScalars({
+    schema: buildClientSchema((schema as unknown) as IntrospectionQuery),
+    typesMap: {
+      Date: {
+        ...DateTimeResolver,
+        parseValue(value) {
+          if (typeof value !== 'string' || value) {
+            return DateTimeResolver.parseValue(value);
+          }
+          return null;
+        },
+        parseLiteral(value, variables) {
+          if (typeof value !== 'string' || value) {
+            return DateTimeResolver.parseLiteral(value, variables);
+          }
+          return null;
+        },
+        serialize(value) {
+          if (value instanceof Date) {
+            return value.toISOString();
+          }
+          return value;
+        },
+      },
+    },
+  }),
+  createPersistedQueryLink({ useGETForHashedQueries: true, sha256: (...args: unknown[]) => sha('sha256').update(args.toString()).digest('hex') }),
   createHttpLink({
     uri: GRAPHQL_API_URL,
     headers: {

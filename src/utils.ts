@@ -328,46 +328,6 @@ export function hashFile(filePath: string): string {
   return createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
-const regexIso8601 = /^(\d{4}|\+\d{6})(?:-(\d{2})(?:-(\d{2})(?:T(\d{2}):(\d{2}):(\d{2})\.(\d{1,})(Z|([-+])(\d{2}):(\d{2}))?)?)?)?$/;
-
-function reviveDates(key: unknown, value: unknown): unknown {
-  if (typeof value === 'string' && regexIso8601.test(value)) {
-    return new Date(value);
-  }
-  return value;
-}
-
 export function unique<T>(value: T, index: number, self: T[]): boolean {
   return self.indexOf(value) === index;
 }
-
-if (!JSON.globalRevivers) {
-  JSON.globalRevivers = new Array<JSONReviver>();
-  JSON.addGlobalReviver = (reviver: JSONReviver): void => {
-    if (!JSON.globalRevivers.includes(reviver)) {
-      JSON.globalRevivers.push(reviver);
-    }
-  };
-  JSON.reviveGlobals = (key: unknown, value: unknown): unknown => {
-    for (let i = 0; i < JSON.globalRevivers.length; i += 1) {
-      const newValue = JSON.globalRevivers[i](key, value);
-      if (newValue !== value) {
-        return newValue;
-      }
-    }
-    return value;
-  };
-  const originalParse = JSON.parse;
-  JSON.parse = (text: string, reviver: JSONReviver): unknown => {
-    if (reviver) {
-      return originalParse(text, (key, value) => {
-        const newVal = reviver(key, value);
-        if (newVal !== value) return newVal;
-        return JSON.reviveGlobals(key, value);
-      });
-    }
-    return originalParse(text, JSON.reviveGlobals);
-  };
-}
-
-JSON.addGlobalReviver(reviveDates);
