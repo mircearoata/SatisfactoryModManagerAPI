@@ -14,12 +14,16 @@ interface SteamLibraryFoldersManifest {
   LibraryFolders?: {
     TimeNextStatsReport: string;
     ContentStatsID: string;
-    [idx: number]: string;
+    [idx: number]: string | {
+      path: string;
+    };
   };
   libraryfolders?: {
     TimeNextStatsReport: string;
     ContentStatsID: string;
-    [idx: number]: string;
+    [idx: number]: string | {
+      path: string;
+    };
   };
 }
 
@@ -124,7 +128,7 @@ export async function getInstalls(): Promise<InstallFindResult> {
         warn('Steam-flatpak libraryfolders.vdf does not contain the LibraryFolders key. Cannot check for Steam installs of the game');
         return { installs: [], invalidInstalls: [] };
       }
-      const libraryfolders = Object.entries(libraryFolders).filter(([key]) => /^\d+$/.test(key)).map((entry) => entry[1]);
+      const libraryfolders = Object.entries(libraryFolders).filter(([key]) => /^\d+$/.test(key)).map((entry) => (typeof entry[1] === 'string' ? entry[1] : entry[1].path));
       libraryfolders.push(STEAM_DATA_LOCATION);
       await Promise.all(libraryfolders.map(async (libraryFolder) => {
         const sfManifestPath = path.join(libraryFolder, 'steamapps', 'appmanifest_526870.acf');
