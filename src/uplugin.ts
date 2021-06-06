@@ -4,7 +4,7 @@ export interface UPlugin {
   SemVersion?: string;
   FriendlyName: string;
   Description: string;
-  CreatedBy: string;
+  CreatedBy?: string;
   CreatedByURL?: string;
   Plugins?: {
     Name: string;

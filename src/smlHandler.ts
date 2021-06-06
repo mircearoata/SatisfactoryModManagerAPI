@@ -104,6 +104,7 @@ export async function installSML(version: string, satisfactoryPath: string): Pro
       const zipData = new StreamZip.async({ file: path.join(smlVersionCache, SMLZipFileName) });
       ensureExists(extractPath);
       await zipData.extract(null, extractPath);
+      zipData.close();
     } else {
       ensureExists(path.dirname(path.join(satisfactoryPath, SMLDLLRelativePath)));
       ensureExists(path.dirname(path.join(satisfactoryPath, SMLPakRelativePath)));

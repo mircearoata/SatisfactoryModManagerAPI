@@ -25,7 +25,7 @@ function getModFromUPlugin(mod_reference: string, uplugin: UPlugin): Mod {
     name: uplugin.FriendlyName,
     version: uplugin.SemVersion || valid(uplugin.VersionName) || `${uplugin.Version}.0.0`,
     description: uplugin.Description,
-    authors: [...uplugin.CreatedBy.split(',').map((author) => author.trim()), uplugin.CreatedByURL?.trim()].filter((str) => str && str.length > 0),
+    authors: [...(uplugin.CreatedBy?.split(',').map((author) => author.trim()) || []), uplugin.CreatedByURL?.trim()].filter((str) => str && str.length > 0),
     objects: [],
     dependencies: Object.assign({}, ...(uplugin.Plugins?.filter((depPlugin) => !depPlugin.bOptional).map((depPlugin) => ({ [depPlugin.Name]: depPlugin.SemVersion || '*' })) || [])),
     optional_dependencies: Object.assign({}, ...(uplugin.Plugins?.filter((depPlugin) => depPlugin.bOptional).map((depPlugin) => ({ [depPlugin.Name]: depPlugin.SemVersion || '*' })) || [])),
@@ -51,10 +51,12 @@ export async function getModFromFile(modPath: string): Promise<Mod | undefined> 
     const uplugin = Object.entries(zipData.entries()).find(([name]) => name.endsWith('.uplugin'));
     if (uplugin) {
       const upluginContent = JSON.parse(zipData.entryDataSync(uplugin[0]).toString('utf8')) as UPlugin;
+      zipData.close();
       const mod = getModFromUPlugin(path.basename(uplugin[0], '.uplugin'), upluginContent);
       mod.path = modPath;
       return mod;
     }
+    zipData.close();
   }
   throw new InvalidModFileError(`Invalid mod file ${modPath}. Extension is ${path.extname(modPath)}, required ${modExtensions.join(', ')}`);
 }
@@ -196,6 +198,7 @@ export async function installMod(modReference: string, version: string, modsDir:
       const extractPath = path.join(modsDir, modReference);
       ensureExists(extractPath);
       await zipData.extract(null, extractPath);
+      await zipData.close();
       fs.writeFileSync(path.join(extractPath, SMM_TRACKED_FILE), '');
     } else {
       throw new Error('Invalid smlVersion');
