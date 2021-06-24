@@ -257,7 +257,7 @@ export async function computeLockfile(manifest: Manifest, lockfile: Lockfile, sa
 
   // Remove roots that are not in the manifest
   graph.roots().forEach((root) => {
-    if (!manifest.items.some((manifestItem) => manifestItem.id === root.id)) {
+    if (!manifest.items.some((manifestItem) => manifestItem.id === root.id && manifestItem.enabled)) {
       graph.remove(root);
     }
   });
@@ -278,14 +278,16 @@ export async function computeLockfile(manifest: Manifest, lockfile: Lockfile, sa
   } as LockfileGraphNode;
   graph.add(satisfactoryNode);
   await manifest.items.forEachAsync(async (item) => {
-    const itemData = {
-      id: `manifest_${item.id}`,
-      version: '0.0.0',
-      dependencies: {
-        [item.id]: item.version || '>=0.0.0',
-      },
-    } as LockfileGraphNode;
-    await graph.add(itemData);
+    if (item.enabled) {
+      const itemData = {
+        id: `manifest_${item.id}`,
+        version: '0.0.0',
+        dependencies: {
+          [item.id]: item.version || '>=0.0.0',
+        },
+      } as LockfileGraphNode;
+      await graph.add(itemData);
+    }
   });
 
   await graph.nodes

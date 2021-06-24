@@ -236,6 +236,28 @@ async function main() {
       assert.fail(`Unexpected error: ${e}`);
     }
 
+    try {
+      await sfInstall.disableMod('dummyMod2');
+      installedMods = await sfInstall._getInstalledMods();
+      assert.strictEqual(installedMods.some((mod) => mod.mod_id === 'dummyMod2'), false, 'Disabled mod is still installed');
+    } catch (e) {
+      if (e instanceof assert.AssertionError) {
+        throw e;
+      }
+      assert.fail(`Unexpected error: ${e}`);
+    }
+
+    try {
+      await sfInstall.enableMod('dummyMod2');
+      installedMods = await sfInstall._getInstalledMods();
+      assert.strictEqual(installedMods.some((mod) => mod.mod_id === 'dummyMod2'), true, 'Enabled mod is not installed');
+    } catch (e) {
+      if (e instanceof assert.AssertionError) {
+        throw e;
+      }
+      assert.fail(`Unexpected error: ${e}`);
+    }
+
     const testProfileInstalledMods = installedMods;
 
     try {
@@ -300,7 +322,7 @@ async function main() {
     }
 
     try {
-      await sfInstall.manifestMutate([], [], []);
+      await sfInstall.manifestMutate([], [], [], [], []);
       assert.deepStrictEqual(installedMods, await sfInstall._getInstalledMods(), 'Empty mutation changed something');
     } catch (e) {
       if (e instanceof assert.AssertionError) {
@@ -330,7 +352,7 @@ async function main() {
     removeTempMod('dummyMod2');
 
     try {
-      await sfInstall.manifestMutate([], [], []);
+      await sfInstall.manifestMutate([], [], [], [], []);
       installedMods = await sfInstall._getInstalledMods();
       assert.strictEqual(installedMods.some((mod) => mod.mod_id === 'dummyMod3'), false, 'Removed mod 1 is still installed');
       assert.strictEqual(installedMods.some((mod) => mod.mod_id === 'dummyMod2'), false, 'Removed mod 2 is still installed');
@@ -346,7 +368,7 @@ async function main() {
     removeTempModVersion('dummyMod1', '1.0.2');
 
     try {
-      await sfInstall.manifestMutate([], [], []);
+      await sfInstall.manifestMutate([], [], [], [], []);
       installedMods = await sfInstall._getInstalledMods();
       assert.strictEqual(installedMods.some((mod) => mod.mod_id === 'dummyMod1' && mod.version === '1.0.2'), false, 'Removed version is still installed');
       assert.strictEqual(installedMods.some((mod) => mod.mod_id === 'dummyMod1' && mod.version === '1.0.0'), true, 'Incompatible version is still installed');
@@ -360,7 +382,7 @@ async function main() {
     removeTempModVersion('dummyMod1', '1.0.0');
 
     try {
-      await sfInstall.manifestMutate([], [], []);
+      await sfInstall.manifestMutate([], [], [], [], []);
       assert.fail('Mod with all compatible versions removed did not error');
     } catch (e) {
       if (e instanceof assert.AssertionError) {
@@ -372,7 +394,7 @@ async function main() {
     }
 
     try {
-      await sfInstall.manifestMutate([], ['dummyMod1'], []);
+      await sfInstall.manifestMutate([], ['dummyMod1'], [], [], []);
       installedMods = await sfInstall._getInstalledMods();
       assert.strictEqual(installedMods.some((mod) => mod.mod_id === 'dummyMod1'), false, 'Mod with all compatible versions removed is still installed');
     } catch (e) {
@@ -387,7 +409,7 @@ async function main() {
     setTempModReference('dummyMod5', 'dummyMod5ModReference');
 
     try {
-      await sfInstall.manifestMutate([], [], []);
+      await sfInstall.manifestMutate([], [], [], [], []);
       installedMods = await sfInstall.mods;
       assert.strictEqual(!!installedMods['dummyMod5ModReference'], true, 'Mod installed with ID updated with mod reference not updated');
       assert.strictEqual(!!installedMods['dummyMod5'], false, 'Mod installed with ID updated with mod reference still installed by ID');

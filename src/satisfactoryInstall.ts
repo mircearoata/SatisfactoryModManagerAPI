@@ -7,8 +7,8 @@ import * as MH from './modHandler';
 import * as SH from './smlHandler';
 import * as BH from './bootstrapperHandler';
 import {
-  FicsitAppVersion, FicsitAppMod, FicsitAppSMLVersion, FicsitAppBootstrapperVersion,
-  getModReferenceFromId, getModVersions, getAvailableSMLVersions, getAvailableBootstrapperVersions, refetchVersions,
+  FicsitAppVersion, FicsitAppSMLVersion, FicsitAppBootstrapperVersion,
+  getModVersions, getAvailableSMLVersions, getAvailableBootstrapperVersions, refetchVersions,
 } from './ficsitApp';
 import {
   ManifestItem, mutateManifest, readManifest, writeManifest, ManifestVersion, Manifest,
@@ -161,16 +161,18 @@ export class SatisfactoryInstall {
     }));
   }
 
-  async manifestMutate(install: Array<ManifestItem>, uninstall: Array<string>, update: Array<string>): Promise<void> {
+  async manifestMutate(install: Array<ManifestItem>, uninstall: Array<string>,
+    enable: Array<string>, disable: Array<string>,
+    update: Array<string>): Promise<void> {
     if (this._profile === VANILLA_PROFILE_NAME && (install.length > 0 || update.length > 0)) {
       throw new InvalidProfileError('Cannot modify vanilla profile. Use "modded" profile or create a new profile');
     }
     if (!await SatisfactoryInstall.isGameRunning()) {
-      debug(`install: [${install.map((item) => (item.version ? `${item.id}@${item.version}` : item.id)).join(', ')}], uninstall: [${uninstall.join(', ')}], update: [${update.join(', ')}]`);
+      debug(`install: [${install.map((item) => (item.version ? `${item.id}@${item.version}` : item.id)).join(', ')}], uninstall: [${uninstall.join(', ')}], enable: [${enable.join(', ')}], disable: [${disable.join(', ')}], update: [${update.join(', ')}]`);
       const currentManifest = this.readManifest();
       const currentLockfile = this.readLockfile();
       try {
-        const newManifest = await mutateManifest(currentManifest, install, uninstall, update);
+        const newManifest = await mutateManifest(currentManifest, install, uninstall, enable, disable, update);
         try {
           const newLockfile = await computeLockfile(newManifest, currentLockfile, this.version, update);
           await this.validateInstall(getItemsList(newLockfile));
@@ -197,7 +199,7 @@ export class SatisfactoryInstall {
     this._profile = profileName;
     try {
       debug(`Setting profile to ${profileName}`);
-      await this.manifestMutate([], [], []);
+      await this.manifestMutate([], [], [], [], []);
     } catch (e) {
       this._profile = currentProfile;
       throw new InvalidProfileError(`Error while loading profile: ${e.message}`);
@@ -209,15 +211,23 @@ export class SatisfactoryInstall {
   }
 
   async _installItem(id: string, version?: string): Promise<void> {
-    return this.manifestMutate([{ id, version }], [], []);
+    return this.manifestMutate([{ id, version, enabled: true }], [], [], [], []);
   }
 
   async _uninstallItem(item: string): Promise<void> {
-    return this.manifestMutate([], [item], []);
+    return this.manifestMutate([], [item], [], [], []);
+  }
+
+  async _enableItem(item: string): Promise<void> {
+    return this.manifestMutate([], [], [item], [], []);
+  }
+
+  async _disableItem(item: string): Promise<void> {
+    return this.manifestMutate([], [], [], [item], []);
   }
 
   async _updateItem(item: string): Promise<void> {
-    return this.manifestMutate([], [], [item]);
+    return this.manifestMutate([], [], [], [], [item]);
   }
 
   async installMod(modReference: string, version?: string): Promise<void> {
@@ -225,26 +235,24 @@ export class SatisfactoryInstall {
     await this._installItem(modReference, version);
   }
 
-  async installFicsitAppMod(modVersion: FicsitAppVersion): Promise<void> {
-    return this.installMod(await getModReferenceFromId(modVersion.mod_id));
+  async uninstallMod(modReference: string): Promise<void> {
+    info(`Uninstalling ${modReference}`);
+    return this._uninstallItem(modReference);
   }
 
-  async uninstallMod(modID: string): Promise<void> {
-    info(`Uninstalling ${modID}`);
-    return this._uninstallItem(modID);
+  async enableMod(modReference: string): Promise<void> {
+    info(`Enabling ${modReference}`);
+    await this._enableItem(modReference);
   }
 
-  async uninstallFicsitAppMod(mod: FicsitAppMod): Promise<void> {
-    return this.uninstallMod(mod.mod_reference);
+  async disableMod(modReference: string): Promise<void> {
+    info(`Disabling ${modReference}`);
+    return this._disableItem(modReference);
   }
 
-  async updateMod(modID: string): Promise<void> {
-    info(`Updating ${modID}`);
-    await this._updateItem(modID);
-  }
-
-  async updateFicsitAppMod(mod: FicsitAppMod): Promise<void> {
-    return this.updateMod(mod.mod_reference);
+  async updateMod(modReference: string): Promise<void> {
+    info(`Updating ${modReference}`);
+    await this._updateItem(modReference);
   }
 
   private async _getInstalledMods(): Promise<Array<MH.Mod>> {
@@ -491,5 +499,5 @@ if (!fs.existsSync(path.join(getProfileFolderPath(MODDED_PROFILE_NAME), 'manifes
 }
 
 if (!fs.existsSync(path.join(getProfileFolderPath(DEVELOPMENT_PROFILE_NAME), 'manifest.json'))) {
-  writeManifest(path.join(getProfileFolderPath(DEVELOPMENT_PROFILE_NAME), 'manifest.json'), { items: [{ id: SMLID }], manifestVersion: ManifestVersion.Latest });
+  writeManifest(path.join(getProfileFolderPath(DEVELOPMENT_PROFILE_NAME), 'manifest.json'), { items: [{ id: SMLID, enabled: true }], manifestVersion: ManifestVersion.Latest });
 }
