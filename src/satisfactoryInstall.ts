@@ -11,9 +11,11 @@ import {
   getModReferenceFromId, getModVersions, getAvailableSMLVersions, getAvailableBootstrapperVersions, refetchVersions,
 } from './ficsitApp';
 import {
-  ManifestItem, mutateManifest, readManifest, readLockfile, getItemsList, writeManifest, writeLockfile, ManifestVersion, Manifest,
+  ManifestItem, mutateManifest, readManifest, writeManifest, ManifestVersion, Manifest,
 } from './manifest';
-import { ItemVersionList, Lockfile } from './lockfile';
+import {
+  computeLockfile, getItemsList, ItemVersionList, Lockfile, readLockfile, writeLockfile,
+} from './lockfile';
 import {
   filterObject, mergeArrays, isRunning, dirs, deleteFolderRecursive, validAndGreater, hashString, SMLID, BootstrapperID,
 } from './utils';
@@ -168,15 +170,19 @@ export class SatisfactoryInstall {
       const currentManifest = this.readManifest();
       const currentLockfile = this.readLockfile();
       try {
-        const {
-          manifest: newManifest,
-          lockfile: newLockfile,
-        } = await mutateManifest({ manifest: currentManifest, lockfile: currentLockfile }, this.version, install, uninstall, update);
-        await this.validateInstall(getItemsList(newLockfile));
-        writeManifest(this.profileManifest, newManifest);
-        writeLockfile(this.profileLockfile, newLockfile);
+        const newManifest = await mutateManifest(currentManifest, install, uninstall, update);
+        try {
+          const newLockfile = await computeLockfile(newManifest, currentLockfile, this.version, update);
+          await this.validateInstall(getItemsList(newLockfile));
+          writeManifest(this.profileManifest, newManifest);
+          writeLockfile(this.profileLockfile, newLockfile);
+        } catch (e) {
+          if (install.length === 0 && update.length === 0) {
+            writeManifest(this.profileManifest, newManifest); // save manifest when only uninstalling mods, so that other erroring can be uninstalled too
+          }
+          throw e;
+        }
       } catch (e) {
-        e.message = `${e.message}${e.message.endsWith('.') ? '' : '.'}\nAll changes were discarded.`;
         error(e);
         await this.validateInstall(getItemsList(currentLockfile));
         throw e;
@@ -297,9 +303,7 @@ export class SatisfactoryInstall {
     const currentManifest = this.readManifest();
     const currentLockfile = this.readLockfile();
     await refetchVersions();
-    const {
-      lockfile: newLockfile,
-    } = await mutateManifest({ manifest: currentManifest, lockfile: currentLockfile }, this.version, [], [], Object.keys(this._itemsList));
+    const newLockfile = await computeLockfile(currentManifest, currentLockfile, this.version, Object.keys(this._itemsList));
     return Promise.all(Object.entries(newLockfile)
       .filter(([item, { version: newVersion }]) => !!currentLockfile[item] && !eq(currentLockfile[item].version, newVersion))
       .map(async ([item, { version: newVersion }]) => {

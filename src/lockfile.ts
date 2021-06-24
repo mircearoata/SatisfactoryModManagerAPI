@@ -2,8 +2,9 @@
 import {
   compare, valid, coerce, satisfies,
 } from 'semver';
+import fs from 'fs';
 import {
-  findAllVersionsMatchingAll, getSMLVersionInfo, getBootstrapperVersionInfo, getModVersion,
+  findAllVersionsMatchingAll, getSMLVersionInfo, getBootstrapperVersionInfo, getModVersion, versionExistsOnFicsitApp, getModReferenceFromId,
 } from './ficsitApp';
 import {
   ImcompatibleGameVersion,
@@ -12,9 +13,13 @@ import {
   InvalidLockfileOperation,
   ModNotFoundError,
   ValidationError,
+  ModRemovedByAuthor,
 } from './errors';
-import { debug } from './logging';
-import { versionSatisfiesAll, SMLID, BootstrapperID } from './utils';
+import { debug, info } from './logging';
+import {
+  versionSatisfiesAll, SMLID, BootstrapperID, unique, mapObject,
+} from './utils';
+import { Manifest } from './manifest';
 
 export interface ItemVersionList {
   [id: string]: string;
@@ -155,7 +160,8 @@ export class LockfileGraph {
         if (dependants.length === 1) { // Only manifest
           throw new ModNotFoundError(`${friendlyItemName} does not exist on ficsit.app`, dependency);
         }
-        throw new DependencyManifestMismatchError(`${friendlyItemName} is a dependency of other mods, but an incompatible version is installed by you. Please uninstall it to use a compatible version. Dependants: ${dependantsString}`);
+        throw new DependencyManifestMismatchError(`${friendlyItemName} is a dependency of other mods, but an incompatible version is installed by you. Please uninstall it to use a compatible version. Dependants: ${dependantsString}`,
+          dependency, dependants.map((depNode) => ({ id: depNode.id, constraint: depNode.dependencies[dependency] })));
       }
       throw new UnsolvableDependencyError(`No version of ${friendlyItemName} is compatible with the other installed mods. Dependants: ${dependantsString}`, dependency);
     }
@@ -219,4 +225,104 @@ export class LockfileGraph {
     }
     this.nodes.removeWhere((node) => LockfileGraph.isInManifest(node));
   }
+}
+
+export async function computeLockfile(manifest: Manifest, lockfile: Lockfile, satisfactoryVersion: string, update: Array<string>): Promise<Lockfile> {
+  const graph = new LockfileGraph();
+  await graph.fromLockfile(lockfile);
+
+  // Convert SatisfactoryGame to FactoryGame
+  await Promise.all(graph.nodes.map(async (node) => {
+    if (node.dependencies['SatisfactoryGame']) {
+      node.dependencies['FactoryGame'] = node.dependencies['SatisfactoryGame'];
+      delete node.dependencies['SatisfactoryGame'];
+    }
+  }));
+
+  // Convert items from mod ID to mod reference
+  await Promise.all(graph.nodes.map(async (node, idx) => {
+    const isOnFicsitApp = await versionExistsOnFicsitApp(node.id, node.version);
+    if (!isOnFicsitApp) {
+      try {
+        const modReference = await getModReferenceFromId(node.id);
+        graph.nodes[idx].id = modReference;
+        debug(`Converted mod ${modReference} from mod ID to mod reference in lockfile`);
+      } catch (e) {
+        if (!(e instanceof ModNotFoundError)) {
+          throw e;
+        }
+      }
+    }
+  }));
+
+  // Remove roots that are not in the manifest
+  graph.roots().forEach((root) => {
+    if (!manifest.items.some((manifestItem) => manifestItem.id === root.id)) {
+      graph.remove(root);
+    }
+  });
+
+  // Remove nodes that will be updated
+  graph.removeWhere((node) => update.includes(node.id));
+
+  const modsRemovedFromFicsitApp = await graph.nodes.filterAsync(async (node) => !(await versionExistsOnFicsitApp(node.id, node.version)));
+  modsRemovedFromFicsitApp.forEach((node) => {
+    graph.remove(node);
+    info(`Trying to update mod ${node.id}, the installed version was removed from ficsit.app`);
+  });
+
+  const satisfactoryNode = {
+    id: 'FactoryGame',
+    version: valid(coerce(satisfactoryVersion)),
+    dependencies: {},
+  } as LockfileGraphNode;
+  graph.add(satisfactoryNode);
+  await manifest.items.forEachAsync(async (item) => {
+    const itemData = {
+      id: `manifest_${item.id}`,
+      version: '0.0.0',
+      dependencies: {
+        [item.id]: item.version || '>=0.0.0',
+      },
+    } as LockfileGraphNode;
+    await graph.add(itemData);
+  });
+
+  await graph.nodes
+    .map((node) => Object.keys(node.dependencies))
+    .reduce((acc, cur) => acc.concat(cur))
+    .filter(unique)
+    .forEachAsync(async (dep) => {
+      try {
+        await graph.validate(dep);
+      } catch (e) {
+        if (e instanceof ValidationError) {
+          if (modsRemovedFromFicsitApp.some((n) => n.id === (e as ValidationError).item)) {
+            throw new ModRemovedByAuthor(`${(e as ValidationError).item} was installed, but no compatible version exists (probably removed by author).`, (e as ValidationError).item, (e as ValidationError).version);
+          }
+        }
+        throw e;
+      }
+    });
+
+  graph.cleanup();
+  graph.remove(satisfactoryNode);
+
+  return graph.toLockfile();
+}
+
+export function readLockfile(filePath: string): Lockfile {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch (e) {
+    return {};
+  }
+}
+
+export function writeLockfile(filePath: string, lockfile: Lockfile): void {
+  fs.writeFileSync(filePath, JSON.stringify(lockfile));
+}
+
+export function getItemsList(lockfile: Lockfile): ItemVersionList {
+  return mapObject(lockfile, (id, data) => [id, data.version]);
 }

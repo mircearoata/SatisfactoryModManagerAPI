@@ -831,3 +831,37 @@ export async function findAllVersionsMatchingAll(item: string, versionConstraint
     .filter((modVersion) => versionSatisfiesAll(modVersion.version, versionConstraints))
     .map((modVersion) => modVersion.version);
 }
+
+export async function versionExistsOnFicsitApp(id: string, version: string): Promise<boolean> {
+  if (id === SMLID) {
+    return !!(await getSMLVersionInfo(version));
+  }
+  if (id === BootstrapperID) {
+    return !!(await getBootstrapperVersionInfo(version));
+  }
+  if (id === 'FactoryGame') {
+    return true;
+  }
+  try {
+    return !!await getModVersion(id, version);
+  } catch (e) {
+    if (e instanceof ModNotFoundError) {
+      return false;
+    }
+    throw e;
+  }
+}
+
+export async function existsOnFicsitApp(id: string): Promise<boolean> {
+  if (id === SMLID || id === BootstrapperID) {
+    return true;
+  }
+  try {
+    return !!await getModName(id);
+  } catch (e) {
+    if (e instanceof ModNotFoundError) {
+      return false;
+    }
+    throw e;
+  }
+}

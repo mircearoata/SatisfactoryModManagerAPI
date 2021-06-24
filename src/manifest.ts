@@ -1,18 +1,12 @@
 import fs from 'fs';
-import { valid, coerce } from 'semver';
+import _ from 'lodash';
 import {
-  mapObject, unique, SMLID, BootstrapperID,
-} from './utils';
-import {
-  LockfileGraph, Lockfile, LockfileGraphNode, ItemVersionList,
-} from './lockfile';
-import {
-  info, debug,
+  debug,
 } from './logging';
 import {
-  getSMLVersionInfo, getBootstrapperVersionInfo, getModVersion, getModName, getModReferenceFromId, getModVersions,
+  getModReferenceFromId, existsOnFicsitApp,
 } from './ficsitApp';
-import { ModNotFoundError, UnsolvableDependencyError, ValidationError } from './errors';
+import { ModNotFoundError } from './errors';
 
 export interface ManifestItem {
   id: string;
@@ -45,68 +39,36 @@ function checkUpgradeManifest(manifest: any): Manifest {
   return upgradedManifest;
 }
 
-async function versionExistsOnFicsitApp(id: string, version: string): Promise<boolean> {
-  if (id === SMLID) {
-    return !!(await getSMLVersionInfo(version));
-  }
-  if (id === BootstrapperID) {
-    return !!(await getBootstrapperVersionInfo(version));
-  }
-  if (id === 'FactoryGame') {
-    return true;
-  }
-  try {
-    return !!await getModVersion(id, version);
-  } catch (e) {
-    if (e instanceof ModNotFoundError) {
-      return false;
-    }
-    throw e;
-  }
-}
+export async function mutateManifest(currentManifest: Manifest,
+  install: Array<ManifestItem>, uninstall: Array<string>, update: Array<string>): Promise<Manifest> {
+  const newManifest = _.cloneDeep(currentManifest);
 
-async function itemExistsOnFicsitApp(id: string): Promise<boolean> {
-  if (id === SMLID || id === BootstrapperID) {
-    return true;
-  }
-  try {
-    return !!await getModName(id);
-  } catch (e) {
-    if (e instanceof ModNotFoundError) {
-      return false;
-    }
-    throw e;
-  }
-}
-
-export async function mutateManifest(original: {manifest: Manifest; lockfile: Lockfile}, satisfactoryVersion: string,
-  install: Array<ManifestItem>, uninstall: Array<string>, update: Array<string>): Promise<{manifest: Manifest; lockfile: Lockfile}> {
-  const manifest: Manifest = { manifestVersion: original.manifest.manifestVersion, items: [] };
-  original.manifest.items.forEach((item) => manifest.items.push({ id: item.id, version: item.version }));
+  // Install / uninstall / update (remove set version) items
   uninstall.forEach((item) => {
-    manifest.items.removeWhere((manifestItem) => manifestItem.id === item);
+    newManifest.items.removeWhere((manifestItem) => manifestItem.id === item);
   });
   install.forEach((item) => {
-    const existingItem = manifest.items.find((manifestItem) => manifestItem.id === item.id);
+    const existingItem = newManifest.items.find((manifestItem) => manifestItem.id === item.id);
     if (!existingItem) {
-      manifest.items.push(item);
+      newManifest.items.push(item);
     } else {
       existingItem.version = item.version;
     }
   });
   update.forEach((item) => {
-    const existingItem = manifest.items.find((manifestItem) => manifestItem.id === item);
+    const existingItem = newManifest.items.find((manifestItem) => manifestItem.id === item);
     if (existingItem) {
       delete existingItem.version;
     }
   });
 
-  await Promise.all(manifest.items.map(async (item, idx) => {
-    const isOnFicsitApp = await itemExistsOnFicsitApp(item.id);
+  // Convert items from mod ID to mod reference
+  await Promise.all(newManifest.items.map(async (item, idx) => {
+    const isOnFicsitApp = await existsOnFicsitApp(item.id);
     if (!isOnFicsitApp) {
       try {
         const modReference = await getModReferenceFromId(item.id);
-        manifest.items[idx].id = modReference;
+        newManifest.items[idx].id = modReference;
         debug(`Converted mod ${modReference} from mod ID to mod reference in manifest`);
       } catch (e) {
         if (!(e instanceof ModNotFoundError)) {
@@ -116,117 +78,10 @@ export async function mutateManifest(original: {manifest: Manifest; lockfile: Lo
     }
   }));
 
-  await manifest.items.removeWhereAsync(async (item) => !(await itemExistsOnFicsitApp(item.id)));
+  // Remove mods that were deleted from ficsit.app
+  await newManifest.items.removeWhereAsync(async (item) => !(await existsOnFicsitApp(item.id)));
 
-  const graph = new LockfileGraph();
-  await graph.fromLockfile(original.lockfile);
-
-  await Promise.all(graph.nodes.map(async (node) => {
-    if (node.dependencies['SatisfactoryGame']) {
-      node.dependencies['FactoryGame'] = node.dependencies['SatisfactoryGame'];
-      delete node.dependencies['SatisfactoryGame'];
-    }
-  }));
-
-  await Promise.all(graph.nodes.map(async (node, idx) => {
-    const isOnFicsitApp = await versionExistsOnFicsitApp(node.id, node.version);
-    if (!isOnFicsitApp) {
-      try {
-        const modReference = await getModReferenceFromId(node.id);
-        graph.nodes[idx].id = modReference;
-        debug(`Converted mod ${modReference} from mod ID to mod reference in lockfile`);
-      } catch (e) {
-        if (!(e instanceof ModNotFoundError)) {
-          throw e;
-        }
-      }
-    }
-  }));
-
-  graph.roots().forEach((root) => {
-    if (!manifest.items.some((manifestItem) => manifestItem.id === root.id)) {
-      graph.remove(root);
-    }
-  });
-  graph.removeWhere((node) => update.includes(node.id));
-
-  const modsRemovedFromFicsitApp = await graph.nodes.filterAsync(async (node) => !(await versionExistsOnFicsitApp(node.id, node.version)));
-  modsRemovedFromFicsitApp.forEach((node) => {
-    graph.remove(node);
-    info(`Trying to update mod ${node.id}, the installed version was removed from ficsit.app`);
-  });
-
-  const satisfactoryNode = {
-    id: 'FactoryGame',
-    version: valid(coerce(satisfactoryVersion)),
-    dependencies: {},
-  } as LockfileGraphNode;
-  graph.add(satisfactoryNode);
-  await manifest.items.forEachAsync(async (item) => {
-    const itemData = {
-      id: `manifest_${item.id}`,
-      version: '0.0.0',
-      dependencies: {
-        [item.id]: item.version || '>=0.0.0',
-      },
-    } as LockfileGraphNode;
-    await graph.add(itemData);
-  });
-
-  const removedUninstall: Array<string> = [];
-  await graph.nodes
-    .map((node) => Object.keys(node.dependencies))
-    .reduce((acc, cur) => acc.concat(cur))
-    .filter(unique)
-    .forEachAsync(async (dep) => {
-      try {
-        await graph.validate(dep);
-      } catch (e) {
-        if (e instanceof ModNotFoundError) {
-          if (modsRemovedFromFicsitApp.some((rem) => rem.id === e.modID)) {
-            removedUninstall.push(e.modID);
-            return;
-          }
-        } else if (e instanceof ValidationError) {
-          let inner: Error = e;
-          while (inner instanceof ValidationError) {
-            if (modsRemovedFromFicsitApp.some((rem) => rem.id === e.modID)) {
-              removedUninstall.push(inner.modID);
-              return;
-            }
-            inner = inner.innerError;
-          }
-          if (inner instanceof ModNotFoundError) {
-            const id = inner.modID;
-            if (modsRemovedFromFicsitApp.some((rem) => rem.id === id)) {
-              removedUninstall.push((inner as ModNotFoundError).modID);
-              return;
-            }
-          } else if (inner instanceof UnsolvableDependencyError) {
-            const id = inner.modID;
-            if (modsRemovedFromFicsitApp.some((rem) => rem.id === id) && (await getModVersions(id)).length === 0) {
-              removedUninstall.push((inner as ModNotFoundError).modID);
-              return;
-            }
-          }
-        }
-        throw e;
-      }
-    });
-
-  if (removedUninstall.length > 0) {
-    removedUninstall.forEach((rem) => {
-      info(`Removing ${rem}, it was removed from ficsit.app`);
-    });
-    return mutateManifest(original, satisfactoryVersion, install, uninstall.concat(removedUninstall), update);
-  }
-
-  graph.cleanup();
-  graph.remove(satisfactoryNode);
-  return {
-    manifest,
-    lockfile: graph.toLockfile(),
-  };
+  return newManifest;
 }
 
 export function readManifest(filePath: string): Manifest {
@@ -242,20 +97,4 @@ export function readManifest(filePath: string): Manifest {
 
 export function writeManifest(filePath: string, manifest: Manifest): void {
   fs.writeFileSync(filePath, JSON.stringify(manifest));
-}
-
-export function readLockfile(filePath: string): Lockfile {
-  try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  } catch (e) {
-    return {};
-  }
-}
-
-export function writeLockfile(filePath: string, lockfile: Lockfile): void {
-  fs.writeFileSync(filePath, JSON.stringify(lockfile));
-}
-
-export function getItemsList(lockfile: Lockfile): ItemVersionList {
-  return mapObject(lockfile, (id, data) => [id, data.version]);
 }

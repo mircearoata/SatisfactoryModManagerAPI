@@ -6,7 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const assert = require('assert');
 const semver = require('semver');
-const { SatisfactoryInstall, getInstalls, getManifestFolderPath, UnsolvableDependencyError, DependencyManifestMismatchError, InvalidProfileError, ModNotFoundError, clearOutdatedCache } = require('../');
+const { SatisfactoryInstall, getInstalls, getManifestFolderPath, UnsolvableDependencyError, DependencyManifestMismatchError, InvalidProfileError, ModNotFoundError, clearOutdatedCache, ModRemovedByAuthor } = require('../');
 const { forEachAsync, clearCache, hashFile } = require('../lib/utils');
 const { addTempMod, addTempModVersion, removeTempMod, removeTempModVersion, setUseTempMods, setTempModReference } = require('../lib/ficsitApp');
 const { getProfileFolderPath } = require('../lib/satisfactoryInstall');
@@ -361,6 +361,18 @@ async function main() {
 
     try {
       await sfInstall.manifestMutate([], [], []);
+      assert.fail('Mod with all compatible versions removed did not error');
+    } catch (e) {
+      if (e instanceof assert.AssertionError) {
+        throw e;
+      }
+      if (!(e instanceof ModRemovedByAuthor)) {
+        assert.fail(`Unexpected error: ${e}`);
+      }
+    }
+
+    try {
+      await sfInstall.manifestMutate([], ['dummyMod1'], []);
       installedMods = await sfInstall._getInstalledMods();
       assert.strictEqual(installedMods.some((mod) => mod.mod_id === 'dummyMod1'), false, 'Mod with all compatible versions removed is still installed');
     } catch (e) {

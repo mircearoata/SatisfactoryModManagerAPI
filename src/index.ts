@@ -9,8 +9,11 @@ export {
   getProfileFolderPath,
 } from './satisfactoryInstall';
 export {
-  readManifest, readLockfile,
+  readManifest,
 } from './manifest';
+export {
+  readLockfile,
+} from './lockfile';
 export {
   getInstalls,
 } from './installfinders';

@@ -1,12 +1,20 @@
 /* eslint-disable max-classes-per-file */
 export class UnsolvableDependencyError extends Error {
-  modID: string;
+  item: string;
   constructor(message: string, modID: string) {
     super(message);
-    this.modID = modID;
+    this.item = modID;
   }
 }
-export class DependencyManifestMismatchError extends Error {}
+export class DependencyManifestMismatchError extends Error {
+  item: string;
+  dependants: {id: string, constraint: string}[];
+  constructor(message: string, item: string, depenants: {id: string, constraint: string}[]) {
+    super(message);
+    this.item = item;
+    this.dependants = depenants;
+  }
+}
 export class InvalidLockfileOperation extends Error {}
 export class ModNotFoundError extends Error {
   modID: string;
@@ -18,12 +26,12 @@ export class ModNotFoundError extends Error {
   }
 }
 export class ValidationError extends Error {
-  modID: string;
+  item: string;
   version?: string;
   innerError: Error;
-  constructor(message: string, innerError: Error, modID: string, version?: string) {
+  constructor(message: string, innerError: Error, item: string, version?: string) {
     super(message);
-    this.modID = modID;
+    this.item = item;
     this.version = version;
     this.innerError = innerError;
   }
@@ -40,11 +48,11 @@ export class NetworkError extends Error {
   }
 }
 export class ModRemovedByAuthor extends Error {
-  modID: string;
+  item: string;
   version?: string;
-  constructor(message: string, modID: string, version?: string) {
+  constructor(message: string, item: string, version?: string) {
     super(message);
-    this.modID = modID;
+    this.item = item;
     this.version = version;
   }
 }
