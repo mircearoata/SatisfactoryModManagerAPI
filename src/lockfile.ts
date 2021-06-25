@@ -3,11 +3,12 @@ import {
   compare, valid, coerce, satisfies,
 } from 'semver';
 import fs from 'fs';
+import _ from 'lodash';
 import {
   findAllVersionsMatchingAll, getSMLVersionInfo, getBootstrapperVersionInfo, getModVersion, versionExistsOnFicsitApp, getModReferenceFromId,
 } from './ficsitApp';
 import {
-  ImcompatibleGameVersion,
+  IncompatibleGameVersion,
   UnsolvableDependencyError,
   DependencyManifestMismatchError,
   InvalidLockfileOperation,
@@ -61,12 +62,13 @@ export async function getItemData(id: string, version: string): Promise<Lockfile
   if (id === 'FactoryGame') {
     throw new InvalidLockfileOperation('Cannot modify Satisfactory Game version. This should never happen, unless Satisfactory was not temporarily added to the lockfile as a manifest entry');
   }
-  const modData = await getModVersion(id, version);
+  let modData = await getModVersion(id, version);
   if (!modData) {
     throw new ModNotFoundError(`${id}@${version} not found`, id, version);
   }
   if (!modData.dependencies) { modData.dependencies = []; }
   if (!modData.dependencies.some((dep) => dep.mod_id === 'SML') && modData.sml_version) {
+    modData = _.cloneDeep(modData);
     modData.dependencies.push({ mod_id: SMLID, condition: `^${valid(coerce(modData.sml_version))}`, optional: false });
   }
   return {
@@ -121,7 +123,7 @@ export class LockfileGraph {
         if (!dependencyNode) {
           throw new Error('This should never happen. It is here just for typescript null check');
         }
-        throw new ImcompatibleGameVersion(`Game version incompatible. Installed: ${gameVersionFromSemver(dependencyNode.version)}. ${(await Promise.all(dependants.map(async (dependant) => `${await getFriendlyItemName(dependant.id)} requires ${gameVersionFromSemver(dependant.dependencies[dependency])}`))).join(', ')}`);
+        throw new IncompatibleGameVersion(`Game version incompatible. Installed: ${gameVersionFromSemver(dependencyNode.version)}. ${(await Promise.all(dependants.map(async (dependant) => `${await getFriendlyItemName(dependant.id)} requires ${gameVersionFromSemver(dependant.dependencies[dependency])}`))).join(', ')}`);
       }
       if (dependencyNode) {
         this.remove(dependencyNode);
@@ -149,7 +151,7 @@ export class LockfileGraph {
         }
       }
       if (lastError
-        && (lastError instanceof ImcompatibleGameVersion
+        && (lastError instanceof IncompatibleGameVersion
           || lastError instanceof ModNotFoundError
           || lastError instanceof UnsolvableDependencyError
           || lastError instanceof ValidationError)) {
