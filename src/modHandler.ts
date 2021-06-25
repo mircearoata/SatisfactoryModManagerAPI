@@ -94,7 +94,7 @@ const DOWNLOAD_MOD_ATTEMPTS = 3;
 
 export async function downloadMod(modReference: string, version: string, attempt = 0): Promise<string> {
   if (attempt > DOWNLOAD_MOD_ATTEMPTS) {
-    throw new Error(`${DOWNLOAD_MOD_ATTEMPTS} attempts to download the mod failed`);
+    throw new Error(`${DOWNLOAD_MOD_ATTEMPTS} attempts to download ${modReference}@${version} failed`);
   }
   const downloadURL = await getModDownloadLink(modReference, version);
   const filePath = path.join(modCacheDir, `${modReference}_${version}.smod`);
