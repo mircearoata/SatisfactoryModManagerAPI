@@ -105,38 +105,41 @@ function levelToString(level: LogLevel): string {
   }
 }
 
-function formatMessage(level: LogLevel, message: string): string {
-  return `${formatDateTime(new Date())}\t[${levelToString(level)}]\t${message}`;
+function formatMessage(message: string | unknown): string {
+  if (message instanceof Error) {
+    return `${message.message}\nTrace\n${message.stack}`;
+  }
+  if (typeof message === 'string') {
+    return message;
+  }
+  return JSON.stringify(message);
 }
 
 const loggers: Array<Logger> = [new ConsoleLogger(), new RollingFileLogger(logsDir, `${appName}-%DATE%.log`)];
 
-export function write(level: LogLevel, message: string | unknown): void {
-  const formattedMessage = formatMessage(level, typeof message === 'string' ? message : JSON.stringify(message));
+export function write(level: LogLevel, ...messages: Array<string | unknown>): void {
+  const formattedMessage = messages.map(formatMessage).join(' ');
   loggers.forEach((logger) => {
     if (level >= logger.minLevel) {
-      logger.write(level, formattedMessage);
+      logger.write(level, `${formatDateTime(new Date())}\t[${levelToString(level)}]\t${formattedMessage}`);
     }
   });
 }
 
-export function debug(message: string | unknown): void {
-  return write(LogLevel.DEBUG, message);
+export function debug(...messages: Array<string | unknown>): void {
+  return write(LogLevel.DEBUG, ...messages);
 }
 
-export function info(message: string | unknown): void {
-  return write(LogLevel.INFO, message);
+export function info(...messages: Array<string | unknown>): void {
+  return write(LogLevel.INFO, ...messages);
 }
 
-export function warn(message: string | unknown): void {
-  return write(LogLevel.WARN, message);
+export function warn(...messages: Array<string | unknown>): void {
+  return write(LogLevel.WARN, ...messages);
 }
 
-export function error(message: string | Error | unknown): void {
-  if (message instanceof Error) {
-    return write(LogLevel.ERROR, `${message.message}\nTrace\n${message.stack}`);
-  }
-  return write(LogLevel.ERROR, message);
+export function error(...messages: Array<string | unknown>): void {
+  return write(LogLevel.ERROR, ...messages);
 }
 
 export function setLogDebug(d: boolean): void {
