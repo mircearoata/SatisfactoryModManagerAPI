@@ -113,7 +113,7 @@ export class LockfileGraph {
   async validate(dependency: string): Promise<void> {
     debug(`Validating ${dependency}`);
     const dependencyNode = this.findById(dependency);
-    const dependants = this.getDependants(dependency);
+    const dependants = this.getDependants(dependency).filter((dep) => !this.isNodeDangling(dep)); // The dangling nodes will either get removed, or will validate this node when they are validated
     const constraints = dependants.map((node) => node.dependencies[dependency]);
     const versionValid = dependencyNode && versionSatisfiesAll(dependencyNode.version, constraints);
     if (!versionValid) {
@@ -189,7 +189,7 @@ export class LockfileGraph {
   }
 
   getDependants(node: string): Array<LockfileGraphNode> {
-    return this.nodes.filter((graphNode) => graphNode.dependencies[node]);
+    return this.nodes.filter((graphNode) => graphNode.dependencies[node] && graphNode.id !== node);
   }
 
   remove(node: LockfileGraphNode): void {
@@ -214,7 +214,7 @@ export class LockfileGraph {
   }
 
   isNodeDangling(node: LockfileGraphNode): boolean {
-    return this.getDependants(node.id).length === 0 && !LockfileGraph.isInManifest(node);
+    return this.getDependants(node.id).filter((dep) => !this.isNodeDangling(dep)).length === 0 && !LockfileGraph.isInManifest(node);
   }
 
   private get _danglingCount(): number {
