@@ -179,7 +179,7 @@ export class SatisfactoryInstall {
           writeManifest(this.profileManifest, newManifest);
           writeLockfile(this.profileLockfile, newLockfile);
         } catch (e) {
-          if (install.length === 0 && update.length === 0) {
+          if (install.length === 0 && update.length === 0 && enable.length === 0) {
             writeManifest(this.profileManifest, newManifest); // save manifest when only uninstalling mods, so that other erroring can be uninstalled too
           }
           throw e;
