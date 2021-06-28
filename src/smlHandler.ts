@@ -96,7 +96,7 @@ async function getSMLVersionCache(version: string): Promise<string> {
 
 export async function installSML(version: string, satisfactoryPath: string): Promise<void> {
   if (!getSMLVersion(satisfactoryPath)) {
-    debug('Installing SML');
+    debug(`Installing SML@${version}`);
     const smlVersionCache = await getSMLVersionCache(version);
     if (satisfies(version, '>=3.0.0')) {
       const extractPath = path.join(satisfactoryPath, SML3xRelativePath);
