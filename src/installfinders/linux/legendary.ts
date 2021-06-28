@@ -1,12 +1,10 @@
 import fs from 'fs';
 import { execSync } from 'child_process';
-import ini from 'ini';
 import {
   debug,
 } from '../../logging';
 import { SatisfactoryInstall } from '../../satisfactoryInstall';
 import { InstallFindResult } from '../baseInstallFinder';
-import { setDllOverrides } from './wineHelpers';
 
 interface LegendaryGame {
   app_name: string;
@@ -38,15 +36,12 @@ interface LegendaryConfig {
 }
 
 const LEGENDARY_DATA_PATH = `${process.env.HOME}/.config/legendary/installed.json`;
-const LEGENDARY_CONFIG_PATH = `${process.env.HOME}/.config/legendary/config.ini`;
 
 export function getInstalls(): InstallFindResult {
   const installs: Array<SatisfactoryInstall> = [];
   const invalidInstalls: Array<string> = [];
   if (fs.existsSync(LEGENDARY_DATA_PATH)) {
     const legendaryInstalls = JSON.parse(fs.readFileSync(LEGENDARY_DATA_PATH, 'utf8')) as LegendaryData;
-    const legendaryConfig = ini.parse(fs.readFileSync(LEGENDARY_CONFIG_PATH, 'utf8')) as LegendaryConfig;
-    const defaultWinePrefix = legendaryConfig['default']?.wine_prefix || legendaryConfig['default.env']?.WINEPREFIX || `${process.env.HOME}/.wine`;
     Object.values(legendaryInstalls).forEach((legendaryGame) => {
       if (legendaryGame.app_name.includes('Crab')) {
         let canLaunch = false;
@@ -63,8 +58,6 @@ export function getInstalls(): InstallFindResult {
           legendaryGame.install_path,
           canLaunch ? `legendary launch ${legendaryGame.app_name}` : undefined,
         ));
-        const gameWinePrefix = legendaryConfig[legendaryGame.app_name]?.wine_prefix || legendaryConfig[`${legendaryGame.app_name}.env`]?.WINEPREFIX || defaultWinePrefix;
-        setDllOverrides(gameWinePrefix);
       }
     });
     return { installs, invalidInstalls };

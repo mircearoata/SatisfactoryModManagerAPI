@@ -60,7 +60,6 @@
     "graphql": "15.5.1",
     "graphql-scalars": "^1.9.3",
     "graphql-tag": "^2.12.5",
-    "ini": "^2.0.0",
     "jszip": "^3.4.0",
     "lodash": "^4.17.21",
     "node-stream-zip": "^1.13.2",

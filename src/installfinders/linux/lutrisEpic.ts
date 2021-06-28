@@ -6,7 +6,6 @@ import {
 } from '../../logging';
 import { SatisfactoryInstall } from '../../satisfactoryInstall';
 import { InstallFindResult } from '../baseInstallFinder';
-import { setDllOverrides } from './wineHelpers';
 
 interface EpicManifest {
   FormatVersion: number;
@@ -127,9 +126,6 @@ export function getInstalls(): InstallFindResult {
           info('Invalid UE manifest. The game might appear multiple times.');
         }
         foundInstalls.forEach((install) => installs.push(install));
-        if (foundInstalls.length > 0) {
-          setDllOverrides(lutrisGame.directory);
-        }
       } else {
         debug(`Epic Games Launcher is not installed in Lutris - ${lutrisGame.name}`);
       }
