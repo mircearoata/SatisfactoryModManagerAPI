@@ -41,7 +41,7 @@ export async function getModFromFile(modPath: string): Promise<Mod | undefined> 
       // SML 2.x
       const mod = JSON.parse(zipData.entryDataSync('data.json').toString('utf8')) as Mod;
       zipData.close();
-      if (!mod.mod_id && !mod.mod_reference) {
+      if (!mod.mod_reference) {
         return undefined;
       }
       mod.path = modPath;
@@ -129,7 +129,7 @@ export async function getCachedMods(): Promise<Array<Mod>> {
 
 export async function getCachedMod(modReference: string, version: string): Promise<Mod | undefined> {
   const mod = (await getCachedMods())
-    .find((cachedMod) => (cachedMod.mod_reference === modReference || cachedMod.mod_id === modReference) && cachedMod.version === version);
+    .find((cachedMod) => (cachedMod.mod_reference === modReference) && cachedMod.version === version);
   const ficsitAppModVersion = await getModVersion(modReference, version);
   const isModFileLatest = mod && (!mod.path || fs.statSync(mod.path).mtime >= ficsitAppModVersion.created_at);
   const isFlieHashMatching = mod && mod.path && hashFile(mod.path) === ficsitAppModVersion.hash;
@@ -153,13 +153,13 @@ export async function getCachedMod(modReference: string, version: string): Promi
 }
 
 export async function getCachedModVersions(modReference: string): Promise<string[]> {
-  return (await getCachedMods()).filter((cachedMod) => (cachedMod.mod_reference === modReference || cachedMod.mod_id === modReference))
+  return (await getCachedMods()).filter((cachedMod) => cachedMod.mod_reference === modReference)
     .map((mod) => mod.version);
 }
 
 export async function removeModFromCache(modReference: string, version: string): Promise<void> {
   const mod = (await getCachedMods())
-    .find((cachedMod) => (cachedMod.mod_reference === modReference || cachedMod.mod_id === modReference) && cachedMod.version === version);
+    .find((cachedMod) => cachedMod.mod_reference === modReference && cachedMod.version === version);
   if (mod) {
     cachedMods.remove(mod);
     if (mod.path) {
@@ -214,7 +214,7 @@ export async function uninstallMods(modReferences: Array<string>, modsDir: strin
         if (modExtensions.includes(path.extname(fullPath))) {
           try {
             const mod = await getModFromFile(fullPath);
-            if (mod && (modReferences.includes(mod.mod_reference) || modReferences.includes(mod.mod_id))) {
+            if (mod && modReferences.includes(mod.mod_reference)) {
               if (fs.existsSync(fullPath)) {
                 fs.unlinkSync(fullPath);
               }

@@ -1,6 +1,5 @@
 import path from 'path';
 import fs from 'fs';
-import bindings from 'bindings';
 import { valid, coerce } from 'semver';
 import {
   downloadFile, deleteFolderRecursive,
@@ -10,8 +9,6 @@ import { debug } from './logging';
 import { getBootstrapperVersionInfo } from './ficsitApp';
 import { bootstrapperCacheDir, ensureExists } from './paths';
 
-const bootstrapperVersionNative = bindings('bootstrapperVersion');
-
 const bootstrapperFileName = 'xinput1_3.dll';
 const bootstrapperDIAFileName = 'msdia140.dll';
 
@@ -20,7 +17,7 @@ export const bootstrapperDIARelativePath = path.join('FactoryGame', 'Binaries', 
 
 export function getBootstrapperVersion(satisfactoryPath: string): string | undefined {
   return fs.existsSync(path.join(satisfactoryPath, bootstrapperDIARelativePath))
-    ? bootstrapperVersionNative.getBootstrapperVersion(path.join(satisfactoryPath, bootstrapperRelativePath))
+    ? '2.0.11'
     : undefined;
 }
 

@@ -8,12 +8,11 @@
     "lint": "tsc --noEmit && eslint \"**/*.ts\"",
     "lint:fix": "tsc --noEmit && eslint \"**/*.ts\" --fix",
     "build:ts": "tsc",
-    "build": "yarn lint:fix && node-gyp build && yarn build:ts",
+    "build": "yarn lint:fix && yarn build:ts",
     "debug": "nodemon --watch src/ -e ts --exec yarn test:debug || exit 1",
     "test": "yarn build:ts && ts-mocha test/**/*.ts",
     "test:debug": "yarn build:ts && cross-env NODE_DEBUG=SMManagerAPI ts-mocha test/**/*.ts",
     "prepublishOnly": "yarn test",
-    "install": "node-gyp rebuild --silent",
     "prepare": "husky install"
   },
   "gypfile": true,
@@ -27,7 +26,6 @@
   "devDependencies": {
     "@graphql-codegen/cli": "^1.21.5",
     "@graphql-codegen/introspection": "^1.18.2",
-    "@types/bindings": "^1.3.0",
     "@types/glob": "^7.1.1",
     "@types/got": "^9.6.10",
     "@types/ini": "^1.3.30",
@@ -52,7 +50,6 @@
   "dependencies": {
     "@apollo/client": "^3.3.19",
     "apollo-link-scalars": "^2.1.3",
-    "bindings": "^1.5.0",
     "child_process": "^1.0.2",
     "exiftool-vendored": "^14.4.0",
     "filenamify": "^4.1.0",

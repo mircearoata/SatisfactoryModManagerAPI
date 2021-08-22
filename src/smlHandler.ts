@@ -1,6 +1,5 @@
 import path from 'path';
 import fs from 'fs';
-import bindings from 'bindings';
 import { valid, coerce, satisfies } from 'semver';
 import StreamZip from 'node-stream-zip';
 import {
@@ -12,8 +11,6 @@ import { getSMLVersionInfo } from './ficsitApp';
 import { smlCacheDir, ensureExists } from './paths';
 import { UPlugin } from './uplugin';
 
-const smlVersionNative = bindings('smlVersion');
-
 const SMLDLLFileName = 'UE4-SML-Win64-Shipping.dll';
 const SMLPakFileName = 'SML.pak';
 const SMLZipFileName = 'SML.smod';
@@ -24,14 +21,14 @@ export const SML3xRelativePath = path.join('FactoryGame', 'Mods', 'SML');
 export const SML3xUPluginRelativePath = path.join(SML3xRelativePath, 'SML.uplugin');
 
 export function getSMLVersion(satisfactoryPath: string): string | undefined {
-  if (fs.existsSync(path.join(satisfactoryPath, SMLDLLRelativePath))) {
-    // SML 2.x
-    return smlVersionNative.getSMLVersion(path.join(satisfactoryPath, SMLDLLRelativePath));
-  }
   // SML 3.x
   if (fs.existsSync(path.join(satisfactoryPath, SML3xUPluginRelativePath))) {
     const uplugin = JSON.parse(fs.readFileSync(path.join(satisfactoryPath, SML3xUPluginRelativePath), { encoding: 'utf8' })) as UPlugin;
     return uplugin.SemVersion || valid(uplugin.VersionName) || `${uplugin.Version}.0.0`;
+  }
+  if (fs.existsSync(path.join(satisfactoryPath, SMLDLLRelativePath))) {
+    // SML 2.x
+    return '2.2.1';
   }
   return undefined;
 }
