@@ -134,6 +134,7 @@ export async function isValidZip(file: string): Promise<boolean> {
     // eslint-disable-next-line new-cap
     const zipData = new StreamZip.async({ file });
     await zipData.entries();
+    await zipData.close();
     return true;
   } catch (e) {
     return false;
