@@ -31,6 +31,7 @@ interface UEInstalledManifestEntry {
   InstallLocation: string;
   AppName: string;
   AppVersion: string;
+  ArtifactId: string;
 }
 
 interface UEInstalledManifest {
@@ -91,9 +92,11 @@ export function getInstalls(): InstallFindResult {
   if (fs.existsSync(UEInstalledManifest)) {
     try {
       installedManifest = JSON.parse(fs.readFileSync(UEInstalledManifest, 'utf8'));
-      foundInstalls = foundInstalls.filter((install) => installedManifest.InstallationList.some(
-        (manifestInstall) => manifestInstall.InstallLocation === install.installLocation,
-      )); // Filter out old .items left over by Epic
+      // Filter out old .items left over by Epic
+      // In some weird cases, the game isn't listed in the UE manifest, so we're not removing the install if that happens
+      foundInstalls = foundInstalls
+        .filter((install) => installedManifest.InstallationList.some((manifestInstall) => manifestInstall.InstallLocation === install.installLocation)
+                          || !installedManifest.InstallationList.some((manifestInstall) => manifestInstall.ArtifactId === `Crab${install.branch}`));
       if (foundInstalls.length === 0) {
         warn('UE manifest filtered all installs.');
       }
