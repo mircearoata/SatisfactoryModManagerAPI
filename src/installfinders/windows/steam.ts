@@ -2,7 +2,6 @@ import path from 'path';
 import fs from 'fs';
 import vdf from 'vdf';
 import Registry from 'winreg';
-import { exiftool } from 'exiftool-vendored';
 import { execSync } from 'child_process';
 import { SatisfactoryInstall } from '../../satisfactoryInstall';
 import {
@@ -37,9 +36,16 @@ interface SteamManifest {
   };
 }
 
-async function getGameVersionFromExe(exePath: string): Promise<string> {
-  const exif = await exiftool.read(exePath);
-  return ((exif['ProductVersion'].match(/CL-(?<version>\d+)/)?.groups || { version: '0' }).version) || '0';
+interface VersionFile {
+  MajorVersion: number;
+  MinorVersion: number;
+  PatchVersion: number;
+  Changelist: number;
+  CompatibleChangelist: number;
+  IsLicenseeVersion: number;
+  IsPromotedBuild: number;
+  BranchName: string;
+  BuildId: string;
 }
 
 async function getRegValue(hive: string, key: string, valueName: string): Promise<string | undefined> {
@@ -98,7 +104,10 @@ export async function getInstalls(): Promise<InstallFindResult> {
           invalidInstalls.push(fullInstallPath);
           return;
         }
-        const gameVersion = await getGameVersionFromExe(gameExe);
+        // The Steam manifest does not give game build number, so we have to get it from here. Will this file always contain the game build number and not the engine one?
+        const versionFilePath = path.join(fullInstallPath, 'Engine', 'Binaries', 'Win64', 'FactoryGame-Win64-Shipping.version');
+        const versionFile = JSON.parse(fs.readFileSync(versionFilePath, 'utf8')) as VersionFile;
+        const gameVersion = versionFile.BuildId;
         installs.push(new SatisfactoryInstall(
           `${manifest.AppState.name} ${manifest.AppState.UserConfig.betakey?.toLowerCase() === 'experimental' ? 'Experimental' : 'Early Access'} (Steam)`,
           gameVersion,
@@ -108,7 +117,6 @@ export async function getInstalls(): Promise<InstallFindResult> {
         ));
       }
     }));
-    exiftool.end();
     return { installs, invalidInstalls };
   } catch (e) {
     if ((e as Error).message.includes('unable to find')) {
@@ -116,7 +124,6 @@ export async function getInstalls(): Promise<InstallFindResult> {
     } else {
       error(e);
     }
-    exiftool.end();
     return { installs: [], invalidInstalls: [] };
   }
 }
