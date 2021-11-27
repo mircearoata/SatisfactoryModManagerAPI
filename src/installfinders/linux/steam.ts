@@ -99,6 +99,10 @@ export async function getInstalls(): Promise<InstallFindResult> {
           }
           // The Steam manifest does not give game build number, so we have to get it from here. Will this file always contain the game build number and not the engine one?
           const versionFilePath = path.join(fullInstallPath, 'Engine', 'Binaries', 'Win64', 'FactoryGame-Win64-Shipping.version');
+          if (!fs.existsSync(versionFilePath)) {
+            invalidInstalls.push(fullInstallPath);
+            return;
+          }
           const versionFile = JSON.parse(fs.readFileSync(versionFilePath, 'utf8')) as VersionFile;
           const gameVersion = versionFile.BuildId;
           installs.push(new SatisfactoryInstall(
