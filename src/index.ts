@@ -1,4 +1,5 @@
-import './utils';
+import { clearOutdatedCache as clearOutdatedCacheFiles } from './utils';
+import { getCachedMods } from './modHandler';
 
 export {
   SatisfactoryInstall,
@@ -32,7 +33,12 @@ export {
   getLogFilePath, debug, info, warn, error,
 } from './logging';
 export {
-  clearCache, clearOutdatedCache, setDebug, toggleDebug, isDebug,
+  clearCache, setDebug, toggleDebug, isDebug,
   addDownloadProgressCallback,
   validAndGreater,
 } from './utils';
+
+export async function clearOutdatedCache(): Promise<void> {
+  clearOutdatedCacheFiles();
+  await getCachedMods(true);
+}

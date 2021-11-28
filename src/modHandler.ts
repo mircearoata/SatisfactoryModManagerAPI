@@ -119,7 +119,11 @@ export async function downloadMod(modReference: string, version: string, attempt
   }
 }
 
-export async function getCachedMods(): Promise<Array<Mod>> {
+export async function getCachedMods(force = false): Promise<Array<Mod>> {
+  if (force) {
+    debug('Forcing cache reload');
+    cachedMods = [];
+  }
   if (!cacheLoaded) {
     debug('Loading mod cache');
     await loadCache();
