@@ -157,6 +157,11 @@ export const UserAgent = `${process.env.SMM_API_USERAGENT?.replace(' ', '') || '
 
 const DOWNLOAD_ATTEMPTS = 3;
 const DOWNLOAD_TIMEOUT = 30 * 1000;
+let timeoutEnabled = true;
+
+export function setTimeoutEnabled(enabled: boolean): void {
+  timeoutEnabled = enabled;
+}
 
 type ProgressCallback = (url: string, progress: Progress, name: string, version: string, elapsedTime: number) => void;
 const progressCallbacks: Array<ProgressCallback> = [];
@@ -189,7 +194,7 @@ export async function downloadFile(url: string, file: string, name: string, vers
       lastProgressTime = Date.now();
     });
     interval = setInterval(() => {
-      if (Date.now() - lastProgressTime >= DOWNLOAD_TIMEOUT) {
+      if (timeoutEnabled && Date.now() - lastProgressTime >= DOWNLOAD_TIMEOUT) {
         req.destroy();
       }
     }, 100);

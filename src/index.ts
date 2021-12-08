@@ -34,6 +34,7 @@ export {
 } from './logging';
 export {
   clearCache, setDebug, toggleDebug, isDebug,
+  setTimeoutEnabled,
   addDownloadProgressCallback,
   validAndGreater,
 } from './utils';
