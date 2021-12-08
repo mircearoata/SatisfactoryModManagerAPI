@@ -8,6 +8,9 @@ import { createHash } from 'crypto';
 import stream from 'stream';
 import { promisify } from 'util';
 import StreamZip from 'node-stream-zip';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import * as win_ca from 'win-ca/api';
 import {
   setLogDebug, debug,
 } from './logging';
@@ -15,7 +18,16 @@ import { NetworkError } from './errors';
 import {
   ensureExists, bootstrapperCacheDir, smlCacheDir, modCacheDir,
 } from './paths';
-import 'win-ca';
+
+try {
+  win_ca({
+    inject: true,
+    $ave: true,
+    async: true,
+  });
+} catch (e) {
+  debug('Failed to register win-ca');
+}
 
 const pipeline = promisify(stream.pipeline);
 
