@@ -123,6 +123,7 @@ export async function getCachedMods(force = false): Promise<Array<Mod>> {
   if (force) {
     debug('Forcing cache reload');
     cachedMods = [];
+    cacheLoaded = false;
   }
   if (!cacheLoaded) {
     debug('Loading mod cache');
