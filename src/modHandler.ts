@@ -76,7 +76,6 @@ export async function addModToCache(modFile: string): Promise<Mod | undefined> {
 }
 
 export async function loadCache(): Promise<void> {
-  cacheLoaded = true;
   cachedMods = new Array<Mod>();
   const cacheAddPromises = Array<Promise<void>>();
   fs.readdirSync(modCacheDir).forEach((file) => {
@@ -88,6 +87,7 @@ export async function loadCache(): Promise<void> {
     }));
   });
   await Promise.all(cacheAddPromises);
+  cacheLoaded = true;
 }
 
 const DOWNLOAD_MOD_ATTEMPTS = 3;
@@ -119,7 +119,13 @@ export async function downloadMod(modReference: string, version: string, attempt
   }
 }
 
+let isLoadingCache = false;
+
 export async function getCachedMods(force = false): Promise<Array<Mod>> {
+  while (isLoadingCache) {
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
   if (force) {
     debug('Forcing cache reload');
     cachedMods = [];
@@ -127,22 +133,31 @@ export async function getCachedMods(force = false): Promise<Array<Mod>> {
   }
   if (!cacheLoaded) {
     debug('Loading mod cache');
+    isLoadingCache = true;
     await loadCache();
+    isLoadingCache = false;
   }
   return cachedMods;
 }
 
-export async function getCachedMod(modReference: string, version: string): Promise<Mod | undefined> {
+export async function getCachedMod(modReference: string, version: string, skipIntegrityCheck = false): Promise<Mod | undefined> {
   const mod = (await getCachedMods())
     .find((cachedMod) => (cachedMod.mod_reference === modReference) && cachedMod.version === version);
-  const ficsitAppModVersion = await getModVersion(modReference, version);
-  const isModFileLatest = mod && (!mod.path || fs.statSync(mod.path).mtime >= ficsitAppModVersion.created_at);
-  const isFlieHashMatching = mod && mod.path && hashFile(mod.path) === ficsitAppModVersion.hash;
-  if (!mod || !isModFileLatest || !isFlieHashMatching) {
+  let isModFileLatest;
+  let isFileHashMatching;
+  if (!skipIntegrityCheck) {
+    const ficsitAppModVersion = await getModVersion(modReference, version);
+    isModFileLatest = mod && (!mod.path || fs.statSync(mod.path).mtime >= ficsitAppModVersion.created_at);
+    isFileHashMatching = mod && mod.path && hashFile(mod.path) === ficsitAppModVersion.hash;
+  } else {
+    isModFileLatest = true;
+    isFileHashMatching = true;
+  }
+  if (!mod || !isModFileLatest || !isFileHashMatching) {
     if (mod && !isModFileLatest) {
       debug(`${modReference}@${version} was changed by the author. Redownloading.`);
       cachedMods.remove(mod);
-    } else if (mod && !isFlieHashMatching) {
+    } else if (mod && !isFileHashMatching) {
       debug(`${modReference}@${version} is corrupted. Redownloading.`);
       cachedMods.remove(mod);
     } else {

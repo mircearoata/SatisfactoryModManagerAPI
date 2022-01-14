@@ -20,7 +20,7 @@ export {
 } from './installfinders';
 export {
   Mod, ModObject,
-  loadCache,
+  loadCache, getCachedModVersions, getCachedMod, getCachedMods,
 } from './modHandler';
 export {
   getAvailableMods, getMod, getModName, getModVersions, getModLatestVersion, getModsCount, MODS_PER_PAGE,
