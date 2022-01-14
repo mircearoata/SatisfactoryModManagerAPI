@@ -105,8 +105,13 @@ export async function mutateManifest(currentManifest: Manifest,
     }
   }));
 
-  // Remove mods that were deleted from ficsit.app
-  await newManifest.items.removeWhereAsync(async (item) => !(await existsOnFicsitApp(item.id)));
+  // Check if all mods exist on ficsit.app
+  await Promise.all(newManifest.items.map(async (item) => {
+    const isOnFicsitApp = await existsOnFicsitApp(item.id);
+    if (!isOnFicsitApp) {
+      throw new ModNotFoundError(`${item.id} not found on ficsit.app.`, item.id);
+    }
+  }));
 
   return newManifest;
 }
