@@ -4,12 +4,14 @@ import { clearBootstrapperCache, removeUnusedBootstrapperCache } from './bootstr
 
 export {
   SatisfactoryInstall,
+} from './satisfactoryInstall';
+export {
   getProfiles,
   createProfile,
   deleteProfile,
   renameProfile,
   getProfileFolderPath,
-} from './satisfactoryInstall';
+} from './profile';
 export {
   readManifest,
 } from './manifest';

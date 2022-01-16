@@ -2,7 +2,6 @@ import path from 'path';
 import fs from 'fs';
 import { eq } from 'semver';
 import JSZip from 'jszip';
-import filenamify from 'filenamify';
 import { getCachedMods } from './mods/modCache';
 import * as MH from './mods/modHandler';
 import * as SH from './sml/smlHandler';
@@ -12,13 +11,13 @@ import {
   getModVersions, getAvailableSMLVersions, getAvailableBootstrapperVersions, refetchVersions,
 } from './ficsitApp';
 import {
-  ManifestItem, mutateManifest, readManifest, writeManifest, ManifestVersion, Manifest,
+  ManifestItem, mutateManifest, readManifest, writeManifest, Manifest,
 } from './manifest';
 import {
   computeLockfile, getItemsList, ItemVersionList, Lockfile, readLockfile, writeLockfile,
 } from './lockfile';
 import {
-  filterObject, mergeArrays, isRunning, dirs, deleteFolderRecursive, validAndGreater, hashString, SMLID, BootstrapperID,
+  filterObject, mergeArrays, isRunning, deleteFolderRecursive, validAndGreater, hashString, SMLID, BootstrapperID,
 } from './utils';
 import {
   debug, info, error, warn,
@@ -26,33 +25,17 @@ import {
 import {
   GameRunningError, InvalidProfileError,
 } from './errors';
-import { profileFolder, ensureExists } from './paths';
+import { ensureExists } from './paths';
 import { Mod } from './mods/mod';
-
-export function getProfileFolderPath(profileName: string): string {
-  const profilePath = path.join(profileFolder, profileName);
-  ensureExists(profilePath);
-  return profilePath;
-}
-
-export function profileExists(profileName: string): boolean {
-  const profilePath = path.join(profileFolder, profileName);
-  return fs.existsSync(profilePath);
-}
-
-const VANILLA_PROFILE_NAME = 'vanilla';
-const MODDED_PROFILE_NAME = 'modded';
-const DEVELOPMENT_PROFILE_NAME = 'development';
+import {
+  getProfileFolderPath, profileExists, ProfileMetadata, VANILLA_PROFILE_NAME, MODDED_PROFILE_NAME,
+} from './profile';
 
 export interface ItemUpdate {
   item: string;
   currentVersion: string;
   version: string;
   releases: Array<FicsitAppVersion | FicsitAppSMLVersion | FicsitAppBootstrapperVersion>;
-}
-
-export interface ProfileMetadata {
-  gameVersion: string;
 }
 
 export class SatisfactoryInstall {
@@ -428,67 +411,4 @@ export class SatisfactoryInstall {
   readLockfile(): Lockfile {
     return readLockfile(this.profileLockfile);
   }
-}
-
-export function getProfiles(): Array<{name: string; items: ManifestItem[]}> {
-  return dirs(profileFolder).sort().map((name) => {
-    try {
-      const manifest = readManifest(path.join(getProfileFolderPath(name), 'manifest.json'));
-      return { name, items: manifest.items };
-    } catch (e) {
-      error(`Error while reading profile manifest ${name}: ${e.message}`);
-      return { name, items: [] };
-    }
-  });
-}
-
-function isBuiltinProfile(name: string): boolean {
-  return name.toLowerCase() === VANILLA_PROFILE_NAME || name.toLowerCase() === MODDED_PROFILE_NAME || name.toLowerCase() === DEVELOPMENT_PROFILE_NAME;
-}
-
-export function deleteProfile(name: string): void {
-  if (isBuiltinProfile(name)) {
-    throw new InvalidProfileError(`Cannot delete ${name} profile (it is part of the default set of profiles)`);
-  }
-  if (profileExists(name)) {
-    deleteFolderRecursive(getProfileFolderPath(name));
-  }
-}
-
-export function createProfile(name: string, copyProfile = 'vanilla'): void {
-  const validName = filenamify(name, { replacement: '_' });
-  if (profileExists(validName)) {
-    throw new InvalidProfileError(`Profile ${validName} already exists`);
-  }
-  if (!profileExists(copyProfile)) {
-    throw new InvalidProfileError(`Profile ${copyProfile} does not exist`);
-  }
-  writeManifest(path.join(getProfileFolderPath(validName), 'manifest.json'), readManifest(path.join(getProfileFolderPath(copyProfile), 'manifest.json')));
-}
-
-export function renameProfile(oldName: string, newName: string): void {
-  if (isBuiltinProfile(oldName)) {
-    throw new InvalidProfileError(`Cannot rename ${oldName} profile (it is part of the default set of profiles)`);
-  }
-  const validName = filenamify(oldName, { replacement: '_' });
-  const validNewName = filenamify(newName, { replacement: '_' });
-  if (!profileExists(validName)) {
-    throw new InvalidProfileError(`Profile ${validName} does not exist.`);
-  }
-  if (profileExists(validNewName)) {
-    throw new InvalidProfileError(`Profile ${validNewName} already exists.`);
-  }
-  fs.renameSync(getProfileFolderPath(validName), path.join(profileFolder, validNewName));
-}
-
-if (!fs.existsSync(path.join(getProfileFolderPath(VANILLA_PROFILE_NAME), 'manifest.json'))) {
-  writeManifest(path.join(getProfileFolderPath(VANILLA_PROFILE_NAME), 'manifest.json'), { items: new Array<ManifestItem>(), manifestVersion: ManifestVersion.Latest });
-}
-
-if (!fs.existsSync(path.join(getProfileFolderPath(MODDED_PROFILE_NAME), 'manifest.json'))) {
-  writeManifest(path.join(getProfileFolderPath(MODDED_PROFILE_NAME), 'manifest.json'), { items: new Array<ManifestItem>(), manifestVersion: ManifestVersion.Latest });
-}
-
-if (!fs.existsSync(path.join(getProfileFolderPath(DEVELOPMENT_PROFILE_NAME), 'manifest.json'))) {
-  writeManifest(path.join(getProfileFolderPath(DEVELOPMENT_PROFILE_NAME), 'manifest.json'), { items: [{ id: SMLID, enabled: true }], manifestVersion: ManifestVersion.Latest });
 }

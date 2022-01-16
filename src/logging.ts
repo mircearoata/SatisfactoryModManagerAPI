@@ -3,7 +3,10 @@
 
 import fs from 'fs';
 import path from 'path';
-import { logsDir, appName } from './paths';
+import { appName, cacheDir, ensureExists } from './paths';
+
+export const logsDir = path.join(cacheDir, 'logs');
+ensureExists(logsDir);
 
 export enum LogLevel {
   DEBUG,
