@@ -8,6 +8,7 @@ import should from 'should';
 import { createDummyMods, removeDummyMods } from './dummyMods';
 import { addTempMod, FicsitAppMod, removeTempMod, removeTempModVersion, setUseTempMods } from '../src/ficsitApp';
 import { modCacheDir } from '../src/paths';
+import { getCachedModPath } from '../src/modCache';
 
 const dummySfName = 'DummySF';
 const dummySfVersion = '155370';
@@ -32,15 +33,12 @@ describe('live mods', function() {
   this.timeout('10s');
 
   const sfInstall = new SatisfactoryInstall(dummySfName, dummySfVersion, 'Early Access', dummySfPath, dummySfExecutable);
-  before(async function () {
-    await sfInstall.setProfile('testProfile');
-  });
 
   beforeEach(async function () {
+    await sfInstall.setProfile('testProfile');
     await sfInstall.manifestMutate([], sfInstall.readManifest().items.map((item) => item.id), [], [], []); // Uninstall everything
     const installedMods = await sfInstall._getInstalledMods();
     installedMods.length.should.equal(0);
-    await sleep(1000);
   });
 
   it('should install 1 mod', async function() {
@@ -101,6 +99,13 @@ describe('live mods', function() {
       should(sfInstall.bootstrapperVersion).be.undefined();
     }
   });
+
+  it('should redownload corrupt mod', async function() {
+    fs.writeFileSync(getCachedModPath('AreaActions', '1.6.4'), 'corrupt');
+    await sfInstall.installMod('AreaActions', '1.6.4');
+    const installedMods = await sfInstall._getInstalledMods();
+    installedMods.length.should.equal(1, `Expected ${installedMods.map((mod) => `${mod.mod_reference}@${mod.version}`)} to contain 1 mod`);
+  });
 });
 
 describe('dummy mods', function() {
@@ -146,16 +151,6 @@ describe('dummy mods', function() {
     await sfInstall.uninstallMod('dummyMod2');
     const installedMods = await sfInstall._getInstalledMods();
     installedMods.length.should.equal(2, `Expected ${installedMods.map((mod) => `${mod.mod_reference}@${mod.version}`)} to contain 2 mods`);
-  });
-
-  it('should uninstall removed mods', async function() {
-    await sfInstall.installMod('dummyMod2');
-    await sfInstall.installMod('dummyMod1');
-    removeTempMod('dummyMod1');
-    removeTempMod('dummyMod2');
-    await sfInstall.manifestMutate([], [], [], [], []);
-    const installedMods = await sfInstall._getInstalledMods();
-    installedMods.length.should.equal(0, `Expected ${installedMods.map((mod) => `${mod.mod_reference}@${mod.version}`)} to contain 0 mods`);
   });
 
   it('should uninstall removed version', async function() {
