@@ -1,5 +1,5 @@
 import { clearOutdatedCache as clearOutdatedCacheFiles } from './utils';
-import { getCachedMods } from './modHandler';
+import { getCachedMods } from './modCache';
 
 export {
   SatisfactoryInstall,
@@ -19,9 +19,11 @@ export {
   getInstalls,
 } from './installfinders';
 export {
-  Mod, ModObject,
   loadCache, getCachedModVersions, getCachedMod, getCachedMods,
-} from './modHandler';
+} from './modCache';
+export {
+  Mod, ModObject,
+} from './mod';
 export {
   getAvailableMods, getMod, getModName, getModVersions, getModLatestVersion, getModsCount, MODS_PER_PAGE,
   getAvailableSMLVersions, getLatestSMLVersion, getAvailableBootstrapperVersions, getLatestBootstrapperVersion,

@@ -34,6 +34,7 @@ const pipeline = promisify(stream.pipeline);
 export const SMLID = 'SML';
 export const BootstrapperID = 'bootstrapper';
 export const minSMLVersion = '2.0.0';
+export const MOD_EXTENSIONS = ['.smod'];
 
 let isDebugMode = process.env.NODE_DEBUG?.includes('SMManagerAPI') || false;
 

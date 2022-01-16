@@ -3,6 +3,7 @@ import fs from 'fs';
 import { eq } from 'semver';
 import JSZip from 'jszip';
 import filenamify from 'filenamify';
+import { clearCache as clearModCache, getCachedMods } from './modCache';
 import * as MH from './modHandler';
 import * as SH from './smlHandler';
 import * as BH from './bootstrapperHandler';
@@ -26,6 +27,7 @@ import {
   GameRunningError, InvalidProfileError,
 } from './errors';
 import { profileFolder, ensureExists } from './paths';
+import { Mod } from './mod';
 
 export function getProfileFolderPath(profileName: string): string {
   const profilePath = path.join(profileFolder, profileName);
@@ -145,7 +147,7 @@ export class SatisfactoryInstall {
       await BH.installBootstrapper(mismatches.install[BootstrapperID], this.installLocation);
     }
     if (Object.entries(mismatches.install).length > 0) {
-      await MH.getCachedMods(); // Make sure the cache is loaded
+      await getCachedMods(); // Make sure the cache is loaded
     }
     modsDir = SH.getModsDir(this.installLocation);
     const smlVersionEnum = SH.getSMLVersionEnum(this.installLocation);
@@ -255,7 +257,7 @@ export class SatisfactoryInstall {
     await this._updateItem(modReference);
   }
 
-  private async _getInstalledMods(): Promise<Array<MH.Mod>> {
+  private async _getInstalledMods(): Promise<Array<Mod>> {
     return MH.getInstalledMods(SH.getModsDir(this.installLocation), SH.getSMLVersionEnum(this.installLocation));
   }
 
@@ -300,7 +302,7 @@ export class SatisfactoryInstall {
 
   async clearCache(): Promise<void> {
     if (!await SatisfactoryInstall.isGameRunning()) {
-      MH.clearCache();
+      clearModCache();
       deleteFolderRecursive(path.join(this.installLocation, CacheRelativePath));
     } else {
       throw new GameRunningError('Satisfactory is running. Please close it and wait until it fully shuts down.');
