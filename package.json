@@ -12,6 +12,7 @@
     "debug": "nodemon --watch src/ -e ts --exec yarn test:debug || exit 1",
     "test": "yarn build:ts && ts-mocha test/**/*.ts",
     "test:debug": "yarn build:ts && cross-env NODE_DEBUG=SMManagerAPI ts-mocha test/**/*.ts",
+    "coverage": "nyc --reporter=lcov --reporter=text yarn test",
     "prepublishOnly": "yarn test",
     "prepare": "husky install"
   },
@@ -42,6 +43,7 @@
     "husky": "^7.0.4",
     "isomorphic-fetch": "^3.0.0",
     "mocha": "^9.1.3",
+    "nyc": "^15.1.0",
     "should": "^13.2.3",
     "ts-mocha": "^8.0.0",
     "typescript": "^3.7.4"
