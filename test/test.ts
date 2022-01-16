@@ -3,12 +3,11 @@ import path from 'path';
 import fs from 'fs';
 import { describe, before, beforeEach } from "mocha";
 import 'should';
-import { clearCache, clearOutdatedCache, getProfileFolderPath, InvalidProfileError, loadCache, ModNotFoundError, ModRemovedByAuthor, SatisfactoryInstall, ValidationError } from "../src";
+import { clearCache, clearOutdatedCache, getInstalls, getProfileFolderPath, InvalidProfileError, loadCache, ModNotFoundError, ModRemovedByAuthor, SatisfactoryInstall, ValidationError } from "../src";
 import should from 'should';
 import { createDummyMods, removeDummyMods } from './dummyMods';
 import { addTempMod, FicsitAppMod, removeTempMod, removeTempModVersion, setUseTempMods } from '../src/ficsitApp';
-import { modCacheDir } from '../src/paths';
-import { getCachedModPath } from '../src/modCache';
+import { getCachedModPath } from '../src/mods/modCache';
 
 const dummySfName = 'DummySF';
 const dummySfVersion = '155370';
@@ -28,6 +27,10 @@ after(function () {
   fs.rmSync(dummySfPath, { recursive: true, force: true });
   fs.rmSync(getProfileFolderPath('testProfile'), { recursive: true, force: true });
 })
+
+it('should find installs', async function() {
+  await getInstalls();
+});
 
 describe('live mods', function() {
   this.timeout('10s');
@@ -101,8 +104,8 @@ describe('live mods', function() {
   });
 
   it('should redownload corrupt mod', async function() {
-    fs.writeFileSync(getCachedModPath('AreaActions', '1.6.4'), 'corrupt');
-    await sfInstall.installMod('AreaActions', '1.6.4');
+    fs.writeFileSync(getCachedModPath('AreaActions', '1.6.5'), 'corrupt');
+    await sfInstall.installMod('AreaActions', '1.6.5');
     const installedMods = await sfInstall._getInstalledMods();
     installedMods.length.should.equal(1, `Expected ${installedMods.map((mod) => `${mod.mod_reference}@${mod.version}`)} to contain 1 mod`);
   });
@@ -177,7 +180,7 @@ describe('dummy mods', function() {
     clearOutdatedCache();
     should(dummyFicsitAppMods.some((mod) => {
       return mod.versions.some((version) => {
-        const filePath = path.join(modCacheDir, `${mod.mod_reference}_${version.version}.smod`);
+        const filePath = getCachedModPath(mod.mod_reference, version.version);
         return fs.existsSync(filePath);
       });
     })).equal(false, 'Some outdated cache was not removed.');

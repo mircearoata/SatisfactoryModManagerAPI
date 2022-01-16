@@ -1,8 +1,8 @@
 import { valid } from 'semver';
 import StreamZip from 'node-stream-zip';
 import path from 'path';
-import { InvalidModFileError } from './errors';
-import { MOD_EXTENSIONS } from './utils';
+import { InvalidModFileError } from '../errors';
+import { MOD_EXTENSIONS } from '../utils';
 import { UPlugin } from './uplugin';
 
 export interface Mod {

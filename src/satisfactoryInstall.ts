@@ -3,10 +3,10 @@ import fs from 'fs';
 import { eq } from 'semver';
 import JSZip from 'jszip';
 import filenamify from 'filenamify';
-import { clearCache as clearModCache, getCachedMods } from './modCache';
-import * as MH from './modHandler';
-import * as SH from './smlHandler';
-import * as BH from './bootstrapperHandler';
+import { getCachedMods } from './mods/modCache';
+import * as MH from './mods/modHandler';
+import * as SH from './sml/smlHandler';
+import * as BH from './bootstrapper/bootstrapperHandler';
 import {
   FicsitAppVersion, FicsitAppSMLVersion, FicsitAppBootstrapperVersion,
   getModVersions, getAvailableSMLVersions, getAvailableBootstrapperVersions, refetchVersions,
@@ -27,7 +27,7 @@ import {
   GameRunningError, InvalidProfileError,
 } from './errors';
 import { profileFolder, ensureExists } from './paths';
-import { Mod } from './mod';
+import { Mod } from './mods/mod';
 
 export function getProfileFolderPath(profileName: string): string {
   const profilePath = path.join(profileFolder, profileName);
@@ -43,8 +43,6 @@ export function profileExists(profileName: string): boolean {
 const VANILLA_PROFILE_NAME = 'vanilla';
 const MODDED_PROFILE_NAME = 'modded';
 const DEVELOPMENT_PROFILE_NAME = 'development';
-
-const CacheRelativePath = '.cache';
 
 export interface ItemUpdate {
   item: string;
@@ -298,15 +296,6 @@ export class SatisfactoryInstall {
   async updateBootstrapper(): Promise<void> {
     info('Updating bootstrapper to latest version');
     await this._updateItem(BootstrapperID);
-  }
-
-  async clearCache(): Promise<void> {
-    if (!await SatisfactoryInstall.isGameRunning()) {
-      clearModCache();
-      deleteFolderRecursive(path.join(this.installLocation, CacheRelativePath));
-    } else {
-      throw new GameRunningError('Satisfactory is running. Please close it and wait until it fully shuts down.');
-    }
   }
 
   async checkForUpdates(): Promise<Array<ItemUpdate>> {

@@ -1,5 +1,6 @@
+import 'isomorphic-fetch';
 import { FicsitAppMod } from "../src";
-import { modCacheDir } from "../src/paths";
+import { modCacheDir } from "../src/mods/modCache";
 import { hashFile } from "../src/utils";
 import path from 'path';
 import fs from 'fs';

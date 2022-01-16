@@ -3,11 +3,14 @@ import path from 'path';
 import { coerce, valid } from 'semver';
 import {
   downloadFile, hashFile,
-} from './utils';
-import { getModVersion, getModName, getModDownloadLink } from './ficsitApp';
-import { error, debug } from './logging';
-import { modCacheDir } from './paths';
+} from '../utils';
+import { getModVersion, getModName, getModDownloadLink } from '../ficsitApp';
+import { error, debug } from '../logging';
+import { downloadCacheDir, ensureExists } from '../paths';
 import { getModFromFile, Mod } from './mod';
+
+export const modCacheDir = path.join(downloadCacheDir, 'mods');
+ensureExists(modCacheDir);
 
 let cachedMods = new Array<Mod>();
 let cacheLoaded = false;
@@ -89,9 +92,25 @@ export async function removeModFromCache(modReference: string, version: string):
   }
 }
 
-export function clearCache(): void {
+export function clearModCache(): void {
   cacheLoaded = false;
   cachedMods = new Array<Mod>();
+  fs.readdirSync(modCacheDir).forEach((file) => {
+    const fullPath = path.join(modCacheDir, file);
+    fs.unlinkSync(fullPath);
+  });
+}
+
+const CACHE_LIFETIME = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+export function removeUnusedModCache(): void {
+  const now = new Date();
+  fs.readdirSync(modCacheDir).forEach((file) => {
+    const fullPath = path.join(modCacheDir, file);
+    if (now.getTime() - fs.statSync(fullPath).mtime.getTime() >= CACHE_LIFETIME) {
+      fs.unlinkSync(fullPath);
+    }
+  });
 }
 
 const DOWNLOAD_MOD_ATTEMPTS = 3;

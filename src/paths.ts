@@ -14,12 +14,6 @@ export const cacheDir = path.join(getCacheFolder(), appName);
 ensureExists(cacheDir);
 export const downloadCacheDir = path.join(cacheDir, 'downloadCache');
 ensureExists(downloadCacheDir);
-export const modCacheDir = path.join(downloadCacheDir, 'mods');
-ensureExists(modCacheDir);
-export const smlCacheDir = path.join(downloadCacheDir, 'smlVersions');
-ensureExists(smlCacheDir);
-export const bootstrapperCacheDir = path.join(downloadCacheDir, 'bootstrapperVersions');
-ensureExists(bootstrapperCacheDir);
 
 export const logsDir = path.join(cacheDir, 'logs');
 ensureExists(logsDir);

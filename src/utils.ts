@@ -16,7 +16,7 @@ import {
 } from './logging';
 import { NetworkError } from './errors';
 import {
-  ensureExists, bootstrapperCacheDir, smlCacheDir, modCacheDir,
+  ensureExists,
 } from './paths';
 
 try {
@@ -72,69 +72,6 @@ export function deleteFolderRecursive(deletePath: string): void {
     });
     fs.rmdirSync(deletePath);
   }
-}
-
-export function clearCache(): void {
-  fs.readdirSync(modCacheDir).forEach((file) => {
-    const curPath = path.join(modCacheDir, file);
-    if (fs.statSync(curPath).isDirectory()) {
-      deleteFolderRecursive(curPath);
-    } else {
-      fs.unlinkSync(curPath);
-    }
-  });
-  fs.readdirSync(smlCacheDir).forEach((file) => {
-    const curPath = path.join(smlCacheDir, file);
-    if (fs.statSync(curPath).isDirectory()) {
-      deleteFolderRecursive(curPath);
-    } else {
-      fs.unlinkSync(curPath);
-    }
-  });
-  fs.readdirSync(bootstrapperCacheDir).forEach((file) => {
-    const curPath = path.join(bootstrapperCacheDir, file);
-    if (fs.statSync(curPath).isDirectory()) {
-      deleteFolderRecursive(curPath);
-    } else {
-      fs.unlinkSync(curPath);
-    }
-  });
-}
-
-const CACHE_LIFETIME = 30 * 24 * 60 * 60 * 1000; // 30 days
-
-export function clearOutdatedCache(): void {
-  const now = new Date();
-  fs.readdirSync(modCacheDir).forEach((file) => {
-    const curPath = path.join(modCacheDir, file);
-    if (now.getTime() - fs.statSync(curPath).mtime.getTime() >= CACHE_LIFETIME) {
-      if (fs.statSync(curPath).isDirectory()) {
-        deleteFolderRecursive(curPath);
-      } else {
-        fs.unlinkSync(curPath);
-      }
-    }
-  });
-  fs.readdirSync(smlCacheDir).forEach((file) => {
-    const curPath = path.join(smlCacheDir, file);
-    if (now.getTime() - fs.statSync(curPath).mtime.getTime() >= CACHE_LIFETIME) {
-      if (fs.statSync(curPath).isDirectory()) {
-        deleteFolderRecursive(curPath);
-      } else {
-        fs.unlinkSync(curPath);
-      }
-    }
-  });
-  fs.readdirSync(bootstrapperCacheDir).forEach((file) => {
-    const curPath = path.join(bootstrapperCacheDir, file);
-    if (now.getTime() - fs.statSync(curPath).mtime.getTime() >= CACHE_LIFETIME) {
-      if (fs.statSync(curPath).isDirectory()) {
-        deleteFolderRecursive(curPath);
-      } else {
-        fs.unlinkSync(curPath);
-      }
-    }
-  });
 }
 
 export function copyFile(file: string, toDir: string): void {

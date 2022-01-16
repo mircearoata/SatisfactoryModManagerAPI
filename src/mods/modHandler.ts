@@ -3,10 +3,10 @@ import path from 'path';
 import StreamZip from 'node-stream-zip';
 import {
   copyFile, MOD_EXTENSIONS, SMLID,
-} from './utils';
-import { error } from './logging';
-import { ensureExists } from './paths';
-import { SMLVersion } from './smlHandler';
+} from '../utils';
+import { error } from '../logging';
+import { ensureExists } from '../paths';
+import { SMLVersion } from '../sml/smlHandler';
 import { UPlugin } from './uplugin';
 import {
   getCachedModPath, verifyCachedModFile,

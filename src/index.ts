@@ -1,5 +1,6 @@
-import { clearOutdatedCache as clearOutdatedCacheFiles } from './utils';
-import { getCachedMods } from './modCache';
+import { clearModCache, removeUnusedModCache } from './mods/modCache';
+import { clearSMLCache, removeUnusedSMLCache } from './sml/smlCache';
+import { clearBootstrapperCache, removeUnusedBootstrapperCache } from './bootstrapper/bootstrapperCache';
 
 export {
   SatisfactoryInstall,
@@ -20,10 +21,10 @@ export {
 } from './installfinders';
 export {
   loadCache, getCachedModVersions, getCachedMod, getCachedMods,
-} from './modCache';
+} from './mods/modCache';
 export {
   Mod, ModObject,
-} from './mod';
+} from './mods/mod';
 export {
   getAvailableMods, getMod, getModName, getModVersions, getModLatestVersion, getModsCount, MODS_PER_PAGE,
   getAvailableSMLVersions, getLatestSMLVersion, getAvailableBootstrapperVersions, getLatestBootstrapperVersion,
@@ -35,13 +36,20 @@ export {
   getLogFilePath, debug, info, warn, error,
 } from './logging';
 export {
-  clearCache, setDebug, toggleDebug, isDebug,
+  setDebug, toggleDebug, isDebug,
   setTimeoutEnabled,
   addDownloadProgressCallback,
   validAndGreater,
 } from './utils';
 
+export function clearCache(): void {
+  clearModCache();
+  clearSMLCache();
+  clearBootstrapperCache();
+}
+
 export async function clearOutdatedCache(): Promise<void> {
-  clearOutdatedCacheFiles();
-  await getCachedMods(true);
+  removeUnusedModCache();
+  removeUnusedSMLCache();
+  removeUnusedBootstrapperCache();
 }
