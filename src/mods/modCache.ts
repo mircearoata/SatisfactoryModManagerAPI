@@ -5,7 +5,7 @@ import {
   downloadFile, hashFile,
 } from '../utils';
 import { getModVersion, getModName, getModDownloadLink } from '../ficsitApp';
-import { error, debug } from '../logging';
+import { error, debug, info } from '../logging';
 import { downloadCacheDir, ensureExists } from '../paths';
 import { getModFromFile, Mod } from './mod';
 
@@ -107,10 +107,20 @@ export function removeUnusedModCache(): void {
   const now = new Date();
   fs.readdirSync(modCacheDir).forEach((file) => {
     const fullPath = path.join(modCacheDir, file);
-    if (now.getTime() - fs.statSync(fullPath).mtime.getTime() >= CACHE_LIFETIME) {
+    if (now.getTime() - fs.statSync(fullPath).atime.getTime() >= CACHE_LIFETIME) {
       fs.unlinkSync(fullPath);
     }
   });
+}
+
+export function markModInUse(modReference: string, version: string): void {
+  const modFile = getCachedModPath(modReference, version);
+  if (!fs.existsSync(modFile)) {
+    info(`Mod ${modReference}@${version} not found in cache when setting as in use.`);
+    return;
+  }
+  const mTime = fs.statSync(modFile).mtime;
+  fs.utimesSync(modFile, new Date(), mTime);
 }
 
 const DOWNLOAD_MOD_ATTEMPTS = 3;

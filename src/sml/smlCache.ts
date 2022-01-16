@@ -6,7 +6,7 @@ import {
 } from '../utils';
 import { ModNotFoundError } from '../errors';
 import { getSMLVersionInfo } from '../ficsitApp';
-import { debug } from '../logging';
+import { debug, info } from '../logging';
 import { downloadCacheDir, ensureExists } from '../paths';
 import { SMLZipFileName } from './sml';
 
@@ -54,8 +54,18 @@ export function removeUnusedSMLCache(): void {
   const now = new Date();
   fs.readdirSync(smlCacheDir).forEach((file) => {
     const fullPath = path.join(smlCacheDir, file);
-    if (now.getTime() - fs.statSync(fullPath).mtime.getTime() >= CACHE_LIFETIME) {
+    if (now.getTime() - fs.statSync(fullPath).atime.getTime() >= CACHE_LIFETIME) {
       fs.rmSync(fullPath, { recursive: true });
     }
   });
+}
+
+export function markSMLInUse(version: string): void {
+  const smlVersionCacheDir = path.join(smlCacheDir, version);
+  if (!fs.existsSync(smlVersionCacheDir)) {
+    info(`SML@${version} not found in cache when setting as in use.`);
+    return;
+  }
+  const mTime = fs.statSync(smlVersionCacheDir).mtime;
+  fs.utimesSync(smlVersionCacheDir, new Date(), mTime);
 }

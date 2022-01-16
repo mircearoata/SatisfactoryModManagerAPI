@@ -2,7 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import { valid, coerce } from 'semver';
 import { ModNotFoundError } from '../errors';
-import { debug } from '../logging';
+import { debug, info } from '../logging';
 import { downloadCacheDir, ensureExists } from '../paths';
 
 export const bootstrapperCacheDir = path.join(downloadCacheDir, 'bootstrapperVersions');
@@ -39,8 +39,18 @@ export function removeUnusedBootstrapperCache(): void {
   const now = new Date();
   fs.readdirSync(bootstrapperCacheDir).forEach((file) => {
     const fullPath = path.join(bootstrapperCacheDir, file);
-    if (now.getTime() - fs.statSync(fullPath).mtime.getTime() >= CACHE_LIFETIME) {
+    if (now.getTime() - fs.statSync(fullPath).atime.getTime() >= CACHE_LIFETIME) {
       fs.rmSync(fullPath, { recursive: true });
     }
   });
+}
+
+export function markBootstrapperInUse(version: string): void {
+  const bootstrapperVersionCacheDir = path.join(bootstrapperCacheDir, version);
+  if (!fs.existsSync(bootstrapperVersionCacheDir)) {
+    info(`bootstrapper@${version} not found in cache when setting as in use.`);
+    return;
+  }
+  const mTime = fs.statSync(bootstrapperVersionCacheDir).mtime;
+  fs.utimesSync(bootstrapperVersionCacheDir, new Date(), mTime);
 }

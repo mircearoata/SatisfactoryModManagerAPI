@@ -2,7 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import { eq } from 'semver';
 import JSZip from 'jszip';
-import { getCachedMods } from './mods/modCache';
+import { getCachedModPath, getCachedMods, markModInUse } from './mods/modCache';
 import * as MH from './mods/modHandler';
 import * as SH from './sml/smlHandler';
 import * as BH from './bootstrapper/bootstrapperHandler';
@@ -30,6 +30,8 @@ import { Mod } from './mods/mod';
 import {
   getProfileFolderPath, profileExists, ProfileMetadata, VANILLA_PROFILE_NAME, MODDED_PROFILE_NAME,
 } from './profile';
+import { markSMLInUse } from './sml/smlCache';
+import { markBootstrapperInUse } from './bootstrapper/bootstrapperCache';
 
 export interface ItemUpdate {
   item: string;
@@ -172,8 +174,23 @@ export class SatisfactoryInstall {
         await this.validateInstall(getItemsList(currentLockfile));
         throw e;
       }
+      this.markCacheFilesInUse();
     } else {
       throw new GameRunningError('Satisfactory is running. Please close it and wait until it fully shuts down.');
+    }
+  }
+
+  async markCacheFilesInUse(): Promise<void> {
+    const modsDir = SH.getModsDir(this.installLocation);
+    const installedMods = await MH.getInstalledMods(modsDir, SH.getSMLVersionEnum(this.installLocation));
+    installedMods.forEach((mod) => {
+      markModInUse(mod.mod_reference, mod.version);
+    });
+    if (this.smlVersion) {
+      markSMLInUse(this.smlVersion);
+    }
+    if (this.bootstrapperVersion) {
+      markBootstrapperInUse(this.bootstrapperVersion);
     }
   }
 
