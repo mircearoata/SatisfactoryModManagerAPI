@@ -28,10 +28,12 @@ export {
   Mod, ModObject,
 } from './mods/mod';
 export {
-  getAvailableMods, getMod, getModName, getModVersions, getModLatestVersion, getModsCount, MODS_PER_PAGE,
-  getAvailableSMLVersions, getLatestSMLVersion, getAvailableBootstrapperVersions, getLatestBootstrapperVersion,
-  FicsitAppMod, FicsitAppVersion, FicsitAppAuthor, FicsitAppUser, FicsitAppSMLVersion,
-} from './ficsitApp';
+  getModName, getModVersions,
+  getAvailableSMLVersions, getAvailableBootstrapperVersions,
+} from './dataProviders';
+export {
+  getOfflineMods,
+} from './dataProviders/offlineProvider';
 export { } from './manifest';
 export * from './errors';
 export {

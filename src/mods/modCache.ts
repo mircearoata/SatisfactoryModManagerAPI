@@ -4,7 +4,7 @@ import { coerce, valid } from 'semver';
 import {
   downloadFile, hashFile,
 } from '../utils';
-import { getModVersion, getModName, getModDownloadLink } from '../ficsitApp';
+import { getModVersion, getModName, getModDownloadLink } from '../dataProviders/ficsitApp';
 import { error, debug, info } from '../logging';
 import { downloadCacheDir, ensureExists } from '../paths';
 import { getModFromFile, Mod } from './mod';

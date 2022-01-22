@@ -1,10 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 import StreamZip from 'node-stream-zip';
+import { getModVersion } from '../dataProviders';
 import {
   copyFile, MOD_EXTENSIONS, SMLID,
 } from '../utils';
-import { error } from '../logging';
+import { error, warn } from '../logging';
 import { ensureExists } from '../paths';
 import { SMLVersion } from '../sml/smlHandler';
 import { UPlugin } from './uplugin';
@@ -18,7 +19,11 @@ const SMM_TRACKED_FILE = '.smm';
 export async function installMod(modReference: string, version: string, modsDir: string, smlVersion: SMLVersion): Promise<void> {
   const modPath = getCachedModPath(modReference, version);
   if (modPath) {
-    await verifyCachedModFile(modReference, version);
+    if ((await getModVersion(modReference, version)).link) {
+      await verifyCachedModFile(modReference, version);
+    } else {
+      warn(`Mod ${modReference} could not be verified, files may be invalid.`);
+    }
     if (smlVersion === SMLVersion.v2_x) {
       copyFile(modPath, modsDir);
     } else if (smlVersion === SMLVersion.v3_x) {

@@ -5,8 +5,11 @@ import {
 import fs from 'fs';
 import _ from 'lodash';
 import {
-  findAllVersionsMatchingAll, getSMLVersionInfo, getBootstrapperVersionInfo, getModVersion, versionExistsOnFicsitApp, getModReferenceFromId,
-} from './ficsitApp';
+  findAllVersionsMatchingAll, getSMLVersionInfo, getBootstrapperVersionInfo, getModVersion, versionExistsOnFicsitApp,
+} from './dataProviders';
+import {
+  getModReferenceFromId,
+} from './dataProviders/ficsitApp';
 import {
   IncompatibleGameVersion,
   UnsolvableDependencyError,
@@ -15,6 +18,7 @@ import {
   ModNotFoundError,
   ValidationError,
   ModRemovedByAuthor,
+  NetworkError,
 } from './errors';
 import { debug, info } from './logging';
 import {
@@ -243,16 +247,22 @@ export async function computeLockfile(manifest: Manifest, lockfile: Lockfile, sa
 
   // Convert items from mod ID to mod reference
   await Promise.all(graph.nodes.map(async (node, idx) => {
-    const isOnFicsitApp = await versionExistsOnFicsitApp(node.id, node.version);
-    if (!isOnFicsitApp) {
-      try {
-        const modReference = await getModReferenceFromId(node.id);
-        graph.nodes[idx].id = modReference;
-        debug(`Converted mod ${modReference} from mod ID to mod reference in lockfile`);
-      } catch (e) {
-        if (!(e instanceof ModNotFoundError)) {
-          throw e;
+    try {
+      const isOnFicsitApp = await versionExistsOnFicsitApp(node.id, node.version);
+      if (!isOnFicsitApp) {
+        try {
+          const modReference = await getModReferenceFromId(node.id);
+          graph.nodes[idx].id = modReference;
+          debug(`Converted mod ${modReference} from mod ID to mod reference in lockfile`);
+        } catch (e) {
+          if (!(e instanceof ModNotFoundError)) {
+            throw e;
+          }
         }
+      }
+    } catch (e) {
+      if (!(e instanceof NetworkError)) {
+        throw e;
       }
     }
   }));

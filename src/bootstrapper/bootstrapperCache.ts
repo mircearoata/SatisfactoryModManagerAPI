@@ -13,6 +13,10 @@ async function downloadBootstrapper(version: string): Promise<void> {
   throw new Error('SML 2.x is not supported');
 }
 
+export async function getCachedBootstrapperVersions(): Promise<Array<string>> {
+  return fs.readdirSync(bootstrapperCacheDir);
+}
+
 export async function getBootstrapperVersionCache(version: string): Promise<string> {
   const validVersion = valid(coerce(version));
   if (!validVersion) {

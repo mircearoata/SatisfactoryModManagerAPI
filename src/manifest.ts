@@ -4,9 +4,12 @@ import {
   debug,
 } from './logging';
 import {
-  getModReferenceFromId, existsOnFicsitApp,
-} from './ficsitApp';
-import { ModNotFoundError } from './errors';
+  existsOnFicsitApp,
+} from './dataProviders';
+import {
+  getModReferenceFromId,
+} from './dataProviders/ficsitApp';
+import { ModNotFoundError, NetworkError } from './errors';
 
 export interface ManifestItem {
   id: string;
@@ -91,25 +94,23 @@ export async function mutateManifest(currentManifest: Manifest,
 
   // Convert items from mod ID to mod reference
   await Promise.all(newManifest.items.map(async (item, idx) => {
-    const isOnFicsitApp = await existsOnFicsitApp(item.id);
-    if (!isOnFicsitApp) {
-      try {
-        const modReference = await getModReferenceFromId(item.id);
-        newManifest.items[idx].id = modReference;
-        debug(`Converted mod ${modReference} from mod ID to mod reference in manifest`);
-      } catch (e) {
-        if (!(e instanceof ModNotFoundError)) {
-          throw e;
+    try {
+      const isOnFicsitApp = await existsOnFicsitApp(item.id);
+      if (!isOnFicsitApp) {
+        try {
+          const modReference = await getModReferenceFromId(item.id);
+          newManifest.items[idx].id = modReference;
+          debug(`Converted mod ${modReference} from mod ID to mod reference in manifest`);
+        } catch (e) {
+          if (!(e instanceof ModNotFoundError)) {
+            throw e;
+          }
         }
       }
-    }
-  }));
-
-  // Check if all mods exist on ficsit.app
-  await Promise.all(newManifest.items.map(async (item) => {
-    const isOnFicsitApp = await existsOnFicsitApp(item.id);
-    if (!isOnFicsitApp) {
-      throw new ModNotFoundError(`${item.id} not found on ficsit.app.`, item.id);
+    } catch (e) {
+      if (!(e instanceof NetworkError)) {
+        throw e;
+      }
     }
   }));
 

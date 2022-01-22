@@ -2,14 +2,19 @@ import path from 'path';
 import fs from 'fs';
 import { eq } from 'semver';
 import JSZip from 'jszip';
-import { getCachedModPath, getCachedMods, markModInUse } from './mods/modCache';
+import { getCachedMods, markModInUse } from './mods/modCache';
 import * as MH from './mods/modHandler';
 import * as SH from './sml/smlHandler';
 import * as BH from './bootstrapper/bootstrapperHandler';
 import {
+  getModVersions, getAvailableSMLVersions, getAvailableBootstrapperVersions,
+} from './dataProviders';
+import {
+  refetchVersions,
+} from './dataProviders/ficsitApp';
+import {
   FicsitAppVersion, FicsitAppSMLVersion, FicsitAppBootstrapperVersion,
-  getModVersions, getAvailableSMLVersions, getAvailableBootstrapperVersions, refetchVersions,
-} from './ficsitApp';
+} from './dataProviders/types';
 import {
   ManifestItem, mutateManifest, readManifest, writeManifest, Manifest,
 } from './manifest';

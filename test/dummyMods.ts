@@ -79,7 +79,7 @@ const dummyMods = {
   ]
 };
 
-export async function createDummyMods(): Promise<Partial<FicsitAppMod>[]> {
+export async function createDummyMods(): Promise<Array<{mod_reference: string, version: string}>> {
   await Object.entries(dummyMods).forEachAsync(async ([mod_reference, versions]) => {
     await versions.forEachAsync(async (version) => 
       new Promise((resolve) => {
@@ -96,25 +96,7 @@ export async function createDummyMods(): Promise<Partial<FicsitAppMod>[]> {
       })
     );
   });
-  const dummyFicsitAppMods = [];
-  Object.entries(dummyMods).forEach(([mod_reference, versions]) => {
-    const ficsitAppMod: Partial<FicsitAppMod> = {
-      id: mod_reference,
-      mod_reference: mod_reference,
-      versions: [],
-    };
-    dummyFicsitAppMods.push(ficsitAppMod);
-    versions.forEach((version) => {
-      ficsitAppMod.versions.push({
-        mod_id: mod_reference,
-        version: version.SemVersion,
-        link: path.join(modCacheDir, `${mod_reference}_${version.SemVersion}.smod`),
-        dependencies: version.Plugins.map((dep) => ({ mod_id: dep.Name, condition: dep.SemVersion, optional: false })),
-        hash: hashFile(path.join(modCacheDir, `${mod_reference}_${version.SemVersion}.smod`)),
-      });
-    });
-  });
-  return dummyFicsitAppMods;
+  return Object.entries(dummyMods).map(([mod_reference, versions]) => versions.map((ver) => ({mod_reference, version: ver.SemVersion}))).flat(1);
 }
 
 export function removeDummyMods() {

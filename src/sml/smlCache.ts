@@ -5,7 +5,7 @@ import {
   downloadFile, isValidZip,
 } from '../utils';
 import { ModNotFoundError } from '../errors';
-import { getSMLVersionInfo } from '../ficsitApp';
+import { getSMLVersionInfo } from '../dataProviders/ficsitApp';
 import { debug, info } from '../logging';
 import { downloadCacheDir, ensureExists } from '../paths';
 import { SMLZipFileName } from './sml';
@@ -22,6 +22,10 @@ async function downloadSML(version: string): Promise<void> {
   const smlZipCacheFile = path.join(smlVersionCacheDir, SMLZipFileName);
   const smlZipDownloadLink = `${smlReleaseURL.replace('/tag/', '/download/')}/SML.zip`;
   await downloadFile(smlZipDownloadLink, smlZipCacheFile, 'SML', version);
+}
+
+export async function getCachedSMLVersions(): Promise<Array<string>> {
+  return fs.readdirSync(smlCacheDir);
 }
 
 export async function getSMLVersionCache(version: string): Promise<string> {

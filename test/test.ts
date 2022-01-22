@@ -6,8 +6,7 @@ import 'should';
 import { clearCache, clearOutdatedCache, getInstalls, getProfileFolderPath, InvalidProfileError, loadCache, ModNotFoundError, ModRemovedByAuthor, SatisfactoryInstall, ValidationError } from "../src";
 import should from 'should';
 import { createDummyMods, removeDummyMods } from './dummyMods';
-import { addTempMod, FicsitAppMod, removeTempMod, removeTempModVersion, setUseTempMods } from '../src/ficsitApp';
-import { getCachedModPath } from '../src/mods/modCache';
+import { addModToCache, getCachedModPath, removeModFromCache } from '../src/mods/modCache';
 
 const dummySfName = 'DummySF';
 const dummySfVersion = '155370';
@@ -111,25 +110,14 @@ describe('live mods', function() {
   });
 });
 
-describe('dummy mods', function() {
+describe('offline dummy mods', function() {
   this.timeout('10s');
 
-  let dummyFicsitAppMods: FicsitAppMod[] = [];
+  let dummyModVersions: { mod_reference: string, version: string }[] = [];
 
-  before(async function() {
-    setUseTempMods(true);
-    dummyFicsitAppMods = await createDummyMods();
+  beforeEach(async function () {
+    dummyModVersions = await createDummyMods();
     await loadCache();
-  });
-  beforeEach(() => {
-    dummyFicsitAppMods.forEach((mod) => {
-      addTempMod(mod);
-    });
-  });
-  afterEach(() => {    
-    dummyFicsitAppMods.forEach((mod) => {
-      removeTempMod(mod.mod_reference);
-    });
   });
 
   const sfInstall = new SatisfactoryInstall(dummySfName, dummySfVersion, 'Early Access', dummySfPath, dummySfExecutable);
@@ -158,7 +146,7 @@ describe('dummy mods', function() {
 
   it('should uninstall removed version', async function() {
     await sfInstall.installMod('dummyMod3');
-    removeTempModVersion('dummyMod3', '2.1.0');
+    await removeModFromCache('dummyMod3', '2.1.0');
     await sfInstall.manifestMutate([], [], [], [], []);
     const installedMods = await sfInstall._getInstalledMods();
     installedMods.length.should.equal(1, `Expected ${installedMods.map((mod) => `${mod.mod_reference}@${mod.version}`)} to contain 1 mod`);
@@ -168,8 +156,8 @@ describe('dummy mods', function() {
   it('should throw error when all compatible versions are removed, and allow removal', async function() {
     await sfInstall.installMod('dummyMod2');
     await sfInstall.installMod('dummyMod3');
-    removeTempModVersion('dummyMod3', '2.1.0');
-    removeTempModVersion('dummyMod3', '2.0.0');
+    await removeModFromCache('dummyMod3', '2.1.0');
+    await removeModFromCache('dummyMod3', '2.0.0');
     await should(sfInstall.manifestMutate([], [], [], [], [])).rejectedWith(ModRemovedByAuthor);
     await sfInstall.manifestMutate([], ['dummyMod3'], [], [], []);
     const installedMods = await sfInstall._getInstalledMods();
@@ -177,17 +165,18 @@ describe('dummy mods', function() {
   });
 
   it('should clear outdated cache', async function() {
+    dummyModVersions.forEach((mod) => {
+      const filePath = getCachedModPath(mod.mod_reference, mod.version);
+      fs.utimesSync(filePath, new Date(2000, 1, 1), new Date(2000, 1, 1));
+    });
     clearOutdatedCache();
-    should(dummyFicsitAppMods.some((mod) => {
-      return mod.versions.some((version) => {
-        const filePath = getCachedModPath(mod.mod_reference, version.version);
-        return fs.existsSync(filePath);
-      });
+    should(dummyModVersions.some((mod) => {
+      const filePath = getCachedModPath(mod.mod_reference, mod.version);
+      return fs.existsSync(filePath);
     })).equal(false, 'Some outdated cache was not removed.');
   });
 
   after(function () {
     removeDummyMods();
-    setUseTempMods(false);
   });
 });
