@@ -3,10 +3,39 @@ import path from 'path';
 import fs from 'fs';
 import { describe, before, beforeEach } from "mocha";
 import 'should';
-import { clearCache, clearOutdatedCache, getInstalls, getProfileFolderPath, InvalidProfileError, loadCache, ModNotFoundError, ModRemovedByAuthor, SatisfactoryInstall, ValidationError } from "../src";
+import { addLogger, clearCache, clearOutdatedCache, getInstalls, getProfileFolderPath, InvalidProfileError, loadCache, LogLevel, ModNotFoundError, ModRemovedByAuthor, SatisfactoryInstall, ValidationError } from "../src";
 import should from 'should';
 import { createDummyMods, removeDummyMods } from './dummyMods';
 import { addModToCache, getCachedModPath, removeModFromCache } from '../src/mods/modCache';
+
+if(process.env.NODE_DEBUG?.includes('SMManagerAPI')) {
+  class ConsoleLogger {
+    constructor(minLevel?: LogLevel) {
+      this.minLevel = minLevel || LogLevel.INFO;
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    write(level: LogLevel, message: string): void {
+      switch (level) {
+        case LogLevel.DEBUG:
+          console.log(message);
+          break;
+        case LogLevel.WARN:
+          console.warn(message);
+          break;
+        case LogLevel.ERROR:
+          console.error(message);
+          break;
+        case LogLevel.INFO:
+        default:
+          console.info(message);
+          break;
+      }
+    }
+  }
+  addLogger(new ConsoleLogger());
+}
+
 
 const dummySfName = 'DummySF';
 const dummySfVersion = '155370';

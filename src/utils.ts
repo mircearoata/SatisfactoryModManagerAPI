@@ -12,7 +12,7 @@ import StreamZip from 'node-stream-zip';
 // @ts-ignore
 import * as win_ca from 'win-ca/api';
 import {
-  setLogDebug, debug,
+  debug,
 } from './logging';
 import { NetworkError } from './errors';
 import {
@@ -35,23 +35,6 @@ export const SMLID = 'SML';
 export const BootstrapperID = 'bootstrapper';
 export const minSMLVersion = '2.0.0';
 export const MOD_EXTENSIONS = ['.smod'];
-
-let isDebugMode = process.env.NODE_DEBUG?.includes('SMManagerAPI') || false;
-
-setLogDebug(isDebugMode);
-
-export function isDebug(): boolean {
-  return isDebugMode;
-}
-
-export function setDebug(shouldDebug: boolean): void {
-  isDebugMode = shouldDebug;
-  setLogDebug(shouldDebug);
-}
-
-export function toggleDebug(): void {
-  setDebug(!isDebugMode);
-}
 
 export function dirs(p: string): Array<string> {
   if (fs.existsSync(p)) {

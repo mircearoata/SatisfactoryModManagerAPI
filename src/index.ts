@@ -37,10 +37,9 @@ export {
 export { } from './manifest';
 export * from './errors';
 export {
-  getLogFilePath, debug, info, warn, error,
+  addLogger, removeLogger, LogLevel,
 } from './logging';
 export {
-  setDebug, toggleDebug, isDebug,
   setTimeoutEnabled,
   addDownloadProgressCallback,
   validAndGreater,
