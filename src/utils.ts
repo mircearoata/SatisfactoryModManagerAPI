@@ -12,7 +12,7 @@ import StreamZip from 'node-stream-zip';
 // @ts-ignore
 import * as win_ca from 'win-ca/api';
 import {
-  debug,
+  debug, warn,
 } from './logging';
 import { NetworkError } from './errors';
 import {
@@ -243,9 +243,14 @@ export function mergeArrays<T>(...arrays: Array<Array<T>>): Array<T> {
   return uniqueArray;
 }
 
+let defaultRunningMethodTimeout = false;
+
 export async function isRunning(command: string, strict = false): Promise<boolean> {
   try {
     // manual is now main to handle ghost instances
+    if (defaultRunningMethodTimeout) {
+      throw new Error('Previous runs of isRunning timed out, using fallback method.');
+    }
     let cmd = '';
     switch (process.platform) {
       case 'win32': cmd = `wmic process where (caption="${command}" and handlecount!="0") get commandline`; break;
@@ -253,9 +258,15 @@ export async function isRunning(command: string, strict = false): Promise<boolea
       case 'linux': cmd = `ps -A | grep ${command}`; break;
       default: break;
     }
-    const runningInstances = execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    const runningInstances = execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 500 });
     return runningInstances.toLowerCase().indexOf(command.toLowerCase()) > -1;
   } catch (e) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((e as any).code === 'ETIMEDOUT') {
+      defaultRunningMethodTimeout = true;
+      warn('isRunning timed out, using fallback method.');
+    }
+
     // fallback to psList
     let runningInstances = [];
     if (process.platform === 'win32' || strict) {
