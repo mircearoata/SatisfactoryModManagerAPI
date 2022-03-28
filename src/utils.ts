@@ -95,6 +95,7 @@ export function addDownloadProgressCallback(cb: ProgressCallback): void {
 
 export async function downloadFile(url: string, file: string, name: string, version: string): Promise<void> {
   let interval: NodeJS.Timeout | undefined;
+  let fileWriteStream: fs.WriteStream | undefined;
   try {
     ensureExists(path.dirname(file));
     const startTime = Date.now();
@@ -119,13 +120,21 @@ export async function downloadFile(url: string, file: string, name: string, vers
         req.destroy();
       }
     }, 100);
-    await pipeline(req, fs.createWriteStream(file));
+    fileWriteStream = fs.createWriteStream(file);
+    await pipeline(req, fileWriteStream);
     clearInterval(interval);
     return;
   } catch (e) {
     if (interval) {
       clearInterval(interval);
     }
+    await new Promise((resolve) => {
+      if (!fileWriteStream) {
+        resolve();
+        return;
+      }
+      fileWriteStream.close(() => resolve());
+    });
     if (fs.existsSync(file)) {
       fs.unlinkSync(file);
     }
