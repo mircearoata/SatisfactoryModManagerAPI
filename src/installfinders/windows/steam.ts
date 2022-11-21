@@ -9,21 +9,17 @@ import {
 } from '../../logging';
 import { InstallFindResult } from '../baseInstallFinder';
 
+interface LibraryFolders {
+  TimeNextStatsReport: string;
+  ContentStatsID: string;
+  [idx: number]: string | {
+    path: string;
+  };
+}
+
 interface SteamLibraryFoldersManifest {
-  LibraryFolders?: {
-    TimeNextStatsReport: string;
-    ContentStatsID: string;
-    [idx: number]: string | {
-      path: string;
-    };
-  };
-  libraryfolders?: {
-    TimeNextStatsReport: string;
-    ContentStatsID: string;
-    [idx: number]: string | {
-      path: string;
-    };
-  };
+  LibraryFolders?: LibraryFolders;
+  libraryfolders?: LibraryFolders;
 }
 
 interface SteamManifest {
@@ -32,6 +28,7 @@ interface SteamManifest {
     installdir: string;
     UserConfig: {
       betakey?: string;
+      BetaKey?: string;
     };
   };
 }
@@ -112,10 +109,11 @@ export async function getInstalls(): Promise<InstallFindResult> {
         }
         const versionFile = JSON.parse(fs.readFileSync(versionFilePath, 'utf8')) as VersionFile;
         const gameVersion = versionFile.BuildId;
+        const betaKey = manifest.AppState.UserConfig.betakey || manifest.AppState.UserConfig.BetaKey;
         installs.push(new SatisfactoryInstall(
-          `${manifest.AppState.name} ${manifest.AppState.UserConfig.betakey?.toLowerCase() === 'experimental' ? 'Experimental' : 'Early Access'} (Steam)`,
+          `${manifest.AppState.name} ${betaKey?.toLowerCase() === 'experimental' ? 'Experimental' : 'Early Access'} (Steam)`,
           gameVersion,
-          manifest.AppState.UserConfig.betakey || 'EA',
+          betaKey || 'EA',
           fullInstallPath,
           'start "" "steam://rungameid/526870"',
         ));
