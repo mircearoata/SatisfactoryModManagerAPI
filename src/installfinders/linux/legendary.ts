@@ -36,12 +36,21 @@ interface LegendaryConfig {
 }
 
 const LEGENDARY_DATA_PATH = `${process.env.HOME}/.config/legendary/installed.json`;
+const HEROIC_LEGENDARY_DATA_PATH = `${process.env.HOME}/.config/heroic/legendaryConfig/legendary/installed.json`;
 
 export function getInstalls(): InstallFindResult {
   const installs: Array<SatisfactoryInstall> = [];
   const invalidInstalls: Array<string> = [];
-  if (fs.existsSync(LEGENDARY_DATA_PATH)) {
-    const legendaryInstalls = JSON.parse(fs.readFileSync(LEGENDARY_DATA_PATH, 'utf8')) as LegendaryData;
+  let DATA_PATH = '';
+
+  if (fs.existsSync(HEROIC_LEGENDARY_DATA_PATH)) {
+    DATA_PATH = HEROIC_LEGENDARY_DATA_PATH;
+  } else if (fs.existsSync(LEGENDARY_DATA_PATH)) {
+    DATA_PATH = LEGENDARY_DATA_PATH;
+  }
+
+  if (DATA_PATH !== '') {
+    const legendaryInstalls = JSON.parse(fs.readFileSync(DATA_PATH, 'utf8')) as LegendaryData;
     Object.values(legendaryInstalls).forEach((legendaryGame) => {
       if (legendaryGame.app_name.includes('Crab')) {
         let canLaunch = false;
